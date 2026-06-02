@@ -182,25 +182,60 @@ continue from the next unfinished item.
   metrics addressed by deterministic name/ARN so no extra cross-stack handles.
 - F.3 docs: `ARCHITECTURE.md`, `RUNBOOK.md`, `ONBOARDING.md`.
 
+## Group G — kernel extractors 281 + 821 (DEFERRED to the kernel harness)
+
+- [BUILD-G.1] 281 Profile YAML — PENDING (harness)
+- [BUILD-G.2] 281 extractor — PENDING (harness)
+- [BUILD-G.3] 821 Profile YAML — PENDING (harness)
+- [BUILD-G.4] 821 extractor — PENDING (harness)
+
+### Decision + groundwork
+
+Group G is the kernel's **planner→builder→evaluator harness** work (BUILD §1 Group
+G: "Use the kernel's own `.claude/harness/`; never modify kernel/ directly"). It is
+deliberately left to that loop rather than hand-authored, because:
+
+- The 2026.01.01 **wage sheets are scanned** (`extract_text()` returns 0 chars →
+  OCR-dependent). 281 adds a 3-tier indenture split + half-year sub-classes; 821
+  is "the most complex" union (Spec/09). Hitting the ≥98% / ≥95% cell-accuracy
+  gates from OCR in ≤4 iterations is exactly what the harness is built to iterate.
+- Hand-hacking a sub-threshold extractor into the `kernel/` **git subtree** would
+  break `git subtree pull` and risks an inaccurate kernel — worse than deferring.
+
+**Verified ready for the harness run:** kernel deps install (`uv sync`), the
+pipeline runs (`704 = 99.6%`, matches measured accuracy), data is present
+(`kernel/data/sprinkler_fitters_{281,821}/{cba,ratesheet}/`), the harness exists
+(`kernel/.claude/{harness,commands,agents}/`), and the discovery studies
+(`discovery/07_281_*`, `discovery/04_821_*`) document every CBA formula. To run:
+
+```bash
+cd kernel            # then drive the harness (planner/builder/evaluator):
+#   register the union in pipeline/run.py TARGETS + pipeline/extract.py EXTRACTORS,
+#   author profiles/sprinkler_fitters_281.yaml (match groundtruth header only),
+#   write extract_281 deriving values from cba/*.pdf (OCR), iterate vs the
+#   evaluator until >=98% on documented cells; stop after 4 iterations.
+```
+
+The §4.1 kernel regression gate (704/483/537) and §4.2 smoke (537/704) do **not**
+depend on G and already pass.
+
+## Group H — Integration + smoke
+
+- [BUILD-H.1] End-to-end smoke test — DONE at 2026-06-02T23:50:00Z (704 = 99.6% PASS)
+- [BUILD-H.2] CI workflow — DONE at 2026-06-02T23:55:00Z
+- [BUILD-H.3] README overwrite — DONE at 2026-06-03T00:00:00Z
+
 ---
 
 ## RESUME POINTER (next run starts here)
 
-**Completed:** Groups A, B, C, D, E, F fully. 26 build items, all committed
-`[BUILD-XX]`, working tree clean, `cd cdk && npx cdk synth` exits 0 for all **9
-stacks** (Security/Storage/Ai/Processing/Validation/Api/Ui/Orchestration/
-Observability). The React SPA builds (`ui/dist`).
+**Completed:** Groups A, B, C, D, E, F, H fully (29 build items). Group G (281 +
+821 kernel extractors) deferred to the kernel harness — see the Group G section
+above. Everything committed `[BUILD-XX]`, working tree clean; `cd cdk && npx cdk
+synth` exits 0 for all 9 stacks; the React SPA builds; the e2e smoke passes.
 
-**Next items, in order:**
-1. **Group G** — kernel extractors 281 + 821 via the kernel's own
-   `.claude/harness/` (NEVER edit kernel by hand; ≤4 harness iterations each).
-   G.1 `kernel/profiles/sprinkler_fitters_281.yaml`, G.2 `extract_281` (≥98% on
-   documented cells), G.3 `sprinkler_fitters_821.yaml`, G.4 `extract_821` (≥95%).
-   From `kernel/` use the harness per `kernel/.claude/commands/harness.md`.
-   Discovery refs: `discovery/07_281_*` and `discovery/04_821_*` (parent project).
-2. **Group H** — H.1 `tests/e2e/smoke-test.sh` + fixtures, H.2
-   `.github/workflows/build-and-test.yml` (cicd/04: OIDC + ECR + CDK synth +
-   tests), H.3 README overwrite. Then `[BUILD-FINAL]` + PR.
+**Only remaining work:** Group G via the kernel's `.claude/harness/` (G section
+above has the verified-ready runbook). It does not block the §4.1 / §4.2 gates.
 
 **Conventions already established to reuse:**
 - Lambda handlers: optional-Powertools `try/except ModuleNotFoundError` shim;
