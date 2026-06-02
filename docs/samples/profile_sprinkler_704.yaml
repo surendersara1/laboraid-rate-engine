@@ -1,0 +1,341 @@
+# Union Rule Profile — Sprinkler Local 704 (Detroit, MI)
+# Generated as a worked example for the Design docs.
+# Authoritative as of 2026-01-01 rate notice; subject to updates as new notices arrive.
+
+profile_version: "1.0"
+profile_authored_at: "2026-05-04T17:00:00Z"
+profile_authored_by: "system+human:onboarding-1"
+
+# ─────────────────────────────────────────────────────────────────────────
+# UNION IDENTITY
+# ─────────────────────────────────────────────────────────────────────────
+union:
+  local: 704
+  trade: Sprinkler
+  parent_international: UA              # United Association
+  jurisdiction:
+    state: Michigan
+    counties: [Wayne, Oakland, Macomb, Washtenaw]
+  contract_term:
+    start: 2022-08-01
+    end: 2027-07-31
+  contractor_associations: [NFSA]       # National Fire Sprinkler Association
+
+# ─────────────────────────────────────────────────────────────────────────
+# ZONES — 704 has only one zone
+# ─────────────────────────────────────────────────────────────────────────
+zones:
+  - name: Building
+    anchor_label_in_notice: "Journeyman"
+    is_default: true
+
+# ─────────────────────────────────────────────────────────────────────────
+# PACKAGES — 13 rows per period
+# ─────────────────────────────────────────────────────────────────────────
+packages:
+  - name: General Foreman
+    zones: [Building]
+    wage_formula: "package:Foreman + 2.00"
+    cba_citation: "Article 6 §15"
+    applies_when: "job has 18+ sprinkler fitters"
+    notes: "Position established Jan 1, 2023"
+
+  - name: Foreman
+    zones: [Building]
+    # Multi-year escalating premium — DSL handles via case() expression
+    wage_formula: |
+      anchor:zone:Building + case(
+        when(effective_date >= "2024-08-01", 4.50),
+        when(effective_date >= "2023-08-01", 4.25),
+        when(effective_date >= "2022-08-01", 4.00),
+        else: error("foreman premium not defined")
+      )
+    cba_citation: "Article 6 §14"
+
+  - name: Journeyman
+    zones: [Building]
+    wage_formula: "anchor:zone:Building"   # Direct from Notice
+    cba_citation: "Article 6 §11"
+
+  # Apprentice classes 10-1 (10 classes, 85% → 40%)
+  - name: Apprentice Class 10
+    zones: [Building]
+    wage_formula: "anchor:zone:Building * 0.85"
+    apprentice_class: 10
+  - name: Apprentice Class 9
+    zones: [Building]
+    wage_formula: "anchor:zone:Building * 0.80"
+    apprentice_class: 9
+  - name: Apprentice Class 8
+    zones: [Building]
+    wage_formula: "anchor:zone:Building * 0.75"
+    apprentice_class: 8
+  - name: Apprentice Class 7
+    zones: [Building]
+    wage_formula: "anchor:zone:Building * 0.70"
+    apprentice_class: 7
+  - name: Apprentice Class 6
+    zones: [Building]
+    wage_formula: "anchor:zone:Building * 0.65"
+    apprentice_class: 6
+  - name: Apprentice Class 5
+    zones: [Building]
+    wage_formula: "anchor:zone:Building * 0.60"
+    apprentice_class: 5
+  - name: Apprentice Class 4
+    zones: [Building]
+    wage_formula: "anchor:zone:Building * 0.55"
+    apprentice_class: 4
+  - name: Apprentice Class 3
+    zones: [Building]
+    wage_formula: "anchor:zone:Building * 0.50"
+    apprentice_class: 3
+  - name: Apprentice Class 2
+    zones: [Building]
+    wage_formula: "anchor:zone:Building * 0.45"
+    apprentice_class: 2
+  - name: Apprentice Class 1
+    zones: [Building]
+    wage_formula: "anchor:zone:Building * 0.40"
+    apprentice_class: 1
+
+# ─────────────────────────────────────────────────────────────────────────
+# APPRENTICE SCHEDULE
+# ─────────────────────────────────────────────────────────────────────────
+apprentice_schedule:
+  unit: class
+  count: 10
+  rounding: 0.01
+  pension_exclusion:
+    cutoff_unit: class
+    cutoff_value: 1                     # Class 1 only (first 6 months)
+    excluded_funds: [Pension, SIS]
+    rationale_in_cba: "Article 5 §10 — first 6 months no other fringes; rate sheet zeroes only Pension and SIS"
+  cba_citation: "Article 5 §10"
+
+# ─────────────────────────────────────────────────────────────────────────
+# OT / PREMIUM RULES
+# ─────────────────────────────────────────────────────────────────────────
+ot_rules:
+  - column: Wage Differential
+    formula: "package_wage * 1.15"
+    cba_citation: "Article 8 §27"
+    description: "Off-hours / 2nd-3rd shift premium"
+
+  - column: Wage 1.5x
+    formula: "package_wage * 1.5"
+    notice_correct_formula: "(package_wage - sum_deductions) * 1.5 + sum_deductions"
+    discrepancy_known: true
+    discrepancy_magnitude_jw: "$2.43/hr"
+    canonical_choice: rate_sheet_simple   # Per LaborAid policy (TBD with customer)
+    cba_citation: "Article 8 §30"
+
+  - column: Wage 2.0x
+    formula: "package_wage * 2.0"
+    notice_correct_formula: "(package_wage - sum_deductions) * 2.0 + sum_deductions"
+    discrepancy_known: true
+    canonical_choice: rate_sheet_simple
+    cba_citation: "Article 8 §30"
+
+# ─────────────────────────────────────────────────────────────────────────
+# FRINGE SCHEMA — fund columns
+# ─────────────────────────────────────────────────────────────────────────
+fringe_schema:
+  - name: Health & Welfare
+    type: dollars_per_hour
+    notice_label_aliases: ["H & W", "H&W", "Health & Welfare"]
+    derive_from_notice: "Health & Welfare - subcomponent:RESA"
+    apprentice_scaling: { type: constant }
+    cba_citation: "Article 18 §76"
+
+  - name: RESA
+    type: dollars_per_hour
+    notice_label_aliases: ["RESA"]
+    extracted_as: "subcomponent:Health & Welfare"
+    apprentice_scaling: { type: constant }
+    cba_citation: "Article 18 §76"
+
+  - name: Pension
+    type: dollars_per_hour
+    notice_label_aliases: ["Pension Fund", "Pension"]
+    apprentice_scaling: { type: constant_with_class1_zero }
+    cba_citation: "Article 19 §79"
+
+  - name: SIS
+    type: dollars_per_hour
+    notice_label_aliases:
+      - "SIS"
+      - "Sprinkler Fitters & Apprentices Local 704 Defined Contribution Pension Fund"
+      - "Local 704 Defined Contribution Pension Fund"
+    apprentice_scaling: { type: constant_with_class1_zero }
+    cba_citation: "Article 27 §103"
+
+  - name: UA International Training
+    type: dollars_per_hour
+    notice_label_aliases: ["I.T.F.", "I.T.F. International Training Fund", "UA ITF"]
+    apprentice_scaling: { type: constant }
+    cba_citation: "(not directly cited; see notice)"
+
+  - name: Apprenticeship Training
+    type: dollars_per_hour
+    notice_label_aliases:
+      - "Apprentice Education Fund"
+      - "NASI Apprentice and Training Fund"
+    apprentice_scaling: { type: constant }
+    cba_citation: "Article 22 §85"
+
+  - name: S.U.B. 704
+    type: dollars_per_hour
+    notice_label_aliases: ["S.U.B. Fund", "Detroit S.U.B. Fund"]
+    apprentice_scaling: { type: constant }
+    cba_citation: "Article 23 §87"
+
+  - name: Industry Promotion National Use
+    type: dollars_per_hour
+    derive_from_cba: "Industry Promotion subcomponents: Contract Administration ($0.06) + National Programs ($0.14)"
+    apprentice_scaling: { type: constant }
+    cba_citation: "Article 24 §92"
+
+  - name: Industry Promotion Local Use
+    type: dollars_per_hour
+    derive_from_cba: "Industry Promotion subcomponent: Local Programs ($0.10)"
+    apprentice_scaling: { type: constant }
+    cba_citation: "Article 24 §92"
+
+# ─────────────────────────────────────────────────────────────────────────
+# DEDUCTION SCHEMA — variable per apprentice class
+# ─────────────────────────────────────────────────────────────────────────
+deduction_schema:
+  - name: S & E 704
+    type: dollars_per_hour
+    notice_label_aliases: ["S & E Fund", "S&E Fund"]
+    apprentice_scaling: { type: per_class_lookup_from_notice }
+    cba_citation: "Article 26 §98"
+    notes: "Each apprentice class has its own value provided in the per-class Notice page"
+
+  - name: Craft 704
+    type: dollars_per_hour
+    notice_label_aliases: ["Craft Fund", "Craft Protection Fund"]
+    apprentice_scaling: { type: per_class_lookup_from_notice }
+    cba_citation: "Article 26 §98"
+
+  - name: Union Dues 704
+    type: dollars_per_hour
+    notice_label_aliases: ["Union Assessment"]
+    apprentice_scaling: { type: per_class_lookup_from_notice }
+    cba_citation: "Article 26 §98"
+    notes: |
+      The Notice records a sub-component "T" inside Union Assessment (e.g., "T = $2.15").
+      Currently rolled into the single column. Confirm with customer if "T" should be its own column.
+
+  - name: Retiree Holiday 704
+    type: dollars_per_hour
+    notice_label_aliases: ["Retiree Holiday Fund"]
+    apprentice_scaling: { type: per_class_lookup_from_notice }
+    cba_citation: "Article 26 §98"
+
+# ─────────────────────────────────────────────────────────────────────────
+# RATE CHANGE CADENCE — twice yearly
+# ─────────────────────────────────────────────────────────────────────────
+rate_change_cadence:
+  - month: 1
+    day: 1
+    type: uniformity_adjustment
+    description: "NASI Welfare/Pension align with Trust Board; offset from wages (zero-sum to total)"
+    cba_citation: "Article 20 §81"
+  - month: 8
+    day: 1
+    type: annual_increase
+    description: "$2.60/hour annual economic package increase"
+    cba_citation: "Article 6 §12"
+
+# ─────────────────────────────────────────────────────────────────────────
+# OUTPUT SCHEMA — what the rate sheet looks like
+# ─────────────────────────────────────────────────────────────────────────
+output_schema:
+  layout: multi_sheet_workbook
+  filename_pattern: "{contract_term_start_year}-{contract_term_end_year}.{local} Rate Sheet.xlsx"
+  sheet_naming: end_date
+  sheet_name_format: "{end_date_yyyy_mm_dd}"
+  csv_mirror: true
+  csv_filename_pattern: "{period_start_yyyy_mm_dd}.{local} Rate Sheet.csv"
+  articles_output: inline_sheet
+  articles_sheet_name: "Articles"
+  fund_addresses_sheet: true
+  column_set_version: "2026.01"
+
+  columns:
+    - { header: "Union Group",                     field: "union.parent_international" }
+    - { header: "Trade",                            field: "union.trade" }
+    - { header: "Union Local",                      field: "union.local" }
+    - { header: "Zone",                             field: "row.zone" }
+    - { header: "Package",                          field: "row.package" }
+    - { header: "Start Date",                       field: "row.start_date" }
+    - { header: "End Date",                         field: "row.end_date" }
+    - { header: "Wage",                             field: "row.wage" }
+    - { header: "Wage Differential",                field: "row.ot_rates.Wage Differential" }
+    - { header: "Wage 1.5x",                        field: "row.ot_rates.Wage 1.5x" }
+    - { header: "Wage 2.0x",                        field: "row.ot_rates.Wage 2.0x" }
+    - { header: "Health & Welfare",                 field: "row.fringes.Health & Welfare" }
+    - { header: "RESA",                             field: "row.fringes.RESA" }
+    - { header: "Pension",                          field: "row.fringes.Pension" }
+    - { header: "SIS",                              field: "row.fringes.SIS" }
+    - { header: "UA International Training",        field: "row.fringes.UA International Training" }
+    - { header: "Apprenticeship Training",          field: "row.fringes.Apprenticeship Training" }
+    - { header: "S.U.B. 704",                       field: "row.fringes.S.U.B. 704" }
+    - { header: "Industry Promotion National Use",  field: "row.fringes.Industry Promotion National Use" }
+    - { header: "Industry Promotion Local Use",     field: "row.fringes.Industry Promotion Local Use" }
+    - { header: "S & E 704",                        field: "row.deductions.S & E 704" }
+    - { header: "Craft 704",                        field: "row.deductions.Craft 704" }
+    - { header: "Union Dues 704",                   field: "row.deductions.Union Dues 704" }
+    - { header: "Retiree Holiday 704",              field: "row.deductions.Retiree Holiday 704" }
+
+# ─────────────────────────────────────────────────────────────────────────
+# PROVENANCE
+# ─────────────────────────────────────────────────────────────────────────
+provenance:
+  enable_per_cell: true
+  cell_comment_format: "{source_type}: {citation} (confidence={confidence})"
+  articles_summary_columns: [Funds, Articles]
+
+# ─────────────────────────────────────────────────────────────────────────
+# QUALITY VALIDATION
+# ─────────────────────────────────────────────────────────────────────────
+quality_validation:
+  total_package_must_match: true
+  total_package_tolerance: 0.05
+  cross_check_apprentice_pct: true
+  flag_wage_decreases_unless_uniformity: true
+  yoy_delta_warning_threshold:
+    wage: 0.20
+    fringes: 0.50
+
+# ─────────────────────────────────────────────────────────────────────────
+# OCR / EXTRACTION QUALITY THRESHOLDS
+# ─────────────────────────────────────────────────────────────────────────
+ocr_quality:
+  min_confidence_for_auto_publish: 0.95
+  min_confidence_for_human_review: 0.70
+
+ai_extraction_fallback:
+  enable: true
+  preferred_model: anthropic.claude-sonnet-4-6-v1:0
+  prefer_textract_for_tables: false   # Tesseract first; Textract fallback if needed
+
+# ─────────────────────────────────────────────────────────────────────────
+# CBA KNOWLEDGE BASE binding
+# ─────────────────────────────────────────────────────────────────────────
+cba_knowledge_base:
+  knowledge_base_id: "${KB_ID_FROM_DEPLOY}"
+  filter_metadata:
+    union_local: "704"
+    tenant: "laboraid"
+
+# ─────────────────────────────────────────────────────────────────────────
+# KNOWN OPEN ITEMS
+# ─────────────────────────────────────────────────────────────────────────
+open_items:
+  - "Q11: 'T' sub-component of Union Assessment (~half of value) — its own column?"
+  - "Q12: IP Fund admin $0.06 — keep rolled into National Use or split?"
+  - "Q1: OT formula gross×multiplier vs notice-correct (wage−deductions×multiplier+deductions)"
+  - "Q13: When mid-year notice has only JW page, are apprentice rates implied unchanged from prior?"

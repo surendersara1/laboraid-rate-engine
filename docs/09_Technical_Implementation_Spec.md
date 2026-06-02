@@ -1,6 +1,6 @@
 # Technical Implementation Specification — Build-Ready
 
-**Document:** 09 of `Design/` — this is the **executable spec** for an overnight CDK build
+**Document:** 09 of `docs/` — this is the **executable spec** for an overnight CDK build
 **Date:** 2026-06-02
 **Status:** 2-week POC build spec; matches the signed SOW architecture diagram (7 layers) + minimum-viable Strands+AgentCore commitment
 **Audience:** Engineers implementing the build
@@ -17,7 +17,7 @@
 - "AI agents" + "agentic workflows" output validation (Assumption J, Page 9)
 
 **The signed SOW does NOT require:**
-- 9-agent topology (that's `Design/07`'s aspirational design)
+- 9-agent topology (that's `docs/07`'s aspirational design)
 - AgentCore Memory / Gateway / Identity / Policy / Evaluations / Registry as separate sub-services
 - Bedrock Knowledge Base with S3 Vectors (ambiguous — "advanced RAG" is listed as out-of-scope; defer or confirm with customer)
 - Per-cell provenance with 6 source types + drilldown UI
@@ -26,7 +26,7 @@
 
 **This POC implementation: ONE Strands agent (`ExtractorAgent`) deployed on AgentCore Runtime, plus deterministic Lambdas for everything else.**
 
-This still satisfies the contractual "agentic AI feasibility" commitment while fitting a 2-week build. The full 9-agent topology in `Design/07` remains the architectural roadmap for v1.1+ — see §15 below for what's deferred.
+This still satisfies the contractual "agentic AI feasibility" commitment while fitting a 2-week build. The full 9-agent topology in `docs/07` remains the architectural roadmap for v1.1+ — see §15 below for what's deferred.
 
 Where this doc previously listed 9 agents (Layer 5), it has been scoped down. Other layers are largely unchanged (storage, API, UI, validation are mostly Lambda-based work).
 
@@ -42,18 +42,18 @@ See [`Ashwani_Repo_Assessment.md`](../Ashwani_Repo_Assessment.md) for the full a
 
 | Tech-spec component | Kernel file/module | Status | What we still do |
 |---|---|---|---|
-| **Canonical schema** (Design/04 §2) | `kernel/canonical/model.py` (`RateCell`, `ClassificationRow`, `r2()`) | ✅ **Done** | Validate against our wider `Design/04` schema; minor extensions if needed |
+| **Canonical schema** (docs/04 §2) | `kernel/canonical/model.py` (`RateCell`, `ClassificationRow`, `r2()`) | ✅ **Done** | Validate against our wider `docs/04` schema; minor extensions if needed |
 | **Field dictionary** (label aliases) | `kernel/canonical/fields.yaml` | ✅ **Done** (50+ mappings across 5 unions) | Add 281- and 821-specific aliases as we build their extractors |
-| **Per-union Profile YAMLs** (Design/04 §4) | `kernel/profiles/{537,483,704}.yaml` | ✅ **Done for 3 of 5** | Author profiles for `sprinkler_fitters_281` and `sprinkler_fitters_821` |
-| **PDF ingestion** (Design/02 Stage 2, L4) | `kernel/pipeline/ingest.py` | ✅ **Done** (pdfplumber-based + text/image detection) | Wrap as a Lambda or invoke directly from the agent container |
-| **OCR pipeline** (Design/02 Path B, L4) | `kernel/pipeline/ocr.py` (rapidocr-onnxruntime + pypdfium2) | ✅ **Done** (self-contained, no system deps, no API key) | Decide whether to keep rapidocr or also wire AWS Textract as a fallback |
-| **Per-union extractors** (Design/02 Path A, L4) | `kernel/pipeline/extract.py` — `EXTRACTORS[union]` mapping | ✅ **Done for 537, 483, 704** | Add `extract_281` and `extract_821` |
+| **Per-union Profile YAMLs** (docs/04 §4) | `kernel/profiles/{537,483,704}.yaml` | ✅ **Done for 3 of 5** | Author profiles for `sprinkler_fitters_281` and `sprinkler_fitters_821` |
+| **PDF ingestion** (docs/02 Stage 2, L4) | `kernel/pipeline/ingest.py` | ✅ **Done** (pdfplumber-based + text/image detection) | Wrap as a Lambda or invoke directly from the agent container |
+| **OCR pipeline** (docs/02 Path B, L4) | `kernel/pipeline/ocr.py` (rapidocr-onnxruntime + pypdfium2) | ✅ **Done** (self-contained, no system deps, no API key) | Decide whether to keep rapidocr or also wire AWS Textract as a fallback |
+| **Per-union extractors** (docs/02 Path A, L4) | `kernel/pipeline/extract.py` — `EXTRACTORS[union]` mapping | ✅ **Done for 537, 483, 704** | Add `extract_281` and `extract_821` |
 | **Reference extractor for 483** | `kernel/extract/build_483.py` | ✅ **Done** (the proven kernel; reused by `pipeline/extract.py`) | Keep as regression guard |
-| **Derived-column compute** (Design/04 §6 — multipliers, splits) | `kernel/pipeline/compute.py` (`resolve_row()`) | ✅ **Done** with half-up rounding via `r2()` | Validate against our DSL examples; extend if needed (e.g., 483 escalating Foreman premium needs date-keyed conditional) |
-| **Pivot → ratesheet CSV** (Design/02 Stage 6, L7) | `kernel/pipeline/pivot.py` | ✅ **Done** (writes CSV matching groundtruth header) | Add an **xlsx renderer** for the 537 use case (kernel currently produces CSV only) |
-| **Per-cell provenance** (Design/05) | `kernel/canonical/model.py` `RateCell.source_doc` + `source_locator` + `confidence` | ✅ **Done** (basic shape; 3 source types: `notice`, `cba`, `derived`) | Surface in admin UI side panel; extend to 6 source types if needed |
-| **Groundtruth evaluator** (Design/02 Stage 5 — used post-hoc) | `kernel/pipeline/evaluate.py` | ✅ **Done** (cell accuracy ±0.01, header diff, per-zone breakdown) | Use as CI regression test; **separately build a pre-publish validator** (checksum + range; no groundtruth needed at runtime) |
-| **Gaps reporting** (Design/05 — never-fabricate rule) | Kernel writes `data/<union>/ai_output/<union>.gaps.md` | ✅ **Done** | Surface in admin UI as a "Review needed" panel |
+| **Derived-column compute** (docs/04 §6 — multipliers, splits) | `kernel/pipeline/compute.py` (`resolve_row()`) | ✅ **Done** with half-up rounding via `r2()` | Validate against our DSL examples; extend if needed (e.g., 483 escalating Foreman premium needs date-keyed conditional) |
+| **Pivot → ratesheet CSV** (docs/02 Stage 6, L7) | `kernel/pipeline/pivot.py` | ✅ **Done** (writes CSV matching groundtruth header) | Add an **xlsx renderer** for the 537 use case (kernel currently produces CSV only) |
+| **Per-cell provenance** (docs/05) | `kernel/canonical/model.py` `RateCell.source_doc` + `source_locator` + `confidence` | ✅ **Done** (basic shape; 3 source types: `notice`, `cba`, `derived`) | Surface in admin UI side panel; extend to 6 source types if needed |
+| **Groundtruth evaluator** (docs/02 Stage 5 — used post-hoc) | `kernel/pipeline/evaluate.py` | ✅ **Done** (cell accuracy ±0.01, header diff, per-zone breakdown) | Use as CI regression test; **separately build a pre-publish validator** (checksum + range; no groundtruth needed at runtime) |
+| **Gaps reporting** (docs/05 — never-fabricate rule) | Kernel writes `data/<union>/ai_output/<union>.gaps.md` | ✅ **Done** | Surface in admin UI as a "Review needed" panel |
 | **Build harness** (planner/builder/evaluator for iterative refinement) | `kernel/.claude/` | ✅ **Done** | Reuse for authoring 281 + 821 extractors |
 | **CLI runner** | `kernel/pipeline/run.py` | ✅ **Done** | Wrap in Strands agent tool calls; keep CLI for local dev |
 
@@ -61,32 +61,32 @@ See [`Ashwani_Repo_Assessment.md`](../Ashwani_Repo_Assessment.md) for the full a
 
 | Layer | Component | Status |
 |---|---|---|
-| L1 — UI | React admin SPA + Cognito + CloudFront | 🟡 **All new** (per `Design/09 §4 L1`) |
-| L2 — API | API Gateway + 10 Lambdas (upload, status, list, get, publish, override) | 🟡 **All new** (per `Design/09 §4 L2`) |
-| L3 — Storage/orch | S3 buckets, DynamoDB tables, Aurora cluster, Step Functions, EventBridge | 🟡 **All new** (per `Design/09 §4 L3`) |
+| L1 — UI | React admin SPA + Cognito + CloudFront | 🟡 **All new** (per `docs/09 §4 L1`) |
+| L2 — API | API Gateway + 10 Lambdas (upload, status, list, get, publish, override) | 🟡 **All new** (per `docs/09 §4 L2`) |
+| L3 — Storage/orch | S3 buckets, DynamoDB tables, Aurora cluster, Step Functions, EventBridge | 🟡 **All new** (per `docs/09 §4 L3`) |
 | L4 — Processing | Classifier Lambda + Lambda/Fargate hosts for the kernel | 🟡 **Wraps kernel** — kernel is the library, AWS is the host |
 | L5 — AI | Strands `ExtractorAgent` on AgentCore Runtime | 🟡 **Wraps kernel** — agent's `@tool`s call `kernel/pipeline/extract.EXTRACTORS[union]` |
-| L5 — AI fallback | Bedrock Claude multi-modal extraction (when kernel + OCR confidence drops) | 🟡 **New** (per `Design/09 §4 L5`) — kernel has no Bedrock dependency |
+| L5 — AI fallback | Bedrock Claude multi-modal extraction (when kernel + OCR confidence drops) | 🟡 **New** (per `docs/09 §4 L5`) — kernel has no Bedrock dependency |
 | L6 — Validation | Pre-publish checksum + range Lambdas (run without groundtruth) | 🟡 **New** — kernel's `evaluate.py` is post-hoc CI use only |
 | L6 — Failure routing | SNS topics, EventBridge rules, review queue | 🟡 **All new** |
 | L7 — Output | xlsx renderer, Aurora writes, API for LaborAid Calculator | 🟡 **xlsx new; CSV reuses kernel; Aurora new** |
 | Missing extractors | `sprinkler_fitters_281` + `sprinkler_fitters_821` profiles + extractor code | 🟡 **New** — but follow the kernel's pattern (3-4 days using `.claude/harness`) |
-| Tag-everything CDK | Per `Design/09 §1-2` naming + tagging strategy | 🟡 **All new** |
+| Tag-everything CDK | Per `docs/09 §1-2` naming + tagging strategy | 🟡 **All new** |
 
 ### Architectural agreement check (kernel vs our Design folder)
 
-Ashwani independently arrived at the same conclusions our `Design/` proposed. Read this as **independent confirmation that our discovery was sound**:
+Ashwani independently arrived at the same conclusions our `docs/` proposed. Read this as **independent confirmation that our discovery was sound**:
 
 | Our design says | Kernel does | Match |
 |---|---|---|
-| Per-union YAML Profile (Design/04 §4) | `kernel/profiles/*.yaml` with `multiplier_of`/`factor` | ✅ Same idea (simpler grammar; sufficient for POC) |
-| Canonical intermediate model (Design/04 §5) | `RateCell` tidy/long + `ClassificationRow` wide | ✅ Same idea |
-| Per-cell provenance (Design/05) | `RateCell.source_doc` + `source_locator` + `confidence` | ✅ Simpler taxonomy (3 sources vs our 6) — same intent |
-| Half-up rounding (Design/04 §6) | `kernel/canonical/model.py:r2()` using `Decimal.ROUND_HALF_UP` | ✅ Identical |
-| Never fabricate; blank + flag gaps (Design/08) | `gaps.md` per union | ✅ Same philosophy |
-| Read-only on inputs, write-only to output dir (Design/05) | Enforced as a hard rule in kernel | ✅ Same |
-| Multi-path extraction (Design/02 §2) | pdfplumber → rapidocr-onnxruntime fallback | ✅ 2 paths (we add Bedrock Claude as Path C) |
-| Hand-authored extractors per union (Design/06) | Implemented for 537, 483, 704 | ✅ Confirmed approach works |
+| Per-union YAML Profile (docs/04 §4) | `kernel/profiles/*.yaml` with `multiplier_of`/`factor` | ✅ Same idea (simpler grammar; sufficient for POC) |
+| Canonical intermediate model (docs/04 §5) | `RateCell` tidy/long + `ClassificationRow` wide | ✅ Same idea |
+| Per-cell provenance (docs/05) | `RateCell.source_doc` + `source_locator` + `confidence` | ✅ Simpler taxonomy (3 sources vs our 6) — same intent |
+| Half-up rounding (docs/04 §6) | `kernel/canonical/model.py:r2()` using `Decimal.ROUND_HALF_UP` | ✅ Identical |
+| Never fabricate; blank + flag gaps (docs/08) | `gaps.md` per union | ✅ Same philosophy |
+| Read-only on inputs, write-only to output dir (docs/05) | Enforced as a hard rule in kernel | ✅ Same |
+| Multi-path extraction (docs/02 §2) | pdfplumber → rapidocr-onnxruntime fallback | ✅ 2 paths (we add Bedrock Claude as Path C) |
+| Hand-authored extractors per union (docs/06) | Implemented for 537, 483, 704 | ✅ Confirmed approach works |
 
 Where the kernel is simpler than our design: it doesn't have the formula DSL grammar, the 6-source provenance taxonomy, the 4-layer validation, or the Bedrock fallback. **All of those are POC-scope items per §15 — we extend the kernel where needed, leave it alone where it's already sufficient.**
 
@@ -507,7 +507,7 @@ fn = lambda_.Function(
 | Aurora reader (single) | `laboraid-{env}-l3-aurora-reader` | for `GET /rate-sheets/*` queries |
 | Secrets Manager secret | `laboraid-{env}-l3-secret-aurora` | DB master credentials, rotated monthly |
 
-Schema (per `Design/10`):
+Schema (per `docs/10`):
 
 ```sql
 CREATE TABLE unions (
@@ -684,7 +684,7 @@ inputs_bucket.add_event_notification(
 #### 4.2 Document classifier (Stage 1)
 
 **Input:** S3 key of uploaded file
-**Output:** `ClassificationResult` JSON (see `Design/04`)
+**Output:** `ClassificationResult` JSON (see `docs/04`)
 
 Logic:
 1. Try filename pattern match (deterministic regex)
@@ -784,7 +784,7 @@ For PDFs >5 MB or >1 page: use async Textract API (`StartDocumentAnalysis` + SNS
 
 > **🧱 From kernel:** The agent's `@tool`s are **thin wrappers around kernel functions**. The agent imports `kernel/pipeline/extract.py` (the `EXTRACTORS[union]` dict — function per union), `kernel/pipeline/compute.py` (derived-column compute), `kernel/pipeline/pivot.py` (canonical-rows → ratesheet CSV), and `kernel/canonical/model.py` (`RateCell`, `ClassificationRow`, `r2()` rounding). The "extraction reasoning" the agent does is choosing **which** extractor to call, **whether** OCR fallback ran successfully (kernel reports confidence per cell), and **whether** to escalate to Bedrock Claude multi-modal for cells the kernel couldn't read. The actual PDF-to-numbers work is the kernel's.
 
-> **POC scoping decision:** The signed SOW requires Strands + AgentCore and "agentic AI feasibility." It does NOT mandate the 9-agent topology in `Design/07`. To fit 2-week timeline, we implement ONE agent that genuinely demonstrates agentic reasoning (orchestrating the kernel's multi-path extraction, self-validating via steering, escalating to Bedrock when kernel confidence drops), with everything else as Lambdas. The full topology is the v1.1+ roadmap.
+> **POC scoping decision:** The signed SOW requires Strands + AgentCore and "agentic AI feasibility." It does NOT mandate the 9-agent topology in `docs/07`. To fit 2-week timeline, we implement ONE agent that genuinely demonstrates agentic reasoning (orchestrating the kernel's multi-path extraction, self-validating via steering, escalating to Bedrock when kernel confidence drops), with everything else as Lambdas. The full topology is the v1.1+ roadmap.
 
 #### 5.1 Assets (POC scope)
 
@@ -1190,7 +1190,7 @@ def handler(event, context):
     profile = json.loads(s3.get_object(...)['Body'].read())
 
     wb = openpyxl.Workbook()
-    # ... render per Profile output_schema (per Design/02 §6)
+    # ... render per Profile output_schema (per docs/02 §6)
 
     output_bytes = save_to_bytes(wb)
     s3.put_object(
@@ -1576,7 +1576,7 @@ Tasks that can run in parallel (separate engineers / overnight build):
 2. ~~704 Profile~~ → ✅ `kernel/profiles/sprinkler_fitters_704.yaml`
 3. ~~483 Profile~~ → ✅ `kernel/profiles/sprinkler_fitters_483.yaml`
 4. 821 Profile — **NEW** (use kernel's `.claude/harness` to author + iterate against groundtruth)
-5. 281 Profile — **NEW** (same; note 281 has the half-year sub-class issue from `Design/04`)
+5. 281 Profile — **NEW** (same; note 281 has the half-year sub-class issue from `docs/04`)
 
 **Track D-bis — Missing extractors (Python)** — NEW (2 extractors)
 1. `kernel/pipeline/extract.py` — add `extract_281` and `extract_821` functions following the pattern of `extract_483` and `extract_704`
@@ -1647,7 +1647,7 @@ The architecture covers all 6 Well-Architected pillars by design — not bolt-on
 
 ## 15. Explicitly deferred to v1.1+ (post-POC scope)
 
-These were in our broader design (`Design/01-08`) but are **NOT being built for the POC** to fit the 2-week timeline. Each is a candidate for a v1.1+ change order.
+These were in our broader design (`docs/01-08`) but are **NOT being built for the POC** to fit the 2-week timeline. Each is a candidate for a v1.1+ change order.
 
 > **Note on kernel-covered items:** A few items previously labeled "deferred" in earlier versions of this doc are actually **already implemented by the kernel** (PDF reading, OCR via rapidocr, per-union extraction for 3 of 5 unions, derived-column compute, half-up rounding, gaps reporting). Those are now in the "kernel reuse" matrix at the top of this doc — not "deferred." Items below remain genuinely deferred.
 

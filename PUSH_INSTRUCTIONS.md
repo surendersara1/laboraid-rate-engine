@@ -148,17 +148,17 @@ Suggest creating Bitbucket issue **#1** with the following content (this is the 
 >
 > **Description:**
 >
-> Per `../Design/09_Technical_Implementation_Spec.md`, the work on this branch (`feat/aws-strands-integration`) covers:
+> Per `docs/09_Technical_Implementation_Spec.md`, the work on this branch (`feat/aws-strands-integration`) covers:
 >
-> 1. Strands `ExtractorAgent` on AgentCore Runtime that wraps `kernel/pipeline/extract.EXTRACTORS[union]` as `@tool`s (Design/07 §2.3)
-> 2. CDK v2 (TypeScript) stacks for the 7-layer architecture (Design/09 §3-8)
+> 1. Strands `ExtractorAgent` on AgentCore Runtime that wraps `kernel/pipeline/extract.EXTRACTORS[union]` as `@tool`s (docs/07 §2.3)
+> 2. CDK v2 (Python — `aws-cdk-lib` Python) stacks for the 7-layer architecture (docs/09 §3-8)
 > 3. Add `sprinkler_fitters_281` and `sprinkler_fitters_821` extractors + profiles using kernel's `.claude/harness` pattern
-> 4. Pre-publish validation Lambdas (checksums + range; Design/09 L6)
-> 5. Renderer Lambdas (xlsx + CSV + Articles; Design/09 L7)
-> 6. API Gateway + Lambdas (Design/09 L2)
-> 7. React admin SPA (Design/09 L1)
-> 8. CloudWatch dashboards + alarms + SNS topics (Design/09 L6)
+> 4. Pre-publish validation Lambdas (checksums + range; docs/09 L6)
+> 5. Renderer Lambdas (xlsx + CSV + Articles; docs/09 L7)
+> 6. API Gateway + Lambdas (docs/09 L2)
+> 7. React admin SPA — Vite + React 18 + TS under `ui/`, hosted via Python CDK `UiStack` on S3+CloudFront+OAC (docs/09 L1)
+> 8. CloudWatch dashboards + alarms + SNS topics (docs/09 L6)
 >
 > Target: 2 weeks. UAT against customer's existing rate sheets in `kernel/data/<union>/ratesheet/`.
 >
-> Scope-down: 1 agent (Extractor only); AgentCore Memory/Gateway/Identity/Policy/Registry deferred to v1.1+. See Design/09 §15 for the full deferred-items list.
+> Scope-down: 1 agent (Extractor only); AgentCore Memory/Gateway/Identity/Policy/Registry deferred to v1.1+. See docs/09 §15 for the full deferred-items list.

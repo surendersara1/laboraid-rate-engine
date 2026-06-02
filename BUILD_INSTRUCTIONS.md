@@ -3,7 +3,7 @@
 **Audience:** the overnight Claude CLI / code-generation library that will build this repo from templates and partials.
 **Working branch:** `feat/aws-strands-integration`
 **Mode:** unattended; **NO manual interruptions** between generations.
-**Authority:** these instructions are operational. **Design rationale lives in `../Design/09_Technical_Implementation_Spec.md`** (call it "Spec/09" below). When a build item needs context — read the referenced spec sections.
+**Authority:** these instructions are operational. **Design rationale lives in `docs/09_Technical_Implementation_Spec.md`** (call it "Spec/09" below). When a build item needs context — read the referenced spec sections.
 
 > The spec describes **what** the system looks like + why. This file specifies **what to generate, in what order, with what acceptance**.
 
@@ -456,7 +456,7 @@ The Python CDK `UiStack` (`cdk/laboraid_cdk/stacks/ui_stack.py`) picks up `ui/di
 
 Per Spec/09 §15:
 
-- ❌ 8 of 9 agents in `Design/07` (only `ExtractorAgent` is in POC)
+- ❌ 8 of 9 agents in `docs/07_Strands_AgentCore_Agentic_Design.md` (only `ExtractorAgent` is in POC)
 - ❌ AgentCore Memory / Gateway / Identity / Policy / Registry / Evaluations (only Runtime + Observability)
 - ❌ Bedrock Knowledge Base + S3 Vectors
 - ❌ Year-over-year delta validation + Article-20 awareness
@@ -594,11 +594,12 @@ After Group H completes successfully:
 
 ## 8. References
 
-- **Architecture rationale:** `../Design/09_Technical_Implementation_Spec.md` (Spec/09)
-- **Agentic design:** `../Design/07_Strands_AgentCore_Agentic_Design.md`
-- **Per-cell provenance:** `../Design/05_Provenance_and_Citations.md`
-- **Ground truth / extraction philosophy:** `../Design/08_Ground_Truth_and_LLM_Loop.md`
-- **Discovery findings per union:**
+- **Architecture rationale:** `docs/09_Technical_Implementation_Spec.md` (Spec/09)
+- **Agentic design:** `docs/07_Strands_AgentCore_Agentic_Design.md`
+- **Per-cell provenance:** `docs/05_Provenance_and_Citations.md`
+- **Ground truth / extraction philosophy:** `docs/08_Ground_Truth_and_LLM_Loop.md`
+- **All design docs:** `docs/00_README.md` through `docs/09_Technical_Implementation_Spec.md`
+- **Discovery findings per union** (still in parent project, not yet mirrored):
   - 537: `../discovery/01_537_PDF_to_RateSheet_Study.md`
   - 704: `../discovery/03_704_PDF_to_RateSheet_Study.md`
   - 821: `../discovery/04_821_PDF_to_RateSheet_Study.md`
@@ -609,7 +610,7 @@ After Group H completes successfully:
 - **SOW review:** `../SOW_Review.md`
 - **Kernel attribution:** `../Ashwani_Repo_Assessment.md`
 
-The `../` paths reference the parent project `E:\NBS_LaborAid\`. Inside this repo, the relevant docs are `BUILD_INSTRUCTIONS.md` (this file) and `kernel/DESIGN.md` (kernel architecture).
+The `../` paths reference the parent project `E:\NBS_LaborAid\` (discovery + SOW are not in this repo). All design docs now live in `docs/` inside this repo.
 
 ---
 
@@ -618,7 +619,7 @@ The `../` paths reference the parent project `E:\NBS_LaborAid\`. Inside this rep
 1. Read this file end-to-end.
 2. Execute Groups A through H in order. Items within a group can parallelize.
 3. After each item, commit with message `[BUILD-NN] <title>`.
-4. Use `Design/09` for design rationale when a spec reference is given.
+4. Use `docs/09_Technical_Implementation_Spec.md` for design rationale when a spec reference is given.
 5. Never modify `kernel/`. Never bypass tags/naming. Never use static creds.
 6. Stop and log to `docs/BUILD_LOG.md` if anything fails.
 7. Final acceptance gate is §4 of this file.

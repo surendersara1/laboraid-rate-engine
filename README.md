@@ -2,7 +2,7 @@
 
 AWS-deployed POC for the LaborAid Rate-Sheet pipeline — converts union Collective Bargaining Agreement (CBA) PDFs into structured ratesheets, with per-cell provenance and human-in-the-loop review.
 
-**Status:** active POC build, see [`docs/`](docs/) and [`Design/`](../Design/) in the parent project for the underlying analysis.
+**Status:** active POC build. Design rationale + per-union discovery + spec all live in [`docs/`](docs/). Source PDFs + SOW remain in the parent project at `E:\NBS_LaborAid\` (read-only).
 
 ---
 
@@ -34,10 +34,10 @@ laboraid-rate-engine/
 |---|---|
 | Understand what the engine does | `kernel/README.md` + `kernel/DESIGN.md` |
 | Run the extraction pipeline locally | `kernel/pipeline/run.py` (per kernel README) |
-| Understand the AWS deployment | `cdk/` + parent project's `Design/09_Technical_Implementation_Spec.md` |
-| Understand the agent layer | `agents/extractor/` + parent project's `Design/07_Strands_AgentCore_Agentic_Design.md` |
+| Understand the AWS deployment | `cdk/` + [`docs/09_Technical_Implementation_Spec.md`](docs/09_Technical_Implementation_Spec.md) |
+| Understand the agent layer | `agents/extractor/` + [`docs/07_Strands_AgentCore_Agentic_Design.md`](docs/07_Strands_AgentCore_Agentic_Design.md) |
 | See the SOW | Parent project `LaborAid - POC SOW.docx.pdf` |
-| See discovery findings | Parent project `discovery/11_Findings_for_Client.md` |
+| See discovery findings | Parent project `E:\NBS_LaborAid\discovery\11_Findings_for_Client.md` (not yet mirrored into this repo) |
 
 ---
 
@@ -61,7 +61,7 @@ The deterministic extraction kernel (`kernel/`) is wrapped in a Strands agent (`
 
 This repo is the **AWS-deployable monorepo** for the LaborAid POC. The deterministic extraction kernel under `kernel/` was independently developed by **Ashwani / NBS** at `git@bitbucket.org:northbay/labor_aid_poc.git` and is imported here via `git subtree`. Per its measured accuracy (kernel/.claude/harness/evaluation-log.md): **704 = 99.6%, 483 Building = 100%, 537 = 67.4% (sub-100% are confirmed-absent source docs).**
 
-The AWS wrapping (CDK, agents, Lambdas, UI) is built on top of the kernel per the design in the parent project's `Design/` folder.
+The AWS wrapping (CDK, agents, Lambdas, UI) is built on top of the kernel per the design in [`docs/`](docs/) (formerly `Design/` in the parent project; mirrored into this repo on 2026-06-02 as the single source of truth).
 
 ---
 
