@@ -120,10 +120,12 @@ CDK is **Python**, not TypeScript. Package is `aws-cdk-lib` (Python). App entry 
 
 | # | Build item | Output paths | Spec ref | Acceptance |
 |---|---|---|---|---|
-| E.1 | API Lambdas (8) | `lambdas/api/{upload-presign,job-status,ratesheet-list,ratesheet-get,ratesheet-publish,cell-override,profile-list,profile-update}/` | Spec/09 §4 L2 (§2.2) | Each: `handler.py` + tests; uses AWS Lambda Powertools (Python) |
-| E.2 | API stack | `cdk/laboraid_cdk/stacks/api_stack.py` | Spec/09 §4 L2 | HTTP API Gateway + Cognito authorizer + WAF + 8 Lambdas wired |
-| E.3 | React admin SPA | `ui/package.json`, `ui/vite.config.ts`, `ui/src/main.tsx`, `ui/src/App.tsx`, `ui/src/pages/*.tsx`, `ui/src/lib/api.ts`, `ui/src/lib/auth.ts` | Spec/09 §4 L1 (§1.1-1.4) | Vite + React 18 + TS SPA: Upload, Jobs, Rate Sheet Review (side-by-side PDF + extracted CSV + provenance), Manual Override, Review Queue, Gaps; Cognito JWT via Amplify Auth; group-based route guards |
-| E.4 | UI hosting stack | `cdk/laboraid_cdk/stacks/ui_stack.py` | Spec/09 §4 L1 | **CDK is Python**, deploys the React SPA build artifact: S3 bucket (private) + CloudFront distribution + OAC + ACM cert + Route53 record + Cognito hosted UI domain. UI build step (`pnpm build` in `ui/`) produces `ui/dist/`; CDK uploads via `BucketDeployment`. |
+| E.1 | API Lambdas (admin) | `lambdas/api/{upload-presign,job-list,job-status,job-retry,job-abort,agent-list,agent-toggle,profile-list,profile-update,audit-list}/` | Spec/09 §4 L2 (§2.2) | Each: `handler.py` + `pyproject.toml` + tests; uses AWS Lambda Powertools (Python). Admin/Operations-authorized. |
+| E.2 | API Lambdas (business + shared) | `lambdas/api/{ratesheet-list,ratesheet-get,ratesheet-approve,ratesheet-reject,ratesheet-unapprove,ratesheet-publish,ratesheet-audit,cell-override,cell-comment}/` | Spec/09 §4 L2 (§2.2) | Each: `handler.py` + tests. Business-authorized except `ratesheet-publish` (Admins/Operations). `ratesheet-publish` MUST return HTTP 409 if `rate_periods.approval_state != 'approved'`. |
+| E.3 | API stack | `cdk/laboraid_cdk/stacks/api_stack.py` | Spec/09 §4 L2 | HTTP API Gateway + Cognito authorizer + WAF + all Lambdas from E.1/E.2 wired with per-route group claims |
+| E.4 | React SPA — Admin shell | `ui/package.json`, `ui/vite.config.ts`, `ui/src/main.tsx`, `ui/src/App.tsx`, `ui/src/layouts/AdminLayout.tsx`, `ui/src/admin/{Dashboard,Uploads,Jobs,JobDetail,Agents,Profiles,Audit,Costs}.tsx`, `ui/src/components/{RouteGuard,PersonaChooser,AgentToggle}.tsx`, `ui/src/lib/{api,auth,store}.ts` | Spec/09 §4 L1 §1.4 | 8 admin pages; AgentToggle component writes to `PATCH /v1/agents/{name}` (Admins-only); 5s polling on Jobs + Agents while any job in_progress |
+| E.5 | React SPA — Business shell | `ui/src/layouts/BusinessLayout.tsx`, `ui/src/business/{Inbox,RateSheetReview,ByUnion,Approved,Rejected,ReviewQueue,Me}.tsx`, `ui/src/components/{PdfViewer,ProvenancePanel,RateCellTable,CellOverrideModal,ApproveRejectBar}.tsx` | Spec/09 §4 L1 §1.5 | 7 business pages; ApproveRejectBar is disabled until review queue is empty for the rate sheet; reject requires a reason; comments per row |
+| E.6 | UI hosting stack | `cdk/laboraid_cdk/stacks/ui_stack.py` | Spec/09 §4 L1 | **CDK is Python**, deploys the React SPA build artifact: private S3 bucket + CloudFront distribution + OAC + ACM cert + Route53 record + Cognito hosted UI domain. `cd ui && pnpm build` produces `ui/dist/`; CDK uploads via `BucketDeployment`. Single domain serves both `/admin/*` and `/business/*` routes. |
 
 ### Group F — Orchestration + observability
 
@@ -364,6 +366,8 @@ Iterate until `kernel/.claude/harness/evaluation-log.md` records the new union a
 - **Tooling:** ESLint + Prettier + TypeScript compiler + Vitest
 - **Package manager:** `pnpm` (single `ui/pnpm-lock.yaml` committed)
 
+**Two-persona model:** the SPA is ONE Vite/React build serving two shells under `/admin/*` and `/business/*`. Login route guards decide which shell to mount based on Cognito group. See Spec/09 §4 L1 §1.1 for the persona table and §1.4/§1.5 for full per-page feature lists.
+
 **Project layout:**
 ```
 ui/
@@ -376,47 +380,72 @@ ui/
 ├── index.html
 ├── src/
 │   ├── main.tsx
-│   ├── App.tsx                 # Router shell + Amplify config + auth gate
-│   ├── routes.tsx              # group-gated route definitions
-│   ├── pages/
-│   │   ├── Upload.tsx
-│   │   ├── Jobs.tsx
-│   │   ├── JobDetail.tsx
-│   │   ├── RateSheetList.tsx
-│   │   ├── RateSheetDetail.tsx # side-by-side PDF + table + provenance
-│   │   ├── CellOverride.tsx
-│   │   ├── ReviewQueue.tsx
-│   │   └── Gaps.tsx
+│   ├── App.tsx                       # Router shell + Amplify config + auth gate + persona chooser
+│   ├── routes.tsx                    # group-gated route definitions (delegates to admin/ + business/)
+│   ├── layouts/
+│   │   ├── AdminLayout.tsx           # Sidebar: Dashboard / Jobs / Agents / Profiles / Uploads / Audit / Costs
+│   │   └── BusinessLayout.tsx        # Sidebar: Inbox / By Union / Approved / Rejected / Review Queue / My
+│   ├── admin/
+│   │   ├── Dashboard.tsx             # /admin/dashboard — 6-pillars snapshot, alarms
+│   │   ├── Uploads.tsx               # /admin/uploads — presigned URL flow
+│   │   ├── Jobs.tsx                  # /admin/jobs — list + bulk retry/abort
+│   │   ├── JobDetail.tsx             # /admin/jobs/:id — per-stage logs, retry
+│   │   ├── Agents.tsx                # /admin/agents — registry + enable/disable
+│   │   ├── Profiles.tsx              # /admin/profiles — read-only list + diff
+│   │   ├── Audit.tsx                 # /admin/audit — searchable audit_log
+│   │   └── Costs.tsx                 # /admin/costs — Bedrock + S3 + Lambda spend
+│   ├── business/
+│   │   ├── Inbox.tsx                 # /business/inbox — pending_review rate sheets
+│   │   ├── RateSheetReview.tsx       # /business/rate-sheets/:union/:period — 3-panel review, Approve/Reject
+│   │   ├── ByUnion.tsx               # /business/by-union/:union — per-union history
+│   │   ├── Approved.tsx              # /business/approved — approval history
+│   │   ├── Rejected.tsx              # /business/rejected — rejection history with reasons
+│   │   ├── ReviewQueue.tsx           # /business/queue — low-confidence cells
+│   │   └── Me.tsx                    # /business/me — my recent activity
 │   ├── components/
 │   │   ├── PdfViewer.tsx
 │   │   ├── ProvenancePanel.tsx
 │   │   ├── RateCellTable.tsx
-│   │   └── RouteGuard.tsx      # Cognito group check
+│   │   ├── CellOverrideModal.tsx
+│   │   ├── ApproveRejectBar.tsx      # business-only top bar with Approve/Reject + reason field
+│   │   ├── AgentToggle.tsx           # admin-only enable/disable agent control
+│   │   ├── RouteGuard.tsx            # Cognito group check; redirects to allowed landing page
+│   │   └── PersonaChooser.tsx        # for users in both Admins and Business
 │   ├── lib/
-│   │   ├── api.ts              # fetch wrapper, injects Cognito JWT
-│   │   ├── auth.ts             # Amplify Auth wrappers, group lookup
-│   │   └── store.ts            # Zustand stores
+│   │   ├── api.ts                    # fetch wrapper, injects Cognito JWT
+│   │   ├── auth.ts                   # Amplify Auth wrappers, group lookup
+│   │   └── store.ts                  # Zustand stores (per-persona slices)
 │   └── types/
-│       └── api.ts              # generated from OpenAPI / hand-written
+│       └── api.ts                    # types from OpenAPI / hand-written
 └── public/
     └── favicon.svg
 ```
 
-**Pages required:**
-1. `/upload` — drag-drop file upload (presigned URL flow via `POST /v1/uploads/presign`)
-2. `/jobs` — list of in-flight + recent jobs (TanStack Table, 5s polling while in_progress)
-3. `/jobs/:id` — job detail with status + extracted preview
-4. `/unions/:local/rate-sheets` — list of published periods for a union
-5. `/unions/:local/rate-sheets/:period` — side-by-side PDF preview (`react-pdf`) + extracted CSV table + provenance side panel keyed by `cellId`
-6. `/cells/:cellId/override` — manual override modal (form → `POST /v1/cells/:id/override`)
-7. `/review` — review queue for low-confidence cells
-8. `/unions/:local/gaps` — render kernel's `<union>.gaps.md` via `react-markdown`
+**Admin pages required** (Spec/09 §1.4):
+1. `/admin/dashboard` — landing for Admins/Operations; 6-pillars snapshot + alarm banner
+2. `/admin/uploads` — drag-drop PDF upload (presigned URL via `POST /v1/uploads`)
+3. `/admin/jobs` — list + filters + bulk retry/abort (`GET /v1/jobs`, `POST /v1/jobs/:id/retry`, `POST /v1/jobs/:id/abort`)
+4. `/admin/jobs/:id` — per-execution timeline, per-stage logs, CloudWatch deep-links, retry
+5. `/admin/agents` — agent registry + enable/disable (`GET /v1/agents`, `PATCH /v1/agents/{name}`); enable-toggle is **Admins-only**
+6. `/admin/profiles` — read-only list of Profile YAMLs + version diff (edit deferred per Spec/09 §15.6)
+7. `/admin/audit` — searchable `audit_log` view (`GET /v1/audit`)
+8. `/admin/costs` — Bedrock + S3 + Lambda spend rollups (Admins-only)
+
+**Business pages required** (Spec/09 §1.5):
+1. `/business/inbox` — landing for Business; `approval_state='pending_review'` rate sheets
+2. `/business/rate-sheets/:union/:period` — three-panel review (PDF + table + provenance), cell override modal, comment per row, **Approve / Reject** buttons in top bar
+3. `/business/by-union/:union` — all rate sheets for one union with status badges
+4. `/business/approved` — approval history (who, when, published-yes/no)
+5. `/business/rejected` — rejection history with reasons
+6. `/business/queue` — low-confidence cells review queue (Approve button blocked until empty)
+7. `/business/me` — current user's recent approvals/rejections/overrides/comments
 
 **Cognito groups → route gates** (enforced in `<RouteGuard>`):
-- `Admins` → all routes
-- `Operations` → all except `/admin/*`
-- `Reviewers` → `/review` and `/unions/*` (read-only)
+- `Admins` → all `/admin/*` (and `/business/*` only if also in `Business` group)
+- `Operations` → `/admin/*` except agent enable/disable + costs
+- `Business` → all `/business/*`; **denied** on `/admin/*` (403)
 - `ServiceClients` → API only (no UI access)
+- Users in BOTH `Admins` and `Business` see `<PersonaChooser>` at `/` and can switch personas via top-bar dropdown
 
 **State management:**
 - Zustand store for: current user + groups, active job polling, draft override form
@@ -527,12 +556,15 @@ After all build items complete:
 - [ ] Strands Agent framework: `ExtractorAgent` is a Strands `Agent` with `@tool` + `SteeringHandler` ✅
 - [ ] AWS AgentCore: agent deployed on AgentCore Runtime ✅
 - [ ] AWS Bedrock: Claude Sonnet 4.x + Haiku invoked via `bedrock.invoke_model` ✅
-- [ ] React admin SPA delivered (Vite + React 18 + TS, hosted on S3+CloudFront+OAC via Python CDK `UiStack`) ✅
+- [ ] React SPA delivered (Vite + React 18 + TS, hosted on S3+CloudFront+OAC via Python CDK `UiStack`) ✅
+- [ ] **Two-persona UI:** Admin shell at `/admin/*` (ops/jobs/agents/profiles/audit/costs — Spec/09 §4 L1 §1.4) and Business shell at `/business/*` (inbox/review/approve/reject/by-union — Spec/09 §4 L1 §1.5) ✅
+- [ ] **Business approval workflow:** approve/reject/unapprove endpoints (Spec/09 §4 L2 §2.2); Aurora `rate_periods.approval_state` defaults to `pending_review`; publish endpoint returns 409 unless `approval_state='approved'` ✅
+- [ ] **Admin agent control:** `agent-config` DDB table (Spec/09 §4 L3 §3.2) + `PATCH /v1/agents/{name}` enable-toggle; Step Functions reads `enabled` before invoking ✅
 - [ ] S3 (shared and tenant-specific) ✅
 - [ ] Document-Agnostic Processing (kernel's pdfplumber + rapidocr hybrid path) ✅
 - [ ] LLM-Centric Extraction (agent uses Claude as Bedrock fallback) ✅
 - [ ] Validation Layer (checksum + range + confidence Lambdas) ✅
-- [ ] Human-in-the-Loop (review queue + admin UI override flow) ✅
+- [ ] Human-in-the-Loop (review queue + Business approve/reject + cell override + comments) ✅
 - [ ] Separation of Concerns (raw S3 / pipeline / Aurora / Calculator) ✅
 
 ---

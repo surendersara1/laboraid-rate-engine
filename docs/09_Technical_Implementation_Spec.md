@@ -240,18 +240,33 @@ Each stack is independently deployable so failures in one don't block the others
 
 ### LAYER 1 — User / UI Layer
 
-**Purpose:** Admin operators and (future) contractor users interact via web UI.
+**Purpose:** Two distinct human user experiences sharing one React SPA:
+1. **Admin / Operations** — NBS + LaborAid ops keeping the engine healthy
+2. **Business** — LaborAid business users + Union SMEs reviewing the engine's output and signing off before publish
 
-#### 1.1 Personas + UI separation
+The SPA renders **two completely different shells** (sidebar, top-bar, landing page, page set) routed under `/admin/*` and `/business/*`. The active shell is decided at login by the Cognito group claim. Shared components (auth, PDF viewer, rate-cell table) are reused; layouts and feature sets are persona-specific.
 
-| Persona | UI | Auth | Routes |
-|---|---|---|---|
-| **Admin (NBS / LaborAid ops)** | Admin SPA (React) | Cognito user pool `LaborAidAdmins` | All `/admin/*` routes |
-| **Operations (LaborAid internal team)** | Same SPA, role-gated | Cognito group `Operations` | `/ops/*` (review queue, audit log) |
-| **Reviewer (LaborAid SME / Union rep)** | Same SPA, restricted | Cognito group `Reviewers` | `/review/*` (validation queue only) |
-| **Service-to-service (LaborAid product reads rates)** | API only | Cognito M2M client_credentials | `/api/v1/rate-sheets/*` (read-only) |
+#### 1.1 Personas + UI separation (two-persona model)
 
-The SPA renders different navigation/views based on the Cognito group claim.
+| Persona | UI shell | Routes | Cognito group | Primary job |
+|---|---|---|---|---|
+| **Admin** (NBS + LaborAid ops) | Ops shell — sidebar: Dashboard / Jobs / Agents / Profiles / Uploads / Audit / Costs | `/admin/*` | `Admins` (full) + `Operations` (subset — no agent disable) | Keep the engine healthy, retry failed jobs, toggle agents, monitor 6-pillar metrics |
+| **Business** (LaborAid business + Union SMEs) | Review shell — sidebar: Inbox / By Union / Approved / Rejected / Review Queue | `/business/*` | `Business` | Review each finalized rate sheet, override low-confidence cells, **approve or reject**, sign off before publish |
+| **Service-to-service** (LaborAid product reads rates) | API only — no UI | `/api/v1/rate-sheets/*` (read-only) | Cognito M2M `client_credentials` | Pull approved + published rate sheets into LaborAid's Calculator |
+
+**Routing rules:**
+- A user in `Admins` lands on `/admin/dashboard`; a user in `Business` lands on `/business/inbox`. A user in both (rare) gets a chooser at `/`.
+- `/admin/*` returns 403 for `Business` users; `/business/*` returns 403 for `Admins`-only users (Admins can be added to `Business` if they need both).
+- Route guards live in `ui/src/components/RouteGuard.tsx`; every route declares allowed groups.
+
+**Approval workflow (the business gate):**
+1. Engine finishes → rate sheet enters Aurora `rate_periods` with `approval_state='pending_review'`.
+2. Business inbox shows it. SME opens, reviews, overrides cells if needed, then clicks **Approve** or **Reject** with reason.
+3. Approve → `approval_state='approved'`, `approved_by=<sub>`, `approved_at=NOW()`. Eligible for publish.
+4. Reject → `approval_state='rejected'`, reason written, EventBridge fires `laboraid.rate-sheet.rejected`, engine can re-run.
+5. Admin (or Operations) then triggers **Publish** — API enforces `approval_state='approved'` before allowing publish. Publish is a separate step from approval so Admins keep release-cadence control.
+
+See §1.4 (Admin features) and §1.5 (Business features) for the full feature lists.
 
 #### 1.2 Assets
 
@@ -264,7 +279,8 @@ The SPA renders different navigation/views based on the Cognito group claim.
 | ACM certificate | `laboraid-{env}-l1-cert-admin` | Layer=l1 |
 | Cognito user pool | `laboraid-{env}-l1-cognito-userpool` | Layer=l1 |
 | Cognito identity pool | `laboraid-{env}-l1-cognito-idpool` | Layer=l1 |
-| Cognito groups | `Admins`, `Operations`, `Reviewers`, `ServiceClients` | — |
+| Cognito groups | `Admins`, `Operations`, `Business`, `ServiceClients` | — |
+| Agent-config DDB table | `laboraid-{env}-l3-ddb-agent-config` | Layer=l3, DataClassification=ops-config (read here, defined in §3.2) — backs the Admin "Agents" page (enable/disable, version, runtime metadata) |
 
 #### 1.3 CDK skeleton
 
@@ -332,7 +348,7 @@ class UiStack(Stack):
             password_policy=cognito.PasswordPolicy(min_length=12, require_symbols=True),
         )
 
-        for group_name in ("Admins", "Operations", "Reviewers", "ServiceClients"):
+        for group_name in ("Admins", "Operations", "Business", "ServiceClients"):
             cognito.CfnUserPoolGroup(
                 self, f"Group{group_name}",
                 user_pool_id=user_pool.user_pool_id,
@@ -340,7 +356,66 @@ class UiStack(Stack):
             )
 ```
 
-#### 1.4 6-pillar coverage (L1)
+#### 1.4 Admin UI features (`/admin/*`)
+
+The Admin shell exists so NBS + LaborAid ops can run the engine. Every feature here is operational — none of it touches business approval semantics.
+
+| Page | Route | Purpose | Cognito group |
+|---|---|---|---|
+| **Dashboard** | `/admin/dashboard` | Landing page. 6-pillars-aware snapshot: jobs in-flight, jobs failed (24h), P95 latency, Bedrock spend (7d), error budget burn, SNS alarm state. Quick-action tiles to Jobs / Agents / Review Queue. | Admins, Operations |
+| **Uploads** | `/admin/uploads` | Drag-drop PDF upload via presigned URL. Classification preview before commit. Re-upload corrupt files. | Admins, Operations |
+| **Jobs** | `/admin/jobs` | All Step Functions executions. Filter by status / union / period / date. Bulk retry; bulk abort. | Admins, Operations |
+| **Job detail** | `/admin/jobs/:id` | Per-execution timeline, per-stage logs (CloudWatch deep-link), per-cell extraction trace, retry / abort / re-run controls. | Admins, Operations |
+| **Agents** | `/admin/agents` | Strands agent registry. For each agent: name, version, container image tag, runtime status (Available / Starting / Failed), recent invocations, recent latency. **Enable / disable toggle** writes to `agent-config` DDB (an `enabled=false` agent makes the Step Function bypass it via a Choice state). | Admins **only** |
+| **Profiles** | `/admin/profiles` | Read-only list of per-union Profile YAMLs + version history (last 10 commits). Diff view between versions. Profile edit UI is deferred to v1.1+ (see §15.6). | Admins, Operations |
+| **Audit log** | `/admin/audit` | Searchable / filterable view over `audit_log` Aurora table. Filter by actor / action / time range / tenant. CSV export. | Admins, Operations |
+| **Costs** | `/admin/costs` | Bedrock InvokeModel spend (7d / 30d), S3 storage by bucket, Lambda invocations + duration, Aurora ACU usage. Pulled from Cost Explorer + CloudWatch billing metrics. POC: read-only. | Admins **only** |
+
+**What the Admin UI does NOT have** (intentional, gates the persona separation):
+- No Approve / Reject buttons on rate sheets (that's the business persona's job)
+- No rate-sheet-by-union browsing (admins look at jobs and agents, not the data product)
+- No commenting on cells (business does that)
+
+**Cross-cutting Admin behaviors:**
+- Real-time updates: `/admin/jobs` and `/admin/agents` poll every 5s while any job is `in_progress`
+- Alerting: a CloudWatch alarm in firing state shows as a red banner in the top-bar, link to `/admin/dashboard`
+- Deep-links: every "View in CloudWatch" / "View in X-Ray" link opens the right resource (saves ops time)
+
+#### 1.5 Business UI features (`/business/*`)
+
+The Business shell exists so LaborAid business users + Union SMEs can review what the engine produced and sign off (or send it back) before LaborAid's Calculator consumes it. **The business persona is the human-in-the-loop gate that decides what is "final."**
+
+| Page | Route | Purpose | Cognito group |
+|---|---|---|---|
+| **Inbox** | `/business/inbox` | Landing page. Rate sheets with `approval_state='pending_review'`, oldest-first. Each row: union, period, confidence summary, gap count, "Open" button. | Business |
+| **Rate sheet review** | `/business/rate-sheets/:union/:period` | The heart of the persona. Three-panel layout: (1) source PDF preview (`react-pdf`), (2) extracted rate sheet as editable table (TanStack Table), (3) per-cell provenance + confidence + history side panel. Click a cell to open override modal; right-click to comment. Top bar: **Approve** / **Reject** buttons + rejection-reason field. | Business |
+| **By Union** | `/business/by-union/:union` | All rate sheets for one union, latest first. Status badges (pending / approved / rejected / published). Filter by year. | Business |
+| **Approved** | `/business/approved` | History of approved rate sheets across all unions. Columns: union, period, approved by, approved at, published? (yes/no), link to view. | Business |
+| **Rejected** | `/business/rejected` | History of rejected rate sheets. Columns: union, period, rejected by, rejected at, reason, current state (re-running / abandoned / re-approved). | Business |
+| **Review queue** | `/business/queue` | Cells flagged as low-confidence by the engine (from `review` DDB table). Group by rate sheet. Bulk-accept / bulk-override actions. Once empty for a rate sheet, the Approve button becomes available on its review page. | Business |
+| **My approvals** | `/business/me` | The current user's recent activity (approved, rejected, overridden cells, comments). Provides "what did I sign off on?" audit. | Business |
+
+**Actions available to Business users (and ONLY them):**
+- **Approve a rate sheet** → `POST /v1/unions/{local}/rate-sheets/{period}/approve` — sets `approval_state='approved'`, stamps `approved_by` + `approved_at`, fires `laboraid.rate-sheet.approved`. Required: review queue empty for this rate sheet (no unresolved low-confidence cells).
+- **Reject a rate sheet** → `POST /v1/unions/{local}/rate-sheets/{period}/reject` — needs `reason` (free text + optional structured tags: `missing_data`, `wrong_extraction`, `cba_mismatch`, `other`). Sets `approval_state='rejected'`, fires `laboraid.rate-sheet.rejected`. Triggers engine to either re-run or hold for fix.
+- **Override a cell** → `POST /v1/cells/{cell_id}/override` — writes to `overrides` DDB; cell's "current value" becomes the override but engine value is preserved in provenance.
+- **Comment on a cell or rate sheet** → `POST /v1/cells/{cell_id}/comment` (or `/v1/rate-sheets/{period}/comment`) — written to `audit_log` with `action='comment'`. Visible to other reviewers.
+- **Unapprove** (within 24h, before publish) → `POST /v1/unions/{local}/rate-sheets/{period}/unapprove` — only available to the original approver; bumps state back to `pending_review`.
+
+**What the Business UI does NOT have:**
+- No system-health view (that's Admin's job; if engine is down, business sees "no new rate sheets" — Admin sees the alarm)
+- No agent controls
+- No raw-PDF re-upload (Admin uploads; Business reviews the result)
+- No Publish button (Admin/Operations triggers publish AFTER Business has approved — keeps release cadence with ops)
+
+**Cross-cutting Business behaviors:**
+- "Approve" is disabled until the review queue for that rate sheet is empty (forces every low-confidence cell to be looked at)
+- "Reject" requires a reason — no silent rejections
+- All actions write to `audit_log` so the trail is complete: who approved, who rejected, when, why
+- Compare-to-prior-period (YoY diff) is **deferred to v1.1+** (§15.4) — POC just shows the period being reviewed
+- Comparison views, bulk approve across periods, and Profile-editor for unions are all v1.1+ stretch
+
+#### 1.6 6-pillar coverage (L1)
 
 | Pillar | Implementation |
 |---|---|
@@ -380,15 +455,26 @@ class UiStack(Stack):
 
 | Method + Path | Authorizer | Handler | Notes |
 |---|---|---|---|
-| `POST /v1/uploads` | Cognito (Admins, Operations) | `upload-presign` | Returns S3 presigned PUT URL |
-| `GET /v1/jobs/{id}` | Cognito | `job-status` | Returns Step Function execution state |
+| `POST /v1/uploads` | Cognito (Admins, Operations) | `upload-presign` | Returns S3 presigned PUT URL. Admin-only — Business cannot upload. |
+| `GET /v1/jobs` | Cognito (Admins, Operations) | `job-list` | List jobs with filters (status, union, period). |
+| `GET /v1/jobs/{id}` | Cognito (Admins, Operations) | `job-status` | Returns Step Function execution state. |
+| `POST /v1/jobs/{id}/retry` | Cognito (Admins, Operations) | `job-retry` | Re-runs a failed execution from the last successful state. |
+| `POST /v1/jobs/{id}/abort` | Cognito (Admins) | `job-abort` | Cancels an in-flight execution. |
+| `GET /v1/agents` | Cognito (Admins, Operations) | `agent-list` | Reads `agent-config` DDB + AgentCore Runtime status. |
+| `PATCH /v1/agents/{name}` | Cognito (Admins **only**) | `agent-toggle` | Toggle `enabled` / change version. Writes to `agent-config` DDB. |
 | `GET /v1/unions` | Cognito | `profile-list` | List all configured unions |
 | `GET /v1/unions/{local}/profile` | Cognito | `profile-list` | Read Profile YAML |
-| `PUT /v1/unions/{local}/profile` | Cognito (Admins only) | `profile-update` | Versioned write |
-| `GET /v1/unions/{local}/rate-sheets` | Cognito (or M2M) | `ratesheet-list` | List published periods |
-| `GET /v1/unions/{local}/rate-sheets/{period}` | Cognito (or M2M) | `ratesheet-get` | Return canonical JSON |
-| `POST /v1/unions/{local}/rate-sheets/{period}/publish` | Cognito (Admins, Operations) | `ratesheet-publish` | Mark draft as published |
-| `POST /v1/cells/{cell_id}/override` | Cognito (Operations, Reviewers) | `cell-override` | Manual value override |
+| `PUT /v1/unions/{local}/profile` | Cognito (Admins only) | `profile-update` | Versioned write — v1.1+ from UI; POC: edit YAML in repo |
+| `GET /v1/unions/{local}/rate-sheets` | Cognito (or M2M) | `ratesheet-list` | List periods (filter by `approval_state`). |
+| `GET /v1/unions/{local}/rate-sheets/{period}` | Cognito (or M2M) | `ratesheet-get` | Returns canonical JSON + current approval state. |
+| **`POST /v1/unions/{local}/rate-sheets/{period}/approve`** | Cognito (**Business**) | `ratesheet-approve` | **Business sign-off.** Requires review queue empty for this rate sheet. Sets `approval_state='approved'`, stamps `approved_by`+`approved_at`, fires `laboraid.rate-sheet.approved`. |
+| **`POST /v1/unions/{local}/rate-sheets/{period}/reject`** | Cognito (**Business**) | `ratesheet-reject` | **Business rejection.** Requires `reason` (free text + optional tag). Sets `approval_state='rejected'`, fires `laboraid.rate-sheet.rejected`. |
+| **`POST /v1/unions/{local}/rate-sheets/{period}/unapprove`** | Cognito (Business; original approver only) | `ratesheet-unapprove` | Within 24h + before publish; flips state back to `pending_review`. |
+| `POST /v1/unions/{local}/rate-sheets/{period}/publish` | Cognito (Admins, Operations) | `ratesheet-publish` | **Gated:** rejects 409 unless `approval_state='approved'`. Sets `approval_state='published'`. |
+| `POST /v1/cells/{cell_id}/override` | Cognito (Business) | `cell-override` | Manual value override; writes to `overrides` DDB, preserves engine value in provenance. |
+| `POST /v1/cells/{cell_id}/comment` | Cognito (Business) | `cell-comment` | Per-row note; written to `audit_log` with `action='comment'`. |
+| `GET /v1/unions/{local}/rate-sheets/{period}/audit` | Cognito (Admins, Operations, Business) | `ratesheet-audit` | Full audit trail (approvals, rejections, overrides, comments) for the rate sheet. |
+| `GET /v1/audit` | Cognito (Admins, Operations) | `audit-list` | Filterable audit_log query (Admin/Operations only). |
 | ~~`POST /v1/cba/{local}/ask`~~ | Cognito | `ask-cba` | Proxies to ConciergeAgent — ⏸️ **v1.1+** (ConciergeAgent deferred) |
 
 #### 2.3 Lambda config (defaults)
@@ -491,6 +577,7 @@ fn = lambda_.Function(
 | Overrides | `laboraid-{env}-l3-ddb-overrides` | `tenant#union#period` | `cell_id#timestamp` | Manual override history |
 | Cadence | `laboraid-{env}-l3-ddb-cadence` | `tenant#union` | — | Expected next-Notice date per union |
 | Idempotency | `laboraid-{env}-l3-ddb-idempotency` | `request_hash` | — | TTL 24h; prevents duplicate processing |
+| **Agent config** | `laboraid-{env}-l3-ddb-agent-config` | `agent_name` | — | Backs Admin "Agents" page (§1.4). Attrs: `enabled` (bool), `image_tag`, `version`, `updated_by`, `updated_at`. Step Functions reads `enabled` before invoking an agent and bypasses via Choice state when false. |
 
 **All tables:**
 - On-demand billing (POC scale)
@@ -524,10 +611,26 @@ CREATE TABLE rate_periods (
   union_id UUID REFERENCES unions(id),
   start_date DATE,
   end_date DATE,
-  status TEXT,
+  status TEXT,                                  -- engine pipeline status: ingested/extracted/validated/rendered
+  approval_state TEXT NOT NULL DEFAULT 'pending_review',
+                                                -- business-facing state: pending_review | approved | rejected | published
+  approved_by TEXT,                             -- Cognito sub of business user who approved
+  approved_at TIMESTAMPTZ,
+  rejected_by TEXT,                             -- Cognito sub of business user who rejected
+  rejected_at TIMESTAMPTZ,
+  rejection_reason TEXT,                        -- required when approval_state='rejected'
+  rejection_tags TEXT[],                        -- optional structured tags: missing_data | wrong_extraction | cba_mismatch | other
+  published_by TEXT,                            -- Cognito sub of admin/ops who published
+  published_at TIMESTAMPTZ,
   canonical_json JSONB,
   source_files JSONB
 );
+-- Publish guard: enforced at API layer (returns 409 if approval_state != 'approved').
+-- Also enforced by DB CHECK as a defense-in-depth:
+ALTER TABLE rate_periods
+  ADD CONSTRAINT publish_requires_approval
+  CHECK (approval_state IN ('pending_review','approved','rejected','published'));
+CREATE INDEX idx_periods_inbox ON rate_periods (approval_state, start_date DESC);
 
 CREATE TABLE rate_cells (
   id UUID PRIMARY KEY,
