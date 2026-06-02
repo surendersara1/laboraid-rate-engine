@@ -6,6 +6,8 @@ import aws_cdk as cdk
 from aws_cdk.assertions import Match, Template
 
 from laboraid_cdk.config import get_config
+from laboraid_cdk.stacks.ai_stack import AiStack
+from laboraid_cdk.stacks.processing_stack import ProcessingStack
 from laboraid_cdk.stacks.security_stack import SecurityStack
 from laboraid_cdk.stacks.storage_stack import StorageStack
 
@@ -16,6 +18,25 @@ def _synth() -> tuple[Template, Template]:
     security = SecurityStack(app, "Sec", config=config)
     storage = StorageStack(app, "Stg", config=config, master_key=security.master_key)
     return Template.from_stack(security), Template.from_stack(storage)
+
+
+def _synth_processing() -> tuple[Template, Template]:
+    config = get_config("dev")
+    app = cdk.App()
+    security = SecurityStack(app, "Sec", config=config)
+    storage = StorageStack(app, "Stg", config=config, master_key=security.master_key)
+    ai = AiStack(app, "Ai", config=config, master_key=security.master_key)
+    processing = ProcessingStack(
+        app,
+        "Proc",
+        config=config,
+        master_key=security.master_key,
+        inputs_bucket=storage.inputs_bucket,
+        outputs_bucket=storage.outputs_bucket,
+        files_table=storage.files_table,
+        guardrail_id=ai.guardrail_id,
+    )
+    return Template.from_stack(ai), Template.from_stack(processing)
 
 
 def test_security_stack_resources() -> None:
@@ -53,4 +74,20 @@ def test_storage_stack_resources() -> None:
                 }
             )
         },
+    )
+
+
+def test_ai_stack_guardrail() -> None:
+    ai, _ = _synth_processing()
+    ai.resource_count_is("AWS::Bedrock::Guardrail", 1)
+
+
+def test_processing_stack_resources() -> None:
+    _, proc = _synth_processing()
+    proc.resource_count_is("AWS::ECR::Repository", 1)
+    proc.resource_count_is("AWS::BedrockAgentCore::Runtime", 1)
+    # Classifier Lambda is ARM64 (Graviton) per the project defaults.
+    proc.has_resource_properties(
+        "AWS::Lambda::Function",
+        Match.object_like({"Architectures": ["arm64"], "Runtime": "python3.12"}),
     )

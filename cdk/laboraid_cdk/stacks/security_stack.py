@@ -19,7 +19,6 @@ from typing import Any
 
 from aws_cdk import CfnOutput, RemovalPolicy, Stack
 from aws_cdk import aws_cognito as cognito
-from aws_cdk import aws_iam as iam
 from aws_cdk import aws_kms as kms
 from constructs import Construct
 
@@ -96,46 +95,13 @@ class SecurityStack(Stack):
             ),
         )
 
-        # --- Foundational IAM roles (Spec/09 §7) ------------------------------
-        # Shared API-Lambda execution role (§2.1). Specific S3/DDB/Bedrock grants
-        # are added by the API stack against the concrete resources.
-        self.api_lambda_role = iam.Role(
-            self,
-            "ApiLambdaRole",
-            role_name=name(config.env, "l2", "role", "api-lambdas"),
-            assumed_by=iam.ServicePrincipal("lambda.amazonaws.com"),
-            description="Shared execution role for L2 API Lambdas",
-            managed_policies=[
-                iam.ManagedPolicy.from_aws_managed_policy_name(
-                    "service-role/AWSLambdaBasicExecutionRole"
-                ),
-                iam.ManagedPolicy.from_aws_managed_policy_name("AWSXRayDaemonWriteAccess"),
-            ],
-        )
-        self.master_key.grant_encrypt_decrypt(self.api_lambda_role)
-
-        # ExtractorAgent AgentCore execution role (§5.1, §7.2).
-        self.agent_extractor_role = iam.Role(
-            self,
-            "AgentExtractorRole",
-            role_name=name(config.env, "l5", "role", "agent-extractor"),
-            assumed_by=iam.ServicePrincipal("bedrock-agentcore.amazonaws.com"),
-            description="AgentCore execution role for the ExtractorAgent",
-            managed_policies=[
-                iam.ManagedPolicy.from_aws_managed_policy_name("AWSXRayDaemonWriteAccess"),
-            ],
-        )
-        # Bedrock model access (Claude Sonnet 4.x + Haiku) for the fallback path.
-        self.agent_extractor_role.add_to_policy(
-            iam.PolicyStatement(
-                effect=iam.Effect.ALLOW,
-                actions=["bedrock:InvokeModel", "bedrock:InvokeModelWithResponseStream"],
-                resources=[
-                    f"arn:aws:bedrock:{config.region}::foundation-model/anthropic.claude-*",
-                ],
-            )
-        )
-        self.master_key.grant_encrypt_decrypt(self.agent_extractor_role)
+        # NOTE on IAM roles: per-Lambda and per-agent execution roles (§5.1, §7)
+        # are created in their *consuming* stacks (processing/api/validation), not
+        # here. Those roles must be granted downstream S3/DDB resources, and a role
+        # defined in this upstream stack cannot reference a downstream stack's
+        # resource without forming a dependency cycle (Storage already depends on
+        # this stack's CMK). Co-locating each role with its grants keeps the graph
+        # acyclic and least-privilege.
 
         # --- Cross-stack outputs ----------------------------------------------
         CfnOutput(self, "MasterKeyArn", value=self.master_key.key_arn)

@@ -13,6 +13,8 @@ import aws_cdk as cdk
 
 from laboraid_cdk.aspects.mandatory_tags import MandatoryTagsAspect
 from laboraid_cdk.config import get_config
+from laboraid_cdk.stacks.ai_stack import AiStack
+from laboraid_cdk.stacks.processing_stack import ProcessingStack
 from laboraid_cdk.stacks.security_stack import SecurityStack
 from laboraid_cdk.stacks.storage_stack import StorageStack
 
@@ -36,6 +38,28 @@ storage = StorageStack(
     master_key=security.master_key,
 )
 storage.add_dependency(security)
+
+# AI before Processing: the ExtractorAgent runtime injects the guardrail ID.
+ai = AiStack(
+    app,
+    f"Laboraid-{config.env}-Ai",
+    config=config,
+    master_key=security.master_key,
+)
+ai.add_dependency(security)
+
+processing = ProcessingStack(
+    app,
+    f"Laboraid-{config.env}-Processing",
+    config=config,
+    master_key=security.master_key,
+    inputs_bucket=storage.inputs_bucket,
+    outputs_bucket=storage.outputs_bucket,
+    files_table=storage.files_table,
+    guardrail_id=ai.guardrail_id,
+)
+processing.add_dependency(storage)
+processing.add_dependency(ai)
 # ---------------------------------------------------------------------------
 
 # Mandatory tags on every resource (Spec/09 §2).
