@@ -181,3 +181,53 @@ def test_ui_stack() -> None:
             }
         ),
     )
+
+
+def test_orchestration_stack() -> None:
+    config = get_config("dev")
+    app = cdk.App()
+    security = SecurityStack(app, "Sec", config=config)
+    storage = StorageStack(app, "Stg", config=config, master_key=security.master_key)
+    ai = AiStack(app, "Ai", config=config, master_key=security.master_key)
+    processing = ProcessingStack(
+        app,
+        "Proc",
+        config=config,
+        master_key=security.master_key,
+        inputs_bucket=storage.inputs_bucket,
+        outputs_bucket=storage.outputs_bucket,
+        files_table=storage.files_table,
+        guardrail_id=ai.guardrail_id,
+    )
+    from laboraid_cdk.stacks.orchestration_stack import OrchestrationStack
+    from laboraid_cdk.stacks.validation_stack import ValidationStack
+
+    validation = ValidationStack(
+        app,
+        "Val",
+        config=config,
+        master_key=security.master_key,
+        outputs_bucket=storage.outputs_bucket,
+        review_table=storage.review_table,
+    )
+    orch = OrchestrationStack(
+        app,
+        "Orch",
+        config=config,
+        inputs_bucket=storage.inputs_bucket,
+        classifier=processing.classifier,
+        checksum=validation.checksum,
+        range_fn=validation.range_fn,
+        confidence=validation.confidence,
+        review_router=validation.review_router,
+        xlsx=validation.xlsx,
+        csv=validation.csv,
+        articles=validation.articles,
+    )
+    template = Template.from_stack(orch)
+    template.resource_count_is("AWS::StepFunctions::StateMachine", 1)
+    # EventBridge rule starts the pipeline on S3 upload.
+    template.has_resource_properties(
+        "AWS::Events::Rule",
+        Match.object_like({"EventPattern": Match.object_like({"detail-type": ["Object Created"]})}),
+    )

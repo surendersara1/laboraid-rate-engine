@@ -68,6 +68,7 @@ class StorageStack(Stack):
             *,
             lifecycle: list[s3.LifecycleRule] | None = None,
             object_lock: bool = False,
+            event_bridge: bool = False,
         ) -> TaggedBucket:
             return TaggedBucket(
                 self,
@@ -79,6 +80,9 @@ class StorageStack(Stack):
                 server_access_logs_prefix=f"{purpose}/",
                 object_lock_enabled=object_lock and config.is_prod,
                 lifecycle_rules=lifecycle,
+                # Emit S3 events to EventBridge so the orchestration stack's rule
+                # can trigger the Step Functions pipeline on upload (Spec/09 §3.4).
+                event_bridge_enabled=event_bridge,
                 removal_policy=retain,
             )
 
@@ -104,6 +108,7 @@ class StorageStack(Stack):
             "customer-input",
             lifecycle=archive_lifecycle,
             object_lock=True,
+            event_bridge=True,
         )
         self.processed_bucket = _bucket(
             "ProcessedBucket",

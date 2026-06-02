@@ -30,10 +30,15 @@ class MandatoryTagsAspect:
         self._tags = dict(tags)
 
     def visit(self, node: IConstruct) -> None:
-        # Only L1 CloudFormation resources whose type supports tags carry a
-        # TagManager; skip everything else (L2 wrappers, logical constructs).
-        if isinstance(node, CfnResource) and TagManager.is_taggable(node):
-            tags = node.tags  # type: ignore[attr-defined]
+        # Tag L1 CloudFormation resources that actually expose a TagManager via a
+        # `.tags` attribute. We check the attribute directly rather than trusting
+        # `TagManager.is_taggable`, which can report True for raw `CfnResource`s of
+        # non-standard types (e.g. AWS::BedrockAgentCore::Runtime) that have no
+        # `.tags` — accessing it then raises. Skip L2 wrappers + logical nodes.
+        if not isinstance(node, CfnResource):
+            return
+        tag_manager = getattr(node, "tags", None)
+        if isinstance(tag_manager, TagManager):
             for key, value in self._tags.items():
                 # Lower priority so per-resource overrides (Layer/DataClass) win.
-                tags.set_tag(key, value, 100)
+                tag_manager.set_tag(key, value, 100)
