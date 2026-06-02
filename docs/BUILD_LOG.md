@@ -48,3 +48,37 @@ continue from the next unfinished item.
   `cdk/assets/schema_init/schema.sql` (idempotent `IF NOT EXISTS`), applied on
   Create/Update. Aurora sits in a minimal no-NAT VPC (isolated subnets).
 - Audit bucket is the server-access-log target for the other 5 buckets.
+
+## Group C — Processing + AI stacks
+
+- [BUILD-C.1] ExtractorAgent container — DONE at 2026-06-02T21:30:00Z
+- [BUILD-C.3] AI stack (Bedrock Guardrails) — DONE at 2026-06-02T21:30:00Z
+- [BUILD-C.2] Processing stack — DONE at 2026-06-02T21:30:00Z
+
+### Notes
+
+- Gates green for `cdk/` (4 stacks): synth ✅, ruff ✅, black ✅,
+  mypy --strict (18 files) ✅, pytest ✅ (13 passed).
+- **C.1 `docker build` acceptance is DEFERRED** to a Docker/AWS-enabled host: the
+  Strands SDK + AgentCore SDK + the flat untyped kernel are not installable in
+  this offline synth environment. Validated offline instead: `py_compile` ✅,
+  ruff/black ✅, static SOP tests ✅ (3 passed, no Strands import).
+- **Kernel import path corrected vs Spec/09 §5.3:** the spec writes
+  `from kernel.pipeline import extract`, but the kernel is a flat `package=false`
+  project (modules `pipeline`, `canonical` at its root). The container sets
+  `PYTHONPATH=/opt/kernel`, so the agent imports `from pipeline import ...` /
+  `from canonical.model import ...`. Kernel left unmodified (rule #1).
+- **Stack-order correction (C.2):** AI is instantiated *before* Processing (the
+  ExtractorAgent runtime injects `BEDROCK_GUARDRAIL_ID`). Spec/09 §3's listed
+  order is "Processing → AI"; real dependency is the reverse for the guardrail.
+- **IAM-role placement correction (B.1 → C.2):** the foundational API/agent roles
+  originally added to `SecurityStack` were removed. A role defined in the upstream
+  Security stack cannot be granted a downstream Storage resource without forming a
+  dependency cycle (Storage already depends on the Security CMK). Per-Lambda /
+  per-agent roles are now created in their consuming stacks (the ExtractorAgent
+  role lives in `processing_stack.py` with its grants). Documented in
+  `security_stack.py`.
+- **Classifier Lambda code** (`lambdas/processing/classifier/`) was created with
+  C.2 because the processing stack must reference real handler code; it is L4 and
+  named in the C.2 row. Powertools is referenced as a layer/bundling concern at
+  deploy (plain asset for synth).
