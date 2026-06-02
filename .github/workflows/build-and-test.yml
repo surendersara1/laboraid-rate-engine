@@ -1,0 +1,96 @@
+name: build-and-test
+
+# Runs unit tests + CDK synth + kernel evaluator on every PR (Spec/09 §13; BUILD H.2).
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  id-token: write # OIDC for AWS (deploy job; not needed for synth)
+  contents: read
+
+jobs:
+  backend:
+    name: CDK + Lambdas (Python)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: cdk
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v3
+        with:
+          enable-cache: true
+      - name: Sync deps
+        run: uv sync
+      - name: Lint
+        run: uv run ruff check .
+      - name: Format check
+        run: uv run black --check .
+      - name: Type check
+        run: uv run mypy --strict laboraid_cdk
+      - name: Unit tests (cdk)
+        run: uv run pytest
+      - name: Unit tests (lambdas)
+        run: uv run pytest ../lambdas
+      - name: CDK synth
+        run: npx --yes aws-cdk@2 synth
+
+  ui:
+    name: React SPA
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ui
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Enable pnpm
+        run: corepack enable && corepack prepare pnpm@9.15.9 --activate
+      - name: Install
+        run: pnpm install --frozen-lockfile
+      - name: Type check
+        run: pnpm typecheck
+      - name: Lint
+        run: pnpm lint
+      - name: Test
+        run: pnpm exec vitest run
+      - name: Build
+        run: pnpm build
+
+  kernel:
+    name: Kernel evaluator (regression)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: kernel
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v3
+        with:
+          enable-cache: true
+      - name: Sync kernel deps
+        run: uv sync
+      - name: Reproduce measured accuracy (704 / 483 / 537)
+        run: |
+          for u in sprinkler_fitters_704 sprinkler_fitters_483 pipe_fitters_537; do
+            uv run python pipeline/run.py --union "$u"
+          done
+
+  # deploy:
+  #   name: CDK deploy (manual / main only)
+  #   needs: [backend, ui, kernel]
+  #   runs-on: ubuntu-latest
+  #   if: github.ref == 'refs/heads/main'
+  #   steps:
+  #     - uses: actions/checkout@v4
+  #     - uses: aws-actions/configure-aws-credentials@v4
+  #       with:
+  #         role-to-assume: arn:aws:iam::<acct>:role/laboraid-gha-deploy
+  #         aws-region: us-east-1
+  #     - run: cd ui && corepack pnpm install && corepack pnpm build
+  #     - run: cd cdk && uv sync && npx --yes aws-cdk@2 deploy --all --require-approval never
