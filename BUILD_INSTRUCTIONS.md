@@ -46,17 +46,27 @@ laboraid-rate-engine/             ← repo root (cwd for the build)
 6. **DO NOT add Bedrock Knowledge Base, AgentCore Memory/Gateway/Identity/Policy/Registry, or any of the 8 deferred agents** — they're explicitly v1.1+ (Spec/09 §15). POC has ONE agent: `ExtractorAgent`.
 7. **DO NOT recreate functionality that exists in the kernel.** PDF reading, OCR, per-union extraction (for 537/483/704), derived-column compute, half-up rounding, canonical model, pivot to CSV — all already done. Import as a Python library; don't reimplement.
 
-### 0.3 Style + conventions
+### 0.3 Style + conventions — language split
 
-- **Language for Lambdas + agents:** Python 3.12, ARM64
-- **Language for CDK:** TypeScript (CDK v2)
-- **Language for UI:** TypeScript + React (Vite)
-- **Package manager (Python):** `uv` (kernel already uses it; consistent across repo)
-- **Package manager (Node):** `npm` (default; not pnpm/yarn unless team prefers)
-- **Linter / formatter:** `ruff` + `black` for Python; `eslint` + `prettier` for TS
-- **Test framework:** `pytest` for Python, `vitest` for TS
-- **Naming convention:** Spec/09 §1 (`laboraid-{env}-{layer}-{type}-{purpose}`)
-- **Tagging:** Spec/09 §2 (13 mandatory tags via CDK Aspect)
+The repo has **two** languages by design — Python for everything backend (including CDK), React for the UI:
+
+| Layer | Language | Notes |
+|---|---|---|
+| **CDK (IaC)** | **Python** | `aws-cdk-lib` Python package — NOT TypeScript. App entry: `cdk/app.py`. Managed with `uv`. |
+| **Lambdas, agents, kernel, scripts, tests** | **Python 3.12 ARM64** | Managed with `uv`. |
+| **Admin UI / frontend** | **React** + TypeScript | Vite + React 18 + TS, Tailwind, React Router, Zustand. This is the ONLY place where TS/Node belong. Lives under `ui/`. |
+
+**Python tooling** (CDK + every backend module): `uv` package manager · `ruff` lint · `black` format · `mypy --strict` types · `pytest` tests.
+
+**UI tooling** (`ui/` only): `pnpm` package manager · ESLint + Prettier · TypeScript compiler · Vitest.
+
+**Naming + tagging:** Spec/09 §1 (`laboraid-{env}-{layer}-{type}-{purpose}`) + Spec/09 §2 (13 mandatory tags applied via Python CDK Aspect).
+
+**Hard rules:**
+- CDK is Python — **anyone generating `.ts` CDK is wrong.**
+- UI is React — **anyone swapping in Streamlit / any Python web framework is wrong.**
+- `package.json` + `node_modules/` only exist under `ui/`. Nowhere else in the repo.
+- TypeScript only exists under `ui/`. Nowhere else.
 
 ### 0.4 Build resumability
 
@@ -72,53 +82,55 @@ Build items run in this order. Items in the same letter group (e.g., A.1, A.2) c
 
 ### Group A — CDK foundation (do first; nothing else AWS-related works without it)
 
+CDK is **Python**, not TypeScript. Package is `aws-cdk-lib` (Python). App entry point is `cdk/app.py`. Project managed via `uv` (consistent with the rest of the repo).
+
 | # | Build item | Output paths | Spec ref | Acceptance |
 |---|---|---|---|---|
-| A.1 | CDK app bootstrap | `cdk/bin/app.ts`, `cdk/cdk.json`, `cdk/package.json`, `cdk/tsconfig.json`, `cdk/.gitignore` | Spec/09 §0, §3, §11 | `cd cdk && npm install && npx cdk synth` exits 0 |
-| A.2 | Mandatory tags Aspect | `cdk/lib/aspects/mandatory-tags-aspect.ts` | Spec/09 §2 | Importable by every stack; applies 13 mandatory tags |
-| A.3 | Config (env-specific) | `cdk/lib/config/dev.ts`, `cdk/lib/config/prod.ts` | Spec/09 §0 | Exports `{env, region, account, ...}` per environment |
-| A.4 | Naming helpers | `cdk/lib/util/naming.ts` | Spec/09 §1 | Pure function `name(env, layer, type, purpose) -> string` |
-| A.5 | Tagged construct wrappers | `cdk/lib/constructs/tagged-bucket.ts`, `cdk/lib/constructs/tagged-lambda.ts`, `cdk/lib/constructs/sns-topic-with-subs.ts` | Spec/09 §0.3 + per-layer specs | Each wraps L1 with mandatory tags + defaults (KMS, ARM64, etc.) |
-| A.6 | Strands agent custom construct | `cdk/lib/constructs/strands-agent.ts` | Spec/09 §5 | Wraps AgentCore Runtime CFN resource; takes ECR URI, IAM role, env vars |
+| A.1 | CDK app bootstrap | `cdk/app.py`, `cdk/cdk.json`, `cdk/pyproject.toml`, `cdk/uv.lock`, `cdk/.gitignore` | Spec/09 §0, §3, §11 | `cd cdk && uv sync && uv run cdk synth` exits 0 |
+| A.2 | Mandatory tags Aspect | `cdk/laboraid_cdk/aspects/mandatory_tags.py` | Spec/09 §2 | Implements `jsii.implements(IAspect)`; importable by every stack; applies 13 mandatory tags |
+| A.3 | Config (env-specific) | `cdk/laboraid_cdk/config/dev.py`, `cdk/laboraid_cdk/config/prod.py`, `cdk/laboraid_cdk/config/__init__.py` | Spec/09 §0 | Each exports a `Config` dataclass with `env`, `account`, `region`, etc. |
+| A.4 | Naming helper | `cdk/laboraid_cdk/util/naming.py` | Spec/09 §1 | Pure function `name(env, layer, type, purpose) -> str` |
+| A.5 | Tagged construct wrappers | `cdk/laboraid_cdk/constructs/tagged_bucket.py`, `tagged_lambda.py`, `sns_topic_with_subs.py` | Spec/09 §0.3 + per-layer specs | Each subclasses the L2 construct and applies mandatory tags + defaults (KMS, ARM64 for Lambdas, etc.) |
+| A.6 | Strands agent custom construct | `cdk/laboraid_cdk/constructs/strands_agent.py` | Spec/09 §5 | Wraps `CfnResource` for `AWS::BedrockAgentCore::Runtime`; takes ECR URI, IAM role, env vars |
 
 ### Group B — Storage & security stacks (no compute yet)
 
 | # | Build item | Output paths | Spec ref | Acceptance |
 |---|---|---|---|---|
-| B.1 | Security stack | `cdk/lib/stacks/security-stack.ts` | Spec/09 §3 | KMS CMK + per-Lambda IAM roles (created on demand by other stacks) + Cognito user pool with 4 groups |
-| B.2 | Storage stack | `cdk/lib/stacks/storage-stack.ts` | Spec/09 §4 L3 (§3.1-3.5) | 6 S3 buckets (inputs/processed/outputs/profiles/audit/cba-corpus), 6 DynamoDB tables, Aurora Serverless v2 cluster with schema-init custom resource |
+| B.1 | Security stack | `cdk/laboraid_cdk/stacks/security_stack.py` | Spec/09 §3 | KMS CMK + per-Lambda IAM roles + Cognito user pool with 4 groups |
+| B.2 | Storage stack | `cdk/laboraid_cdk/stacks/storage_stack.py` | Spec/09 §4 L3 (§3.1-3.5) | 6 S3 buckets (inputs/processed/outputs/profiles/audit/cba-corpus), 6 DynamoDB tables, Aurora Serverless v2 cluster with schema-init custom resource |
 
 ### Group C — Processing + AI stacks (depend on B)
 
 | # | Build item | Output paths | Spec ref | Acceptance |
 |---|---|---|---|---|
-| C.1 | ExtractorAgent container | `agents/extractor/Dockerfile`, `agents/extractor/agent.py`, `agents/extractor/requirements.txt`, `agents/extractor/system-prompt.md` | Spec/09 §5 (§5.3 code snippet is the reference implementation) | `docker build` produces an ARM64 image that imports `kernel.pipeline` and runs |
-| C.2 | Processing stack (Lambdas + ECR + AgentCore Runtime) | `cdk/lib/stacks/processing-stack.ts` | Spec/09 §4 L4 + L5 | Classifier Lambda + ECR repo for ExtractorAgent + AgentCore Runtime CFN resource |
-| C.3 | AI stack (Bedrock Guardrails) | `cdk/lib/stacks/ai-stack.ts` | Spec/09 §5 (§5.6 Bedrock Guardrails) | PII Guardrail + KMS key for Bedrock |
+| C.1 | ExtractorAgent container | `agents/extractor/Dockerfile`, `agents/extractor/agent.py`, `agents/extractor/pyproject.toml`, `agents/extractor/system-prompt.md` | Spec/09 §5 (§5.3 code snippet is the reference implementation) | `docker build` produces an ARM64 image that imports `kernel.pipeline` and runs |
+| C.2 | Processing stack (Lambdas + ECR + AgentCore Runtime) | `cdk/laboraid_cdk/stacks/processing_stack.py` | Spec/09 §4 L4 + L5 | Classifier Lambda + ECR repo for ExtractorAgent + AgentCore Runtime CFN resource |
+| C.3 | AI stack (Bedrock Guardrails) | `cdk/laboraid_cdk/stacks/ai_stack.py` | Spec/09 §5 (§5.6 Bedrock Guardrails) | PII Guardrail + KMS key for Bedrock |
 
 ### Group D — Validation + rendering Lambdas
 
 | # | Build item | Output paths | Spec ref | Acceptance |
 |---|---|---|---|---|
-| D.1 | Validator Lambdas (4) | `lambdas/validation/checksum/`, `lambdas/validation/range/`, `lambdas/validation/confidence/`, `lambdas/validation/review-router/` | Spec/09 §4 L6 | Each: handler.py + requirements.txt + tests/; reads canonical JSON, returns pass/fail + reason |
-| D.2 | Renderer Lambdas | `lambdas/rendering/xlsx-renderer/`, `lambdas/rendering/csv-renderer/`, `lambdas/rendering/articles-renderer/` | Spec/09 §4 L7 | xlsx Lambda imports `kernel.pipeline.pivot` (CSV) + converts; CSV Lambda uses kernel directly; articles renderer extracts from kernel's `gaps.md` |
-| D.3 | Validation stack | `cdk/lib/stacks/validation-stack.ts` | Spec/09 §4 L6 + §6 | 3 SNS topics (failures/successes/review-needed) + EventBridge bus + DLQ pattern + SES config + Slack-notifier Lambda |
+| D.1 | Validator Lambdas (4) | `lambdas/validation/checksum/`, `lambdas/validation/range/`, `lambdas/validation/confidence/`, `lambdas/validation/review-router/` | Spec/09 §4 L6 | Each: `handler.py` + `pyproject.toml` + `tests/`; reads canonical JSON, returns pass/fail + reason |
+| D.2 | Renderer Lambdas | `lambdas/rendering/xlsx-renderer/`, `lambdas/rendering/csv-renderer/`, `lambdas/rendering/articles-renderer/` | Spec/09 §4 L7 | xlsx Lambda imports `kernel.pipeline.pivot` (CSV) + converts via `openpyxl`; CSV Lambda uses kernel directly; articles renderer extracts from kernel's `gaps.md` |
+| D.3 | Validation stack | `cdk/laboraid_cdk/stacks/validation_stack.py` | Spec/09 §4 L6 + §6 | 3 SNS topics (failures/successes/review-needed) + EventBridge bus + DLQ pattern + SES config + Slack-notifier Lambda |
 
 ### Group E — API + UI stacks
 
 | # | Build item | Output paths | Spec ref | Acceptance |
 |---|---|---|---|---|
-| E.1 | API Lambdas (10) | `lambdas/api/{upload-presign,job-status,ratesheet-list,ratesheet-get,ratesheet-publish,cell-override,profile-list,profile-update}/` | Spec/09 §4 L2 (§2.2) | Each: handler.py + tests + OpenAPI annotations; uses Powertools |
-| E.2 | API stack | `cdk/lib/stacks/api-stack.ts` | Spec/09 §4 L2 | HTTP API Gateway + Cognito authorizer + WAF + 8 Lambdas wired |
-| E.3 | React admin SPA | `ui/src/`, `ui/public/`, `ui/package.json`, `ui/vite.config.ts`, `ui/tsconfig.json` | Spec/09 §4 L1 (§1.1-1.4) | 5 pages: Upload, Job Status, Rate Sheet Review (side-by-side PDF + extracted), Manual Override, Gaps panel; Cognito auth |
-| E.4 | UI stack | `cdk/lib/stacks/ui-stack.ts` | Spec/09 §4 L1 | S3 bucket (private) + CloudFront + ACM cert + Route53 record + Origin Access Identity |
+| E.1 | API Lambdas (8) | `lambdas/api/{upload-presign,job-status,ratesheet-list,ratesheet-get,ratesheet-publish,cell-override,profile-list,profile-update}/` | Spec/09 §4 L2 (§2.2) | Each: `handler.py` + tests; uses AWS Lambda Powertools (Python) |
+| E.2 | API stack | `cdk/laboraid_cdk/stacks/api_stack.py` | Spec/09 §4 L2 | HTTP API Gateway + Cognito authorizer + WAF + 8 Lambdas wired |
+| E.3 | React admin SPA | `ui/package.json`, `ui/vite.config.ts`, `ui/src/main.tsx`, `ui/src/App.tsx`, `ui/src/pages/*.tsx`, `ui/src/lib/api.ts`, `ui/src/lib/auth.ts` | Spec/09 §4 L1 (§1.1-1.4) | Vite + React 18 + TS SPA: Upload, Jobs, Rate Sheet Review (side-by-side PDF + extracted CSV + provenance), Manual Override, Review Queue, Gaps; Cognito JWT via Amplify Auth; group-based route guards |
+| E.4 | UI hosting stack | `cdk/laboraid_cdk/stacks/ui_stack.py` | Spec/09 §4 L1 | **CDK is Python**, deploys the React SPA build artifact: S3 bucket (private) + CloudFront distribution + OAC + ACM cert + Route53 record + Cognito hosted UI domain. UI build step (`pnpm build` in `ui/`) produces `ui/dist/`; CDK uploads via `BucketDeployment`. |
 
 ### Group F — Orchestration + observability
 
 | # | Build item | Output paths | Spec ref | Acceptance |
 |---|---|---|---|---|
-| F.1 | Step Function state machine | `cdk/lib/stacks/orchestration-stack.ts`, `cdk/lib/sfn/main-pipeline.json` (ASL) | Spec/09 §4 L3 (§3.4) + §5 end-to-end flow | Standard workflow wiring Stages 1-6; retries + DLQ; S3 ObjectCreated trigger |
-| F.2 | Observability stack | `cdk/lib/stacks/observability-stack.ts` | Spec/09 §8 | 5 CloudWatch dashboards + 6 named alarms; X-Ray + CloudTrail enabled |
+| F.1 | Step Function state machine | `cdk/laboraid_cdk/stacks/orchestration_stack.py`, `cdk/laboraid_cdk/sfn/main_pipeline.py` | Spec/09 §4 L3 (§3.4) + §5 end-to-end flow | Standard workflow defined via CDK `aws_stepfunctions` (Python); wires Stages 1-6; retries + DLQ; S3 ObjectCreated trigger |
+| F.2 | Observability stack | `cdk/laboraid_cdk/stacks/observability_stack.py` | Spec/09 §8 | 5 CloudWatch dashboards + 6 named alarms; X-Ray + CloudTrail enabled |
 | F.3 | Operational docs | `docs/RUNBOOK.md`, `docs/ARCHITECTURE.md`, `docs/ONBOARDING.md` | Spec/09 §13 | Each follows the structure described in the spec |
 
 ### Group G — Missing kernel pieces (281 + 821 extractors)
@@ -157,19 +169,88 @@ Only after Groups A-G complete and all per-item acceptance passes.
 
 For each track, the relevant spec sections + any clarifications beyond the spec.
 
-### 2.1 Track A — CDK foundation
+### 2.1 Track A — CDK foundation (Python)
 
 **Reference:** Spec/09 §3 + §11
 
 **Key patterns:**
-- Single CDK app (`cdk/bin/app.ts`) instantiates 8 stacks
+- Single CDK app (`cdk/app.py`) instantiates 8 stacks
 - Stack dependency order: `Security → Storage → Processing → AI → Validation → API → UI → Observability`
-- Use `Stack.dependsOn(otherStack)` for explicit cross-stack ordering
-- Each stack's `props` accepts `env, account, region` from `cdk/lib/config/{env}.ts`
-- Mandatory tagging Aspect applied at app level so every resource inherits
+- Use `stack.add_dependency(other_stack)` for explicit cross-stack ordering
+- Each stack's `__init__` accepts a `Config` instance from `cdk/laboraid_cdk/config/{env}.py`
+- Mandatory tagging Aspect applied at app level so every resource inherits via `Aspects.of(app).add(MandatoryTagsAspect(...))`
 
-**Code-gen prompt template:**
-> Generate a CDK v2 TypeScript stack named `{StackName}` that creates the resources listed in Spec/09 §4 Layer {N} §{sub}. Use `tagged-bucket` / `tagged-lambda` constructs from `cdk/lib/constructs/`. All resource names follow `laboraid-{env}-l{N}-{type}-{purpose}`. Apply MandatoryTagsAspect. Export ARNs/IDs that other stacks need via `CfnOutput`.
+**Project layout (Python CDK):**
+```
+cdk/
+├── app.py                                # entrypoint: instantiates 8 stacks
+├── cdk.json                              # { "app": "uv run python app.py" }
+├── pyproject.toml                        # deps: aws-cdk-lib, constructs, jsii
+├── uv.lock
+├── .gitignore
+└── laboraid_cdk/                         # python package
+    ├── __init__.py
+    ├── aspects/
+    │   ├── __init__.py
+    │   └── mandatory_tags.py             # @jsii.implements(IAspect)
+    ├── config/
+    │   ├── __init__.py
+    │   ├── dev.py
+    │   └── prod.py
+    ├── util/
+    │   ├── __init__.py
+    │   └── naming.py                     # def name(env, layer, type_, purpose) -> str
+    ├── constructs/
+    │   ├── __init__.py
+    │   ├── tagged_bucket.py
+    │   ├── tagged_lambda.py
+    │   ├── sns_topic_with_subs.py
+    │   └── strands_agent.py
+    └── stacks/
+        ├── __init__.py
+        ├── security_stack.py
+        ├── storage_stack.py
+        ├── processing_stack.py
+        ├── ai_stack.py
+        ├── validation_stack.py
+        ├── api_stack.py
+        ├── ui_stack.py
+        ├── orchestration_stack.py
+        └── observability_stack.py
+```
+
+**Code-gen prompt template (CDK Python):**
+> Generate an AWS CDK v2 **Python** stack class named `{StackName}` in `cdk/laboraid_cdk/stacks/{module}.py`. The stack creates the resources listed in Spec/09 §4 Layer {N} §{sub}. Use the tagged-construct wrappers from `cdk.laboraid_cdk.constructs` (`TaggedBucket`, `TaggedLambda`, `SnsTopicWithSubs`). All resource names use the `name()` helper from `cdk.laboraid_cdk.util.naming`. Apply the `MandatoryTagsAspect` if not already done at app level. Export ARNs/IDs other stacks need via `CfnOutput`. Include a module-level docstring citing the spec section. Each major resource gets a comment explaining purpose. Type annotations everywhere; `mypy --strict` should pass.
+
+**Example (CDK Python skeleton):**
+```python
+# cdk/laboraid_cdk/stacks/storage_stack.py
+"""L3 Storage stack — buckets, DDB tables, Aurora.
+
+Implements Spec/09 §4 Layer 3 (§3.1-3.5).
+"""
+from aws_cdk import Stack, RemovalPolicy, Duration
+from aws_cdk import aws_s3 as s3, aws_dynamodb as ddb, aws_rds as rds, aws_kms as kms
+from constructs import Construct
+
+from laboraid_cdk.config import Config
+from laboraid_cdk.constructs.tagged_bucket import TaggedBucket
+from laboraid_cdk.util.naming import name
+
+
+class StorageStack(Stack):
+    def __init__(self, scope: Construct, construct_id: str, *, config: Config,
+                 master_key: kms.IKey, **kwargs) -> None:
+        super().__init__(scope, construct_id, **kwargs)
+
+        self.inputs_bucket = TaggedBucket(
+            self, "InputsBucket",
+            bucket_name=name(config.env, "l3", "bucket", "inputs"),
+            encryption_key=master_key,
+            object_lock_enabled=(config.env == "prod"),
+        )
+        # ... rest per spec
+```
 
 ### 2.2 Track B — Lambda code (Python)
 
@@ -272,47 +353,101 @@ Iterate until `kernel/.claude/harness/evaluation-log.md` records the new union a
 
 **Reference:** Spec/09 §4 L1
 
-**Stack:**
-- Vite + React 18 + TypeScript
-- Cognito Auth via Amplify Auth library or `aws-amplify/auth`
-- Routing: React Router
-- State: Zustand or Redux Toolkit (Zustand preferred for POC simplicity)
-- Styling: Tailwind CSS
+**Stack (this is the ONLY non-Python area of the repo):**
+- **Vite + React 18 + TypeScript** (`ui/` directory; this is where TS lives)
+- **Auth:** Cognito via `aws-amplify/auth` (hosted UI flow → JWT in `localStorage`)
+- **Routing:** React Router v6
+- **State:** Zustand (POC-simple)
+- **Styling:** Tailwind CSS
+- **PDF rendering:** `react-pdf` (`pdfjs-dist` worker)
+- **Data tables:** TanStack Table
+- **Tooling:** ESLint + Prettier + TypeScript compiler + Vitest
+- **Package manager:** `pnpm` (single `ui/pnpm-lock.yaml` committed)
+
+**Project layout:**
+```
+ui/
+├── package.json
+├── pnpm-lock.yaml
+├── vite.config.ts
+├── tsconfig.json
+├── tailwind.config.ts
+├── .eslintrc.cjs
+├── index.html
+├── src/
+│   ├── main.tsx
+│   ├── App.tsx                 # Router shell + Amplify config + auth gate
+│   ├── routes.tsx              # group-gated route definitions
+│   ├── pages/
+│   │   ├── Upload.tsx
+│   │   ├── Jobs.tsx
+│   │   ├── JobDetail.tsx
+│   │   ├── RateSheetList.tsx
+│   │   ├── RateSheetDetail.tsx # side-by-side PDF + table + provenance
+│   │   ├── CellOverride.tsx
+│   │   ├── ReviewQueue.tsx
+│   │   └── Gaps.tsx
+│   ├── components/
+│   │   ├── PdfViewer.tsx
+│   │   ├── ProvenancePanel.tsx
+│   │   ├── RateCellTable.tsx
+│   │   └── RouteGuard.tsx      # Cognito group check
+│   ├── lib/
+│   │   ├── api.ts              # fetch wrapper, injects Cognito JWT
+│   │   ├── auth.ts             # Amplify Auth wrappers, group lookup
+│   │   └── store.ts            # Zustand stores
+│   └── types/
+│       └── api.ts              # generated from OpenAPI / hand-written
+└── public/
+    └── favicon.svg
+```
 
 **Pages required:**
-1. `/upload` — drag-drop file upload (presigned URL flow)
-2. `/jobs` — list of in-flight + recent jobs (table)
+1. `/upload` — drag-drop file upload (presigned URL flow via `POST /v1/uploads/presign`)
+2. `/jobs` — list of in-flight + recent jobs (TanStack Table, 5s polling while in_progress)
 3. `/jobs/:id` — job detail with status + extracted preview
 4. `/unions/:local/rate-sheets` — list of published periods for a union
-5. `/unions/:local/rate-sheets/:period` — side-by-side PDF preview + extracted CSV table + provenance side panel
-6. `/cells/:cellId/override` — manual override modal
+5. `/unions/:local/rate-sheets/:period` — side-by-side PDF preview (`react-pdf`) + extracted CSV table + provenance side panel keyed by `cellId`
+6. `/cells/:cellId/override` — manual override modal (form → `POST /v1/cells/:id/override`)
 7. `/review` — review queue for low-confidence cells
-8. `/unions/:local/gaps` — render kernel's `<union>.gaps.md` content
+8. `/unions/:local/gaps` — render kernel's `<union>.gaps.md` via `react-markdown`
 
-**Cognito groups → route gates:**
+**Cognito groups → route gates** (enforced in `<RouteGuard>`):
 - `Admins` → all routes
 - `Operations` → all except `/admin/*`
 - `Reviewers` → `/review` and `/unions/*` (read-only)
 - `ServiceClients` → API only (no UI access)
 
 **State management:**
-- API client wraps fetch with Cognito JWT injection
-- Polling for job status (every 5s while job in progress)
-- Optimistic UI for override actions
+- Zustand store for: current user + groups, active job polling, draft override form
+- API client (`lib/api.ts`) wraps `fetch` and injects `Authorization: Bearer <Cognito JWT>` from `Amplify.Auth.fetchAuthSession()`
+- Polling: `useEffect` + `setInterval(5000)` for any job in `in_progress` state
+- Optimistic UI for override actions; reconcile on response
+
+**Build → deploy:**
+```bash
+cd ui
+pnpm install
+pnpm typecheck   # tsc --noEmit
+pnpm lint        # eslint
+pnpm test        # vitest
+pnpm build       # produces ui/dist/
+```
+The Python CDK `UiStack` (`cdk/laboraid_cdk/stacks/ui_stack.py`) picks up `ui/dist/` via `aws_s3_deployment.BucketDeployment`, hosts it from a private S3 bucket fronted by CloudFront + OAC, with ACM cert + Route53 record. **The deploy stack is Python; only the SPA source under `ui/` is TS/React.**
 
 ### 2.6 Cross-cutting requirements (apply to every track)
 
 | Requirement | How to satisfy |
 |---|---|
 | Mandatory tags | Apply `MandatoryTagsAspect` at CDK app level |
-| Naming convention | Use `naming.ts` helper exclusively; no hardcoded names |
+| Naming convention | Use `naming.name()` Python helper exclusively; no hardcoded names |
 | IAM least-privilege | One execution role per Lambda; only the specific S3 keys + DDB items + Bedrock model ARNs needed |
 | KMS encryption | All S3 + DDB + Aurora + Secrets use the project CMK |
-| Structured logging | AWS Lambda Powertools for Python; `pino` for Node Lambdas; JSON output to CloudWatch |
+| Structured logging | AWS Lambda Powertools for Python (all Lambdas are Python — no Node Lambdas in this repo); JSON output to CloudWatch |
 | Tracing | X-Ray enabled on every Lambda + Step Functions |
 | TLS-only buckets | Bucket policy denies non-TLS access |
 | No `pip install --user` | Always use `uv` for Python deps |
-| Dependency lockfiles | `uv.lock` and `package-lock.json` committed |
+| Dependency lockfiles | `uv.lock` committed at every Python project root (`cdk/`, `lambdas/<name>/`, `agents/<name>/`, `kernel/`); `ui/pnpm-lock.yaml` committed for the React SPA |
 | Error handling | Try/except at handler boundary; structured error to CloudWatch; DLQ for async; SNS for cross-layer notification |
 
 ---
@@ -346,10 +481,28 @@ If an instruction below seems to call for one of these, **skip it** and add a no
 After all build items complete:
 
 ### 4.1 Repo-level checks
-- [ ] `cdk synth` succeeds across all 8 stacks
-- [ ] `npm run lint && npm run typecheck` clean across `cdk/` and `ui/`
-- [ ] `uv run pytest` clean across `lambdas/` and `kernel/`
+
+**Python side** (CDK + all backend):
+- [ ] `cd cdk && uv run cdk synth` succeeds across all 8 stacks
+- [ ] `uv run ruff check .` clean across `cdk/`, `lambdas/`, `agents/`, `kernel/`
+- [ ] `uv run black --check .` clean across the same dirs
+- [ ] `uv run mypy --strict cdk/laboraid_cdk lambdas agents` exits 0
+- [ ] `uv run pytest` clean across `lambdas/`, `agents/`, `cdk/`, `kernel/`
 - [ ] `kernel/pipeline/run.py --all` still reproduces measured accuracy: 704 ≥ 99.0%, 483 Building = 100%, 537 ≥ 67%
+
+**UI side** (React SPA only):
+- [ ] `cd ui && pnpm install --frozen-lockfile` exits 0
+- [ ] `cd ui && pnpm typecheck` (i.e., `tsc --noEmit`) exits 0
+- [ ] `cd ui && pnpm lint` exits 0
+- [ ] `cd ui && pnpm test --run` exits 0
+- [ ] `cd ui && pnpm build` produces `ui/dist/index.html`
+
+**Boundary checks** (enforces the language split):
+- [ ] No TypeScript outside `ui/`: `find . -name '*.ts' -not -path './ui/*' -not -path '*/node_modules/*' -not -path './.git/*'` returns 0 results
+- [ ] No `package.json` outside `ui/`: `find . -name 'package.json' -not -path './ui/*' -not -path '*/node_modules/*' -not -path './.git/*'` returns 0 results
+- [ ] No `node_modules/` outside `ui/`: `find . -type d -name 'node_modules' -not -path './ui/*' -not -path './.git/*'` returns 0 results
+
+**Process:**
 - [ ] Git history is clean — every numbered item has a `[BUILD-NN]` commit
 - [ ] `docs/BUILD_LOG.md` shows all items succeeded (or only deferred items skipped)
 
@@ -374,7 +527,7 @@ After all build items complete:
 - [ ] Strands Agent framework: `ExtractorAgent` is a Strands `Agent` with `@tool` + `SteeringHandler` ✅
 - [ ] AWS AgentCore: agent deployed on AgentCore Runtime ✅
 - [ ] AWS Bedrock: Claude Sonnet 4.x + Haiku invoked via `bedrock.invoke_model` ✅
-- [ ] React UI ✅
+- [ ] React admin SPA delivered (Vite + React 18 + TS, hosted on S3+CloudFront+OAC via Python CDK `UiStack`) ✅
 - [ ] S3 (shared and tenant-specific) ✅
 - [ ] Document-Agnostic Processing (kernel's pdfplumber + rapidocr hybrid path) ✅
 - [ ] LLM-Centric Extraction (agent uses Claude as Bedrock fallback) ✅
@@ -388,8 +541,8 @@ After all build items complete:
 
 When the code-gen library needs a template-specific prompt, use these:
 
-### 5.1 CDK stack prompt
-> Generate a CDK v2 TypeScript stack at `{path}`. The stack creates the resources listed in Spec/09 §{section}. Use the tagged-construct wrappers from `cdk/lib/constructs/`. All resource names follow `laboraid-{env}-l{N}-{type}-{purpose}` via `naming.ts`. Apply `MandatoryTagsAspect`. Export ARNs/IDs other stacks need via `CfnOutput`. Include a JSDoc comment at the top citing the spec section. Include comments above each major resource explaining purpose.
+### 5.1 CDK stack prompt (Python)
+> Generate an AWS CDK v2 **Python** stack class in `cdk/laboraid_cdk/stacks/{module}.py`. The stack creates the resources listed in Spec/09 §{section}. Use the tagged-construct wrappers from `cdk.laboraid_cdk.constructs` (`TaggedBucket`, `TaggedLambda`, `SnsTopicWithSubs`). All resource names use the `name()` helper from `cdk.laboraid_cdk.util.naming`. Constructor takes a `Config` instance + any required cross-stack refs (e.g., `master_key: kms.IKey`). Export ARNs/IDs other stacks need via `CfnOutput`. Include a module-level docstring citing the spec section. Comment major resources. Type annotations everywhere; `mypy --strict` must pass.
 
 ### 5.2 Lambda handler prompt
 > Generate a Python 3.12 Lambda handler at `{path}/handler.py` plus `requirements.txt` and `tests/test_handler.py`. The handler implements: {one-line description from Spec/09 §{section}}. Use AWS Lambda Powertools (Logger, Tracer, Metrics). Use Pydantic for input/output models. Wrap all logic in try/except at the handler boundary. For any Bedrock call, apply the PII Guardrail by ID from env var `BEDROCK_GUARDRAIL_ID`. Include unit tests with at least 3 cases: happy path, validation failure, downstream error.
@@ -398,7 +551,7 @@ When the code-gen library needs a template-specific prompt, use these:
 > Generate a Strands agent in `agents/{name}/`. The agent's role is: {one-line}. Tools (each is a Python function decorated with `@tool`): {list of tool functions referencing kernel module paths}. SteeringHandler enforces: {list of conditions}. System prompt content lives in `system-prompt.md`. The Dockerfile uses `public.ecr.aws/lambda/python:3.12-arm64` as base and installs the kernel via `uv pip install -e /opt/kernel`. The container's CMD invokes the agent via AgentCore Runtime conventions. Include OpenTelemetry trace attributes.
 
 ### 5.4 React page prompt
-> Generate a React + TypeScript page component at `ui/src/pages/{Name}.tsx`. The page's purpose is: {one-line}. Use Tailwind CSS for styling, react-router for navigation, Zustand for state, and the API client from `ui/src/lib/api.ts`. Cognito group access is restricted to: {list from §2.5}. Include loading + error states. If the page polls the API, poll every 5 seconds while in-flight.
+> Generate a React + TypeScript page component at `ui/src/pages/{Name}.tsx`. The page's purpose is: {one-line}. Use Tailwind CSS for styling, React Router v6 for navigation, Zustand for state, and the API client from `ui/src/lib/api.ts` (it already injects the Cognito JWT). Wrap the page in `<RouteGuard groups={[...]}>` restricting Cognito group access to: {list from §2.5}. Include loading + error states and an empty-state placeholder. If the page polls the API, poll every 5 seconds while any job is `in_progress` (`useEffect` + `setInterval`). Strict TypeScript — no `any`. Use the types from `ui/src/types/api.ts`. **CDK around this is Python; the SPA itself is the only TS in the repo.**
 
 ### 5.5 Profile YAML prompt
 > Generate `kernel/profiles/{union}.yaml` matching the structure of `kernel/profiles/sprinkler_fitters_704.yaml`. The profile defines the union's output ratesheet schema. Column list MUST match the header of `kernel/data/{union}/ratesheet/{groundtruth-file}` exactly (same names, same order). Use `multiplier_of` + `factor` for derived columns. Use the canonical field dictionary in `kernel/canonical/fields.yaml` to map column names to canonical fields. Reference: `../../discovery/0X_{union}_PDF_to_RateSheet_Study.md` for the union's specific rules.
@@ -415,8 +568,9 @@ After every item commit, the build runner verifies:
 1. **`git status` clean** — no untracked files outside the item's expected outputs
 2. **Repo doesn't grow in places it shouldn't** — `kernel/` byte count unchanged unless item is in Group G
 3. **Naming convention adherence** — `grep -rE 'laboraid-(dev|prod)-l[0-9]-' cdk/` returns >0 matches but `grep -E 'laboraid-[A-Z]'` returns 0 (no PascalCase)
-4. **Mandatory tags present** — `grep -c MandatoryTagsAspect cdk/lib/stacks/*.ts` equals the stack count
+4. **Mandatory tags present** — `grep -c MandatoryTagsAspect cdk/laboraid_cdk/stacks/*.py` equals the stack count
 5. **No secrets** — `grep -rE 'AKIA|aws_secret|password=' --exclude-dir=node_modules --exclude-dir=.git` returns 0
+6. **Language-split boundary holds** — no `.ts`/`.tsx` outside `ui/`; no `package.json` outside `ui/`; no `.py` CDK escaping to `.ts` CDK
 
 If any invariant fails, the build runner halts and records in `docs/BUILD_LOG.md`.
 

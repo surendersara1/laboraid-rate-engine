@@ -13,16 +13,18 @@ laboraid-rate-engine/
 ├── kernel/              # Ashwani's deterministic extraction pipeline (subtree import)
 │                        # Provenance-tagged extraction, OCR, canonical model, per-union profiles.
 │                        # Imported from: git@bitbucket.org:northbay/labor_aid_poc.git
-├── cdk/                 # AWS CDK v2 (TypeScript) — 8-stack deployment
-├── agents/              # Strands agent containers (ExtractorAgent on AgentCore Runtime)
+├── cdk/                 # AWS CDK v2 — PYTHON (aws-cdk-lib Python) — 8-stack deployment
+├── agents/              # Strands agent containers — Python (ExtractorAgent on AgentCore Runtime)
 ├── lambdas/             # Python Lambdas — API, validation, rendering, classification
-├── ui/                  # React admin SPA (file upload, review, override, publish)
+├── ui/                  # React admin SPA — Vite + React 18 + TypeScript (ONLY non-Python area)
 ├── containers/          # Custom container images (Docling, OCR helpers)
 ├── profiles/            # Symlinks/copies of per-union YAML profiles from kernel/
 ├── docs/                # Architecture, runbook, onboarding, UAT report
-├── scripts/             # Deploy + bootstrap helpers
+├── scripts/             # Deploy + bootstrap helpers (Python)
 └── pyproject.toml       # Workspace-level Python deps (top-level)
 ```
+
+**Language split:** every layer is Python EXCEPT `ui/` (React + TypeScript). CDK is Python, not TS.
 
 ---
 
@@ -80,11 +82,16 @@ cd kernel
 uv sync
 uv run python pipeline/run.py --all
 
-# 2. Full AWS stack — once CDK is wired up
+# 2. Full AWS stack — Python CDK
 cd cdk
-npm install
-npx cdk synth
-npx cdk deploy --all
+uv sync
+uv run cdk synth
+uv run cdk deploy --all
+
+# 3. React admin UI (only TS in the repo)
+cd ui
+pnpm install
+pnpm build           # outputs ui/dist/, deployed by CDK UiStack
 ```
 
 ---
