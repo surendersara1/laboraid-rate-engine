@@ -1,0 +1,228 @@
+"""L2 API stack — HTTP API Gateway + Cognito authorizer + WAF (Spec/09 §4 L2).
+
+Creates the 19 API Lambdas (E.1 admin + E.2 business/shared), an HTTP API with a
+Cognito user-pool JWT authorizer on every route, the per-route wiring of §2.2,
+and a regional WAF Web ACL (AWS managed common rules + rate limit) associated
+with the API stage.
+
+Per-route *group* authorization (Admins/Operations/Business) is enforced inside
+each Lambda from the ``cognito:groups`` JWT claim; the authorizer here enforces
+authentication. POC scope (Spec/09 §4 L1 §1.4/1.5).
+"""
+
+from __future__ import annotations
+
+from typing import Any
+
+from aws_cdk import CfnOutput, Stack
+from aws_cdk import aws_apigatewayv2 as apigw
+from aws_cdk import aws_apigatewayv2_authorizers as authorizers
+from aws_cdk import aws_apigatewayv2_integrations as integrations
+from aws_cdk import aws_cognito as cognito
+from aws_cdk import aws_dynamodb as ddb
+from aws_cdk import aws_lambda as lambda_
+from aws_cdk import aws_rds as rds
+from aws_cdk import aws_s3 as s3
+from aws_cdk import aws_secretsmanager as secretsmanager
+from aws_cdk import aws_wafv2 as wafv2
+from constructs import Construct
+
+from laboraid_cdk.config import Config
+from laboraid_cdk.constructs.tagged_lambda import TaggedLambda
+from laboraid_cdk.util.naming import name
+
+# (method, path, lambda-dir). Some routes share a Lambda (e.g. profile-list).
+ROUTES: list[tuple[str, str, str]] = [
+    ("POST", "/v1/uploads", "upload-presign"),
+    ("GET", "/v1/jobs", "job-list"),
+    ("GET", "/v1/jobs/{id}", "job-status"),
+    ("POST", "/v1/jobs/{id}/retry", "job-retry"),
+    ("POST", "/v1/jobs/{id}/abort", "job-abort"),
+    ("GET", "/v1/agents", "agent-list"),
+    ("PATCH", "/v1/agents/{name}", "agent-toggle"),
+    ("GET", "/v1/unions", "profile-list"),
+    ("GET", "/v1/unions/{local}/profile", "profile-list"),
+    ("PUT", "/v1/unions/{local}/profile", "profile-update"),
+    ("GET", "/v1/unions/{local}/rate-sheets", "ratesheet-list"),
+    ("GET", "/v1/unions/{local}/rate-sheets/{period}", "ratesheet-get"),
+    ("POST", "/v1/unions/{local}/rate-sheets/{period}/approve", "ratesheet-approve"),
+    ("POST", "/v1/unions/{local}/rate-sheets/{period}/reject", "ratesheet-reject"),
+    ("POST", "/v1/unions/{local}/rate-sheets/{period}/unapprove", "ratesheet-unapprove"),
+    ("POST", "/v1/unions/{local}/rate-sheets/{period}/publish", "ratesheet-publish"),
+    ("GET", "/v1/unions/{local}/rate-sheets/{period}/audit", "ratesheet-audit"),
+    ("POST", "/v1/cells/{cell_id}/override", "cell-override"),
+    ("POST", "/v1/cells/{cell_id}/comment", "cell-comment"),
+    ("GET", "/v1/audit", "audit-list"),
+]
+
+# Lambda dir -> resource categories it needs grants for.
+GRANTS: dict[str, set[str]] = {
+    "upload-presign": {"inputs"},
+    "job-list": {"jobs"},
+    "job-status": {"jobs"},
+    "job-retry": {"jobs"},
+    "job-abort": {"jobs"},
+    "agent-list": {"agents"},
+    "agent-toggle": {"agents"},
+    "profile-list": set(),
+    "profile-update": set(),
+    "audit-list": {"aurora"},
+    "ratesheet-list": {"aurora"},
+    "ratesheet-get": {"aurora"},
+    "ratesheet-approve": {"aurora"},
+    "ratesheet-reject": {"aurora"},
+    "ratesheet-unapprove": {"aurora"},
+    "ratesheet-publish": {"aurora"},
+    "ratesheet-audit": {"aurora"},
+    "cell-override": {"overrides"},
+    "cell-comment": {"aurora"},
+}
+
+
+class ApiStack(Stack):
+    """HTTP API + Cognito authorizer + WAF + the 19 API Lambdas."""
+
+    def __init__(
+        self,
+        scope: Construct,
+        construct_id: str,
+        *,
+        config: Config,
+        user_pool: cognito.IUserPool,
+        user_pool_client: cognito.IUserPoolClient,
+        inputs_bucket: s3.IBucket,
+        jobs_table: ddb.ITable,
+        agent_config_table: ddb.ITable,
+        overrides_table: ddb.ITable,
+        aurora: rds.IDatabaseCluster,
+        aurora_secret: secretsmanager.ISecret,
+        **kwargs: Any,
+    ) -> None:
+        super().__init__(scope, construct_id, **kwargs)
+        env = config.env
+
+        common_env = {
+            "INPUTS_BUCKET": inputs_bucket.bucket_name,
+            "JOBS_TABLE": jobs_table.table_name,
+            "AGENT_CONFIG_TABLE": agent_config_table.table_name,
+            "OVERRIDES_TABLE": overrides_table.table_name,
+            "AURORA_CLUSTER_ARN": aurora.cluster_arn,
+            "AURORA_SECRET_ARN": aurora_secret.secret_arn,
+        }
+
+        # --- Create one Lambda per unique dir, applying its grants -------------
+        self.functions: dict[str, TaggedLambda] = {}
+        for key in {dir_ for _, _, dir_ in ROUTES}:
+            fn = TaggedLambda(
+                self,
+                _pascal(key),
+                env=env,
+                layer="l2",
+                function_name=name(env, "l2", "fn", key),
+                handler="handler.handler",
+                code=lambda_.Code.from_asset(f"../lambdas/api/{key}"),
+                environment=dict(common_env),
+            )
+            cats = GRANTS[key]
+            if "inputs" in cats:
+                inputs_bucket.grant_put(fn)
+            if "jobs" in cats:
+                jobs_table.grant_read_write_data(fn)
+            if "agents" in cats:
+                agent_config_table.grant_read_write_data(fn)
+            if "overrides" in cats:
+                overrides_table.grant_read_write_data(fn)
+            if "aurora" in cats:
+                aurora.grant_data_api_access(fn)
+                aurora_secret.grant_read(fn)
+            self.functions[key] = fn
+
+        # --- HTTP API + Cognito authorizer ------------------------------------
+        authorizer = authorizers.HttpUserPoolAuthorizer(
+            "CognitoAuthorizer",
+            user_pool,
+            user_pool_clients=[user_pool_client],
+        )
+        self.http_api = apigw.HttpApi(
+            self,
+            "HttpApi",
+            api_name=name(env, "l2", "apigw", "main"),
+            default_authorizer=authorizer,
+        )
+        for method, path, key in ROUTES:
+            self.http_api.add_routes(
+                path=path,
+                methods=[apigw.HttpMethod(method)],
+                integration=integrations.HttpLambdaIntegration(
+                    f"Int{_pascal(key)}{method}{_slug(path)}",
+                    self.functions[key],
+                ),
+            )
+
+        # --- WAF (regional, managed common rules + rate limit) ----------------
+        self.web_acl = wafv2.CfnWebACL(
+            self,
+            "ApiWaf",
+            name=name(env, "l2", "waf", "api"),
+            scope="REGIONAL",
+            default_action=wafv2.CfnWebACL.DefaultActionProperty(allow={}),
+            visibility_config=wafv2.CfnWebACL.VisibilityConfigProperty(
+                cloud_watch_metrics_enabled=True,
+                metric_name=name(env, "l2", "waf", "api"),
+                sampled_requests_enabled=True,
+            ),
+            rules=[
+                wafv2.CfnWebACL.RuleProperty(
+                    name="AWSCommonRules",
+                    priority=1,
+                    statement=wafv2.CfnWebACL.StatementProperty(
+                        managed_rule_group_statement=(
+                            wafv2.CfnWebACL.ManagedRuleGroupStatementProperty(
+                                vendor_name="AWS", name="AWSManagedRulesCommonRuleSet"
+                            )
+                        )
+                    ),
+                    override_action=wafv2.CfnWebACL.OverrideActionProperty(none={}),
+                    visibility_config=wafv2.CfnWebACL.VisibilityConfigProperty(
+                        cloud_watch_metrics_enabled=True,
+                        metric_name="common-rules",
+                        sampled_requests_enabled=True,
+                    ),
+                ),
+                wafv2.CfnWebACL.RuleProperty(
+                    name="RateLimit",
+                    priority=2,
+                    statement=wafv2.CfnWebACL.StatementProperty(
+                        rate_based_statement=wafv2.CfnWebACL.RateBasedStatementProperty(
+                            limit=2000, aggregate_key_type="IP"
+                        )
+                    ),
+                    action=wafv2.CfnWebACL.RuleActionProperty(block={}),
+                    visibility_config=wafv2.CfnWebACL.VisibilityConfigProperty(
+                        cloud_watch_metrics_enabled=True,
+                        metric_name="rate-limit",
+                        sampled_requests_enabled=True,
+                    ),
+                ),
+            ],
+        )
+        # HTTP API auto-deploys to the "$default" stage.
+        stage_arn = (
+            f"arn:aws:apigateway:{self.region}::/apis/" f"{self.http_api.api_id}/stages/$default"
+        )
+        wafv2.CfnWebACLAssociation(
+            self,
+            "ApiWafAssociation",
+            resource_arn=stage_arn,
+            web_acl_arn=self.web_acl.attr_arn,
+        )
+
+        CfnOutput(self, "ApiEndpoint", value=self.http_api.api_endpoint)
+
+
+def _pascal(slug: str) -> str:
+    return "".join(p.capitalize() for p in slug.replace("/", "-").split("-"))
+
+
+def _slug(path: str) -> str:
+    return "".join(c for c in path.title() if c.isalnum())

@@ -14,6 +14,7 @@ import aws_cdk as cdk
 from laboraid_cdk.aspects.mandatory_tags import MandatoryTagsAspect
 from laboraid_cdk.config import get_config
 from laboraid_cdk.stacks.ai_stack import AiStack
+from laboraid_cdk.stacks.api_stack import ApiStack
 from laboraid_cdk.stacks.processing_stack import ProcessingStack
 from laboraid_cdk.stacks.security_stack import SecurityStack
 from laboraid_cdk.stacks.storage_stack import StorageStack
@@ -71,6 +72,23 @@ validation = ValidationStack(
     review_table=storage.review_table,
 )
 validation.add_dependency(storage)
+
+assert storage.aurora.secret is not None
+api = ApiStack(
+    app,
+    f"Laboraid-{config.env}-Api",
+    config=config,
+    user_pool=security.user_pool,
+    user_pool_client=security.user_pool_client,
+    inputs_bucket=storage.inputs_bucket,
+    jobs_table=storage.jobs_table,
+    agent_config_table=storage.agent_config_table,
+    overrides_table=storage.overrides_table,
+    aurora=storage.aurora,
+    aurora_secret=storage.aurora.secret,
+)
+api.add_dependency(security)
+api.add_dependency(storage)
 # ---------------------------------------------------------------------------
 
 # Mandatory tags on every resource (Spec/09 §2).

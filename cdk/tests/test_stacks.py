@@ -117,3 +117,36 @@ def test_validation_stack_topics_and_bus() -> None:
     val.resource_count_is("AWS::Events::EventBus", 1)
     # 4 validators + 3 renderers + slack-notifier = 8 Lambdas.
     val.resource_count_is("AWS::Lambda::Function", 8)
+
+
+def _synth_api() -> Template:
+    config = get_config("dev")
+    app = cdk.App()
+    security = SecurityStack(app, "Sec", config=config)
+    storage = StorageStack(app, "Stg", config=config, master_key=security.master_key)
+    from laboraid_cdk.stacks.api_stack import ApiStack
+
+    assert storage.aurora.secret is not None
+    api = ApiStack(
+        app,
+        "Api",
+        config=config,
+        user_pool=security.user_pool,
+        user_pool_client=security.user_pool_client,
+        inputs_bucket=storage.inputs_bucket,
+        jobs_table=storage.jobs_table,
+        agent_config_table=storage.agent_config_table,
+        overrides_table=storage.overrides_table,
+        aurora=storage.aurora,
+        aurora_secret=storage.aurora.secret,
+    )
+    return Template.from_stack(api)
+
+
+def test_api_stack() -> None:
+    api = _synth_api()
+    api.resource_count_is("AWS::Lambda::Function", 19)  # 19 API Lambdas
+    api.resource_count_is("AWS::ApiGatewayV2::Api", 1)
+    api.resource_count_is("AWS::ApiGatewayV2::Authorizer", 1)
+    api.resource_count_is("AWS::WAFv2::WebACL", 1)
+    api.resource_count_is("AWS::ApiGatewayV2::Route", 20)  # 20 routes (profile-list x2)
