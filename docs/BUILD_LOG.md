@@ -120,3 +120,75 @@ continue from the next unfinished item.
   is no separate L7 stack in the 8-stack design, and F.1 (orchestration) wires
   these into Step Functions. The 3 SNS topics + EventBridge bus + SES config set
   + DLQ satisfy the D.3 acceptance.
+
+## Group E — API + UI
+
+- [BUILD-E.1] API Lambdas (admin, 10) — DONE at 2026-06-02T22:25:00Z
+- [BUILD-E.2] API Lambdas (business + shared, 9) — DONE at 2026-06-02T22:35:00Z
+- [BUILD-E.3] API stack — DONE at 2026-06-02T22:45:00Z
+- [BUILD-E.4] React SPA — Admin shell — PENDING
+- [BUILD-E.5] React SPA — Business shell — PENDING
+- [BUILD-E.6] UI hosting stack — PENDING
+
+### Notes
+
+- 19 API Lambdas (E.1+E.2) + the L2 API stack (E.3) done. Gates green: cdk synth
+  ✅ (7 stacks), ruff ✅, black ✅, mypy --strict (20 files) ✅, cdk pytest ✅ (6
+  stack-assertion groups), lambda pytest ✅ (30 lambda tests incl. publish-409,
+  approve/reject/unapprove transitions, agent-toggle, validators, renderers).
+- **SOW-critical logic implemented + tested:** `ratesheet-publish.publish_guard`
+  returns 409 unless `approval_state='approved'`; approve requires an empty review
+  queue; reject requires a reason (+ validated structured tags); unapprove is
+  limited to the original approver before publish.
+- API stack creates the 19 Lambdas itself (per-category least-privilege grants),
+  Cognito JWT authorizer on all routes, the 20 routes of §2.2, and a regional WAF.
+  Per-route *group* authz is enforced in-Lambda from the `cognito:groups` claim.
+
+---
+
+## RESUME POINTER (next run starts here)
+
+**Completed:** Groups A, B, C, D fully + E.1, E.2, E.3. 17 build items, all
+committed `[BUILD-XX]`, working tree clean, `cd cdk && npx cdk synth` exits 0 for
+all 7 stacks (Security/Storage/Ai/Processing/Validation/Api + the tag aspect).
+
+**Next items, in order:**
+1. **E.4 React SPA — Admin shell** + **E.5 Business shell**: scaffold
+   `ui/` (Vite + React 18 + TS + Tailwind + React Router v6 + Zustand + Amplify
+   Auth + react-pdf + TanStack Table). 8 admin pages (`/admin/*`) + 7 business
+   pages (`/business/*`), `RouteGuard` (Cognito group gate), `PersonaChooser`,
+   `AgentToggle` (PATCH /v1/agents/{name}, Admins-only), `ApproveRejectBar`
+   (disabled until review queue empty; reject needs reason), 5 s polling on
+   Jobs/Agents while a job is `in_progress`. See Spec/09 §4 L1 §1.4/§1.5 and
+   BUILD_INSTRUCTIONS §2.5 for the full file tree + per-page feature lists.
+   **Tooling:** `pnpm` is available via **`corepack pnpm <cmd>`** (9.15.9) — the
+   bare `pnpm` shim is not on PATH. Acceptance: `corepack pnpm install`,
+   `corepack pnpm typecheck` (tsc --noEmit), `lint`, `test --run`, `build`
+   (produces `ui/dist/index.html`). `pnpm install` needs network for the npm
+   registry.
+2. **E.6 UI hosting stack** (`ui_stack.py`): private S3 + CloudFront + OAC + ACM +
+   Route53 + `BucketDeployment` of `ui/dist`. Wire into `app.py` (depends on the
+   SPA build). Spec/09 §4 L1 §1.3 has the skeleton.
+3. **Group F** — F.1 orchestration_stack + sfn/main_pipeline.py (Step Functions
+   wiring Stages 1-6 over the classifier/agent/validators/renderers; S3
+   ObjectCreated trigger; retries + DLQ), F.2 observability_stack (5 dashboards +
+   6 named alarms + X-Ray + CloudTrail), F.3 docs (RUNBOOK/ARCHITECTURE/ONBOARDING
+   from Spec/09 §13 + §8).
+4. **Group G** — kernel extractors 281 + 821 via the kernel's own
+   `.claude/harness/` (NEVER edit kernel by hand; ≤4 harness iterations each).
+5. **Group H** — e2e smoke, CI workflow (cicd/04), README overwrite.
+
+**Conventions already established to reuse:**
+- Lambda handlers: optional-Powertools `try/except ModuleNotFoundError` shim;
+  pure logic in module-level fns; tests load the handler via `importlib` under a
+  unique name; `lambdas/pytest.ini` sets `--import-mode=importlib`.
+- CDK: `TaggedBucket`/`TaggedLambda`/`SnsTopicWithSubs`/`StrandsAgentRuntime`
+  constructs; `name(env, layer, type_, purpose)` for all names; per-consumer IAM
+  roles (never grant a Security-stack role a downstream resource → cycle);
+  `MandatoryTagsAspect` tags **L1 CfnResources** (not L2) to avoid the
+  aspect-stabilization loop.
+- Stacks are environment-agnostic (no `env=`) so synth runs without AWS creds.
+- `uv run cdk` is not valid (cdk is the Node CLI) — drive synth via `npx cdk`.
+
+**Final acceptance gate:** BUILD_INSTRUCTIONS §4 (repo checks + e2e smoke + spec
+match + SOW contract match).
