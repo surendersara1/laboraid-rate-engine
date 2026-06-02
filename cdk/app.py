@@ -13,20 +13,29 @@ import aws_cdk as cdk
 
 from laboraid_cdk.aspects.mandatory_tags import MandatoryTagsAspect
 from laboraid_cdk.config import get_config
+from laboraid_cdk.stacks.security_stack import SecurityStack
+from laboraid_cdk.stacks.storage_stack import StorageStack
 
 app = cdk.App()
 
 env_name = str(app.node.try_get_context("env") or "dev")
 config = get_config(env_name)
 
-cdk_env = cdk.Environment(account=config.account, region=config.region)
+# Stacks are environment-agnostic so `cdk synth` works without AWS credentials.
+# Deploy binds them to a concrete account/region via `CDK_DEFAULT_*` /
+# `cdk deploy` (the dev/prod split is carried by `config.env`, not the CDK env).
 
 # --- Stacks (instantiated as build groups B–F complete) ---------------------
 # Dependency order (Spec/09 §3):
 #   Security -> Storage -> Processing -> AI -> Validation -> API -> UI -> Observability
-# e.g.:
-#   security = SecurityStack(app, name(config.env, "l3", "stack", "security"),
-#                            config=config, env=cdk_env)
+security = SecurityStack(app, f"Laboraid-{config.env}-Security", config=config)
+storage = StorageStack(
+    app,
+    f"Laboraid-{config.env}-Storage",
+    config=config,
+    master_key=security.master_key,
+)
+storage.add_dependency(security)
 # ---------------------------------------------------------------------------
 
 # Mandatory tags on every resource (Spec/09 §2).
