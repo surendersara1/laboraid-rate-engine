@@ -1,0 +1,34 @@
+union: sprinkler_fitters_704
+constants:
+  Union Group: UA
+  Trade: Sprinkler
+  Union Local: "704"
+start_date: 1/1/26
+end_date: 7/31/26
+key_columns: [Zone, Package, Start Date, End Date]
+
+columns:
+  - Union Group
+  - Trade
+  - Union Local
+  - Zone
+  - Package
+  - Start Date
+  - End Date
+  - {name: Wage,                          kind: $}
+  - {name: Wage Differential,             kind: $, multiplier_of: Wage, factor: 1.15}
+  - {name: Wage 1.5x,                     kind: $, multiplier_of: Wage, factor: 1.5}
+  - {name: Wage 2.0x,                     kind: $, multiplier_of: Wage, factor: 2.0}
+  - {name: Health & Welfare,              kind: $}
+  - {name: RESA,                          kind: $}
+  - {name: Pension,                       kind: $}
+  - {name: SIS,                           kind: $}
+  - {name: UA International Training,      kind: $}
+  - {name: Apprenticeship Training,       kind: $}
+  - {name: S.U.B. 704,                    kind: $}
+  - {name: Industry Promotion National Use, kind: $}
+  - {name: Industry Promotion Local Use,  kind: $}
+  - {name: S & E 704,                     kind: $}
+  - {name: Craft 704,                     kind: $}
+  - {name: Union Dues 704,                kind: $}
+  - {name: Retiree Holiday 704,           kind: $}

@@ -1,0 +1,18 @@
+[project]
+name = "labor-aid-poc"
+version = "0.1.0"
+description = "Generic CBA -> canonical ratesheet extraction pipeline"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "pdfplumber",
+    "openpyxl",
+    "pandas",
+    "pyyaml",
+    "pypdfium2",
+    "rapidocr-onnxruntime",
+    "Pillow",
+]
+
+[tool.uv]
+package = false
