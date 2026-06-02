@@ -18,6 +18,7 @@ from laboraid_cdk.stacks.api_stack import ApiStack
 from laboraid_cdk.stacks.processing_stack import ProcessingStack
 from laboraid_cdk.stacks.security_stack import SecurityStack
 from laboraid_cdk.stacks.storage_stack import StorageStack
+from laboraid_cdk.stacks.ui_stack import UiStack
 from laboraid_cdk.stacks.validation_stack import ValidationStack
 
 app = cdk.App()
@@ -89,6 +90,9 @@ api = ApiStack(
 )
 api.add_dependency(security)
 api.add_dependency(storage)
+
+# UI hosting (custom domain wired only when a hosted zone is supplied).
+ui = UiStack(app, f"Laboraid-{config.env}-Ui", config=config)
 # ---------------------------------------------------------------------------
 
 # Mandatory tags on every resource (Spec/09 §2).

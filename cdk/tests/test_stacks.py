@@ -150,3 +150,34 @@ def test_api_stack() -> None:
     api.resource_count_is("AWS::ApiGatewayV2::Authorizer", 1)
     api.resource_count_is("AWS::WAFv2::WebACL", 1)
     api.resource_count_is("AWS::ApiGatewayV2::Route", 20)  # 20 routes (profile-list x2)
+
+
+def test_ui_stack() -> None:
+    config = get_config("dev")
+    app = cdk.App()
+    from laboraid_cdk.stacks.ui_stack import UiStack
+
+    ui = UiStack(app, "Ui", config=config)
+    template = Template.from_stack(ui)
+    template.resource_count_is("AWS::S3::Bucket", 1)
+    template.resource_count_is("AWS::CloudFront::Distribution", 1)
+    template.resource_count_is("AWS::CloudFront::OriginAccessControl", 1)
+    # SPA fallback: 403/404 -> index.html.
+    template.has_resource_properties(
+        "AWS::CloudFront::Distribution",
+        Match.object_like(
+            {
+                "DistributionConfig": Match.object_like(
+                    {
+                        "CustomErrorResponses": Match.array_with(
+                            [
+                                Match.object_like(
+                                    {"ResponseCode": 200, "ResponsePagePath": "/index.html"}
+                                )
+                            ]
+                        )
+                    }
+                )
+            }
+        ),
+    )
