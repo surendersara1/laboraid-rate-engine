@@ -1011,7 +1011,7 @@ agentcore deploy
 
 This bypasses CDK for the agent itself (CDK still manages the IAM role, ECR repo, and surrounding resources). Some teams find this faster for iteration.
 
-#### 5.4 Bedrock Knowledge Base — DEFERRED for POC
+#### Bedrock Knowledge Base — DEFERRED for POC (interstitial note between §5.4 and §5.5)
 
 Bedrock KB + S3 Vectors for CBA RAG is **deferred to v1.1+** unless explicitly confirmed in scope with the customer. The SOW lists "advanced RAG or evaluation frameworks" as out-of-scope (Page 7) — Bedrock KB usage is ambiguous against that exclusion.
 

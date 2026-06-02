@@ -90,7 +90,7 @@ CDK is **Python**, not TypeScript. Package is `aws-cdk-lib` (Python). App entry 
 | A.2 | Mandatory tags Aspect | `cdk/laboraid_cdk/aspects/mandatory_tags.py` | Spec/09 §2 | Implements `jsii.implements(IAspect)`; importable by every stack; applies 13 mandatory tags |
 | A.3 | Config (env-specific) | `cdk/laboraid_cdk/config/dev.py`, `cdk/laboraid_cdk/config/prod.py`, `cdk/laboraid_cdk/config/__init__.py` | Spec/09 §0 | Each exports a `Config` dataclass with `env`, `account`, `region`, etc. |
 | A.4 | Naming helper | `cdk/laboraid_cdk/util/naming.py` | Spec/09 §1 | Pure function `name(env, layer, type, purpose) -> str` |
-| A.5 | Tagged construct wrappers | `cdk/laboraid_cdk/constructs/tagged_bucket.py`, `tagged_lambda.py`, `sns_topic_with_subs.py` | Spec/09 §0.3 + per-layer specs | Each subclasses the L2 construct and applies mandatory tags + defaults (KMS, ARM64 for Lambdas, etc.) |
+| A.5 | Tagged construct wrappers | `cdk/laboraid_cdk/constructs/tagged_bucket.py`, `tagged_lambda.py`, `sns_topic_with_subs.py` | Spec/09 §2 (mandatory tags) + per-layer specs in §4 | Each subclasses the L2 construct and applies mandatory tags + defaults (KMS, ARM64 for Lambdas, etc.) |
 | A.6 | Strands agent custom construct | `cdk/laboraid_cdk/constructs/strands_agent.py` | Spec/09 §5 | Wraps `CfnResource` for `AWS::BedrockAgentCore::Runtime`; takes ECR URI, IAM role, env vars |
 
 ### Group B — Storage & security stacks (no compute yet)
