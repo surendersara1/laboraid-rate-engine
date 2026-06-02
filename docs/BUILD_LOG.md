@@ -82,3 +82,41 @@ continue from the next unfinished item.
   C.2 because the processing stack must reference real handler code; it is L4 and
   named in the C.2 row. Powertools is referenced as a layer/bundling concern at
   deploy (plain asset for synth).
+
+## Group D — Validation + rendering Lambdas
+
+- [BUILD-D.1] Validator Lambdas (4) — DONE at 2026-06-02T22:05:00Z
+- [BUILD-D.2] Renderer Lambdas (3) — DONE at 2026-06-02T22:05:00Z
+- [BUILD-D.3] Validation stack — DONE at 2026-06-02T22:05:00Z
+
+### Notes
+
+- Gates green: `cdk synth` ✅ (6 stacks), ruff ✅, black ✅, mypy --strict (19
+  files) ✅, cdk pytest ✅ (14), lambda pytest ✅ (17).
+- **Lambda offline-testability pattern:** every handler imports Powertools under a
+  `try/except ModuleNotFoundError` shim, and pure logic (checksum/range/confidence
+  /gaps-parsing/slack-formatting) lives in module-level functions the tests import
+  directly via `importlib` (unique module name) — so tests run in the cdk venv
+  without Powertools/openpyxl/boto3. `lambdas/pytest.ini` sets
+  `--import-mode=importlib` so the many same-named `handler.py`/`test_handler.py`
+  files collect without collision.
+- **MAJOR FIX — aspect infinite-loop (regression across the whole app):** once the
+  validation stack pushed the resource count up, `cdk synth` failed with
+  `PossibleInfiniteLoopDetected ... invoking Aspects`. Root cause: the app-level
+  `MandatoryTagsAspect` tagged L2 `Resource` wrappers, which triggers CDK's
+  internal tag-*propagation* aspect; under CDK 2.257 aspect stabilization that
+  mutates the tree every pass and never converges. Disabling stabilization made
+  the mandatory tags vanish entirely (wrong fix). **Fix:** the aspect now tags the
+  L1 `CfnResource` nodes directly via their `TagManager` (priority 100 so
+  per-resource `Layer`/`DataClassification` overrides win) — one converging pass,
+  all 13 tags present (verified in synth output). See `aspects/mandatory_tags.py`.
+- **Related fix:** `TaggedLambda` now creates an explicit one-month `LogGroup`
+  instead of the deprecated `log_retention` prop (which injects a late singleton
+  custom resource); same for the storage schema-init Lambda.
+- **Related fix:** `SnsTopicWithSubs` names its inner topic `f"{id}Topic"` so one
+  Lambda subscribing to several topics doesn't collide on a shared subscription id.
+- **D.3 scope consolidation:** the validation stack also instantiates the D.1/D.2
+  Lambda *resources* (4 validators + 3 renderers) plus the slack-notifier — there
+  is no separate L7 stack in the 8-stack design, and F.1 (orchestration) wires
+  these into Step Functions. The 3 SNS topics + EventBridge bus + SES config set
+  + DLQ satisfy the D.3 acceptance.
