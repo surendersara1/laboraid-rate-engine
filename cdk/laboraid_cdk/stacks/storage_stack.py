@@ -220,7 +220,12 @@ class StorageStack(Stack):
             handler="handler.on_event",
             code=lambda_.Code.from_asset("assets/schema_init"),
             timeout=Duration.minutes(5),
-            log_retention=logs.RetentionDays.ONE_MONTH,
+            log_group=logs.LogGroup(
+                self,
+                "SchemaInitLogGroup",
+                retention=logs.RetentionDays.ONE_MONTH,
+                removal_policy=RemovalPolicy.DESTROY,
+            ),
             environment={
                 "CLUSTER_ARN": self.aurora.cluster_arn,
                 "SECRET_ARN": secret.secret_arn,

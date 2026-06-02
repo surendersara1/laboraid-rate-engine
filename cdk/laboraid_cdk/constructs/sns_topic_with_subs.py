@@ -31,9 +31,12 @@ class SnsTopicWithSubs(Construct):
     ) -> None:
         super().__init__(scope, construct_id)
 
+        # Inner topic id must be unique across instances: when one Lambda
+        # subscribes to several SnsTopicWithSubs, CDK derives the subscription's
+        # logical id from the topic's node id, so a shared "Topic" id collides.
         self.topic = sns.Topic(
             self,
-            "Topic",
+            f"{construct_id}Topic",
             topic_name=topic_name,
             master_key=master_key,
         )

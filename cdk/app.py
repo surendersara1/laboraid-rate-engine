@@ -17,6 +17,7 @@ from laboraid_cdk.stacks.ai_stack import AiStack
 from laboraid_cdk.stacks.processing_stack import ProcessingStack
 from laboraid_cdk.stacks.security_stack import SecurityStack
 from laboraid_cdk.stacks.storage_stack import StorageStack
+from laboraid_cdk.stacks.validation_stack import ValidationStack
 
 app = cdk.App()
 
@@ -60,6 +61,16 @@ processing = ProcessingStack(
 )
 processing.add_dependency(storage)
 processing.add_dependency(ai)
+
+validation = ValidationStack(
+    app,
+    f"Laboraid-{config.env}-Validation",
+    config=config,
+    master_key=security.master_key,
+    outputs_bucket=storage.outputs_bucket,
+    review_table=storage.review_table,
+)
+validation.add_dependency(storage)
 # ---------------------------------------------------------------------------
 
 # Mandatory tags on every resource (Spec/09 §2).

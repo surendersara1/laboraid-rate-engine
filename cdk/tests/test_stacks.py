@@ -91,3 +91,29 @@ def test_processing_stack_resources() -> None:
         "AWS::Lambda::Function",
         Match.object_like({"Architectures": ["arm64"], "Runtime": "python3.12"}),
     )
+
+
+def _synth_validation() -> Template:
+    config = get_config("dev")
+    app = cdk.App()
+    security = SecurityStack(app, "Sec", config=config)
+    storage = StorageStack(app, "Stg", config=config, master_key=security.master_key)
+    from laboraid_cdk.stacks.validation_stack import ValidationStack
+
+    validation = ValidationStack(
+        app,
+        "Val",
+        config=config,
+        master_key=security.master_key,
+        outputs_bucket=storage.outputs_bucket,
+        review_table=storage.review_table,
+    )
+    return Template.from_stack(validation)
+
+
+def test_validation_stack_topics_and_bus() -> None:
+    val = _synth_validation()
+    val.resource_count_is("AWS::SNS::Topic", 3)
+    val.resource_count_is("AWS::Events::EventBus", 1)
+    # 4 validators + 3 renderers + slack-notifier = 8 Lambdas.
+    val.resource_count_is("AWS::Lambda::Function", 8)
