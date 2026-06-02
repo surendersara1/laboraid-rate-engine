@@ -15,6 +15,7 @@ from laboraid_cdk.aspects.mandatory_tags import MandatoryTagsAspect
 from laboraid_cdk.config import get_config
 from laboraid_cdk.stacks.ai_stack import AiStack
 from laboraid_cdk.stacks.api_stack import ApiStack
+from laboraid_cdk.stacks.observability_stack import ObservabilityStack
 from laboraid_cdk.stacks.orchestration_stack import OrchestrationStack
 from laboraid_cdk.stacks.processing_stack import ProcessingStack
 from laboraid_cdk.stacks.security_stack import SecurityStack
@@ -113,6 +114,14 @@ orchestration = OrchestrationStack(
 orchestration.add_dependency(processing)
 orchestration.add_dependency(validation)
 orchestration.add_dependency(storage)
+
+observability = ObservabilityStack(
+    app,
+    f"Laboraid-{config.env}-Observability",
+    config=config,
+    alarm_topic=validation.failures_topic.topic,
+)
+observability.add_dependency(validation)
 # ---------------------------------------------------------------------------
 
 # Mandatory tags on every resource (Spec/09 §2).

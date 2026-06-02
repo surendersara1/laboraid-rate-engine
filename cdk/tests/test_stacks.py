@@ -231,3 +231,26 @@ def test_orchestration_stack() -> None:
         "AWS::Events::Rule",
         Match.object_like({"EventPattern": Match.object_like({"detail-type": ["Object Created"]})}),
     )
+
+
+def test_observability_stack() -> None:
+    config = get_config("dev")
+    app = cdk.App()
+    security = SecurityStack(app, "Sec", config=config)
+    storage = StorageStack(app, "Stg", config=config, master_key=security.master_key)
+    from laboraid_cdk.stacks.observability_stack import ObservabilityStack
+    from laboraid_cdk.stacks.validation_stack import ValidationStack
+
+    validation = ValidationStack(
+        app,
+        "Val",
+        config=config,
+        master_key=security.master_key,
+        outputs_bucket=storage.outputs_bucket,
+        review_table=storage.review_table,
+    )
+    obs = ObservabilityStack(app, "Obs", config=config, alarm_topic=validation.failures_topic.topic)
+    template = Template.from_stack(obs)
+    template.resource_count_is("AWS::CloudWatch::Dashboard", 5)
+    template.resource_count_is("AWS::CloudWatch::Alarm", 6)
+    template.resource_count_is("AWS::CloudTrail::Trail", 1)
