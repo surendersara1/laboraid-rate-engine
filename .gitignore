@@ -1,0 +1,70 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+.venv/
+venv/
+ENV/
+env/
+.uv-cache/
+.python-version
+
+# Node / TypeScript / CDK
+node_modules/
+dist/
+build/
+*.tsbuildinfo
+.npm/
+.parcel-cache/
+.next/
+
+# CDK
+cdk.out/
+cdk.context.json
+
+# AWS / secrets
+.aws-sam/
+.env
+.env.local
+.env.*.local
+*.pem
+*.key
+*-credentials.json
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# OS
+.DS_Store
+.AppleDouble
+.LSOverride
+Icon
+._*
+
+# Logs / temp
+*.log
+logs/
+tmp/
+temp/
+
+# Project-specific
+data/*/ai_output/
+*.gaps.md
+!docs/*.gaps.md
+
+# Test artifacts
+.coverage
+htmlcov/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Lockfiles we DO track (uv.lock, package-lock.json)
+# (deliberately not ignored — pin transitive deps)
