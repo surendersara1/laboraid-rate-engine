@@ -144,39 +144,63 @@ continue from the next unfinished item.
   Cognito JWT authorizer on all routes, the 20 routes of §2.2, and a regional WAF.
   Per-route *group* authz is enforced in-Lambda from the `cognito:groups` claim.
 
+- [BUILD-E.4] React SPA — Admin shell — DONE at 2026-06-02T23:00:00Z
+- [BUILD-E.5] React SPA — Business shell — DONE at 2026-06-02T23:05:00Z
+- [BUILD-E.6] UI hosting stack — DONE at 2026-06-02T23:10:00Z
+
+### Group E (E.4-E.6) notes
+
+- Two-persona Vite + React 18 + TS SPA under `ui/` (47 files). Tailwind, React
+  Router v6, Zustand, Amplify auth, react-pdf, TanStack Table. 8 admin + 7
+  business pages, `RouteGuard` (Cognito group gate), `PersonaChooser`,
+  `AgentToggle` (Admins-only PATCH), `ApproveRejectBar` (Approve disabled until
+  review queue empty; Reject needs reason), 5 s polling on Jobs/Agents.
+- **UI gates all green:** `corepack pnpm typecheck` ✅, `lint` ✅, `vitest run` ✅
+  (4), `build` ✅ (`ui/dist/index.html`). `pnpm` is reached via `corepack pnpm`.
+- E.6 UI stack: private S3 + CloudFront + OAC + `BucketDeployment` of `ui/dist`;
+  ACM + Route53 wired only when a hosted zone is supplied (dev synths offline).
+
+## Group F — Orchestration + observability
+
+- [BUILD-F.1] Step Function main pipeline — DONE at 2026-06-02T23:20:00Z
+- [BUILD-F.2] Observability stack — DONE at 2026-06-02T23:30:00Z
+- [BUILD-F.3] Operational docs — DONE at 2026-06-02T23:35:00Z
+
+### Group F notes
+
+- 9 stacks total now; `cdk synth` exits 0; ruff/black/mypy --strict (25 files)/
+  cdk pytest (9 stack tests) all green.
+- F.1 Standard-workflow pipeline (`sfn/main_pipeline.py`): classify → extract
+  (AgentCore wait point) → parallel validate → choice → parallel render → publish,
+  else route-to-review; per-task retries + catch. EventBridge rule triggers on S3
+  `Object Created` (inputs bucket emits to EventBridge — added `event_bridge=True`).
+- **Aspect hardening (F.1):** `MandatoryTagsAspect` now tags only nodes exposing a
+  real `TagManager` (`getattr(node, "tags")`), since `TagManager.is_taggable` can
+  report True for raw `CfnResource`s (AgentCore Runtime) that have no `.tags` —
+  which raised once the orchestration stack was added.
+- F.2 observability: 5 dashboards + 6 named alarms (→ failures topic) + CloudTrail;
+  metrics addressed by deterministic name/ARN so no extra cross-stack handles.
+- F.3 docs: `ARCHITECTURE.md`, `RUNBOOK.md`, `ONBOARDING.md`.
+
 ---
 
 ## RESUME POINTER (next run starts here)
 
-**Completed:** Groups A, B, C, D fully + E.1, E.2, E.3. 17 build items, all
-committed `[BUILD-XX]`, working tree clean, `cd cdk && npx cdk synth` exits 0 for
-all 7 stacks (Security/Storage/Ai/Processing/Validation/Api + the tag aspect).
+**Completed:** Groups A, B, C, D, E, F fully. 26 build items, all committed
+`[BUILD-XX]`, working tree clean, `cd cdk && npx cdk synth` exits 0 for all **9
+stacks** (Security/Storage/Ai/Processing/Validation/Api/Ui/Orchestration/
+Observability). The React SPA builds (`ui/dist`).
 
 **Next items, in order:**
-1. **E.4 React SPA — Admin shell** + **E.5 Business shell**: scaffold
-   `ui/` (Vite + React 18 + TS + Tailwind + React Router v6 + Zustand + Amplify
-   Auth + react-pdf + TanStack Table). 8 admin pages (`/admin/*`) + 7 business
-   pages (`/business/*`), `RouteGuard` (Cognito group gate), `PersonaChooser`,
-   `AgentToggle` (PATCH /v1/agents/{name}, Admins-only), `ApproveRejectBar`
-   (disabled until review queue empty; reject needs reason), 5 s polling on
-   Jobs/Agents while a job is `in_progress`. See Spec/09 §4 L1 §1.4/§1.5 and
-   BUILD_INSTRUCTIONS §2.5 for the full file tree + per-page feature lists.
-   **Tooling:** `pnpm` is available via **`corepack pnpm <cmd>`** (9.15.9) — the
-   bare `pnpm` shim is not on PATH. Acceptance: `corepack pnpm install`,
-   `corepack pnpm typecheck` (tsc --noEmit), `lint`, `test --run`, `build`
-   (produces `ui/dist/index.html`). `pnpm install` needs network for the npm
-   registry.
-2. **E.6 UI hosting stack** (`ui_stack.py`): private S3 + CloudFront + OAC + ACM +
-   Route53 + `BucketDeployment` of `ui/dist`. Wire into `app.py` (depends on the
-   SPA build). Spec/09 §4 L1 §1.3 has the skeleton.
-3. **Group F** — F.1 orchestration_stack + sfn/main_pipeline.py (Step Functions
-   wiring Stages 1-6 over the classifier/agent/validators/renderers; S3
-   ObjectCreated trigger; retries + DLQ), F.2 observability_stack (5 dashboards +
-   6 named alarms + X-Ray + CloudTrail), F.3 docs (RUNBOOK/ARCHITECTURE/ONBOARDING
-   from Spec/09 §13 + §8).
-4. **Group G** — kernel extractors 281 + 821 via the kernel's own
+1. **Group G** — kernel extractors 281 + 821 via the kernel's own
    `.claude/harness/` (NEVER edit kernel by hand; ≤4 harness iterations each).
-5. **Group H** — e2e smoke, CI workflow (cicd/04), README overwrite.
+   G.1 `kernel/profiles/sprinkler_fitters_281.yaml`, G.2 `extract_281` (≥98% on
+   documented cells), G.3 `sprinkler_fitters_821.yaml`, G.4 `extract_821` (≥95%).
+   From `kernel/` use the harness per `kernel/.claude/commands/harness.md`.
+   Discovery refs: `discovery/07_281_*` and `discovery/04_821_*` (parent project).
+2. **Group H** — H.1 `tests/e2e/smoke-test.sh` + fixtures, H.2
+   `.github/workflows/build-and-test.yml` (cicd/04: OIDC + ECR + CDK synth +
+   tests), H.3 README overwrite. Then `[BUILD-FINAL]` + PR.
 
 **Conventions already established to reuse:**
 - Lambda handlers: optional-Powertools `try/except ModuleNotFoundError` shim;
