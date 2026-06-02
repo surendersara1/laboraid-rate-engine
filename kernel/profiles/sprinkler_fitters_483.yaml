@@ -1,0 +1,35 @@
+union: sprinkler_fitters_483
+constants:
+  Union Group: UA
+  Trade: Sprinkler
+  Union Local: "483"
+start_date: 1/1/26
+end_date: 7/31/26
+key_columns: [Zone, Package, Start Date, End Date]
+
+columns:                       # exact groundtruth order; char-for-char names
+  - Union Group
+  - Trade
+  - Union Local
+  - Zone
+  - Package
+  - Start Date
+  - End Date
+  - {name: Wage,                          kind: $}
+  - {name: Wage Differential,             kind: $, multiplier_of: Wage, factor: 1.15}
+  - {name: Wage 1.5x,                     kind: $, multiplier_of: Wage, factor: 1.5}
+  - {name: Wage 2.0x,                     kind: $, multiplier_of: Wage, factor: 2.0}
+  - {name: Health & Welfare,              kind: $}
+  - {name: RESA,                          kind: $}
+  - {name: Health & Welfare Metal,        kind: $}
+  - {name: Pension,                       kind: $}
+  - {name: SIS,                           kind: $}
+  - {name: UA International Training,      kind: $}
+  - {name: Industry Promotion National Use, kind: $}
+  - {name: J&A Training 483,              kind: $}
+  - {name: NCFPCG 483,                    kind: $}
+  - {name: Bay Area IP Fund 483,          kind: $}
+  - {name: HRA 483,                       kind: $}
+  - {name: Vacation 483,                  kind: $}
+  - {name: Union Dues 1 483,              kind: "%"}
+  - {name: Union Dues 2 483,              kind: $}

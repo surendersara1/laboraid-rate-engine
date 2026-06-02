@@ -1,0 +1,49 @@
+# Canonical field dictionary.
+# Maps shared concepts -> the union-specific output labels that express them.
+# The long model stores `canonical_field`; the profile maps it back to the
+# exact column label each groundtruth uses (preserving "483"/"704"/"537" suffixes).
+
+wage:                       [Wage]
+wage_differential:          [Wage Differential]          # = wage x 1.15
+wage_15x:                   [Wage 1.5x]                  # = wage x 1.5
+wage_20x:                   [Wage 2.0x]                  # = wage x 2.0
+wage_11x:                   [Wage 1.1x]                  # = wage x 1.1 (537)
+
+temporary_heat:             [Temporary Heat]             # = wage x 0.60 (537)
+temporary_heat_11x:         [Temporary Heat 1.1x]
+temporary_heat_15x:         [Temporary Heat 1.5x]
+
+health_welfare:             [Health & Welfare]
+health_welfare_metal:       [Health & Welfare Metal]
+resa:                       [RESA]
+pension:                    [Pension, Pension Local]
+pension_national:           [Pension National]
+annuity:                    [Annuity]
+sis:                        [SIS]
+ua_international_training:   [UA International Training]
+apprenticeship_training:    [Apprenticeship Training, J&A Training 483]
+industry_promotion_national: [Industry Promotion National Use]
+industry_promotion_local:   [Bay Area IP Fund 483]
+industry_promotion_local_use: [Industry Promotion Local Use]
+industry_improvement:       [Industry Improvement]
+education:                  [Education]
+labor_mgt_trust:            [Labor/Mgt. Trust Fund]
+hra:                        [HRA 483]
+ncfpcg:                     [NCFPCG 483]
+sub:                        [S.U.B. 704]
+se_fund:                    [S & E 704]
+craft_fund:                 [Craft 704]
+retiree_holiday:            [Retiree Holiday 704]
+vacation:                   [Vacation 483]
+vacation_1:                 [Vacation 1 537]
+vacation_2:                 [Vacation 2 537]
+vacation_3:                 [Vacation 3 537]
+vacation_4:                 [Vacation 4 537]
+vacation_5:                 [Vacation 5 537]
+vacation_6:                 [Vacation 6 537]
+public_relations:           [Public Relations]
+ua_pac:                     [UA PAC]
+union_dues_pct:             [Union Dues 1 483]           # percentage cell
+union_dues_1:               [Union Dues 2 483, Union Dues 704, Union Dues 537]
+organizing_fund:            [Organizing Fund 537]
+cope:                       [C.O.P.E. 537]

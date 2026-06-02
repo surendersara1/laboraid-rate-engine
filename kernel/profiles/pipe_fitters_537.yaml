@@ -1,0 +1,41 @@
+union: pipe_fitters_537
+constants:
+  Union Group: SMART
+  Trade: Pipefitter
+  Union Local: "537"
+start_date: 3/1/26
+end_date: 8/31/26
+key_columns: [Zone, Package, Start Date, End Date]
+
+columns:
+  - Union Group
+  - Trade
+  - Union Local
+  - Zone
+  - Package
+  - Start Date
+  - End Date
+  - {name: Wage,                          kind: $}
+  - {name: Wage 1.1x,                     kind: $, multiplier_of: Wage, factor: 1.1}
+  - {name: Wage 1.5x,                     kind: $, multiplier_of: Wage, factor: 1.5}
+  - {name: Temporary Heat,                kind: $}
+  - {name: Temporary Heat 1.1x,           kind: $, multiplier_of: Temporary Heat, factor: 1.1}
+  - {name: Temporary Heat 1.5x,           kind: $, multiplier_of: Temporary Heat, factor: 1.5}
+  - {name: Pension Local,                 kind: $}
+  - {name: Health & Welfare,              kind: $}
+  - {name: Annuity,                       kind: $}
+  - {name: Industry Improvement,          kind: $}
+  - {name: Education,                     kind: $}
+  - {name: Labor/Mgt. Trust Fund,         kind: $}
+  - {name: Pension National,              kind: $}
+  - {name: Union Dues 537,                kind: $}
+  - {name: Organizing Fund 537,           kind: $}
+  - {name: C.O.P.E. 537,                  kind: $}
+  - {name: Vacation 1 537,                kind: $}
+  - {name: Vacation 2 537,                kind: $}
+  - {name: Vacation 3 537,                kind: $}
+  - {name: Vacation 4 537,                kind: $}
+  - {name: Vacation 5 537,                kind: $}
+  - {name: Vacation 6 537,                kind: $}
+  - {name: Public Relations,              kind: $}
+  - {name: UA PAC,                        kind: $}
