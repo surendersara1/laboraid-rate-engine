@@ -211,20 +211,25 @@ class MandatoryTagsAspect:
 
 ## 3. CDK stack organization
 
-Single CDK app, **8 stacks** with cross-stack references:
+Single CDK app, **9 stacks** with cross-stack references:
 
 ```
 LaboraidApp/
-├── LaboraidNetworkStack         (VPC, subnets — minimal; Lambdas mostly outside VPC)
 ├── LaboraidSecurityStack        (KMS keys, Cognito, IAM roles)
-├── LaboraidStorageStack         (S3 buckets, DynamoDB tables, Aurora cluster)
-├── LaboraidProcessingStack      (L4 — Document classifier, Docling Fargate, Textract Lambdas)
-├── LaboraidAIStack              (L5 — Bedrock KB, Strands agents on AgentCore Runtime)
-├── LaboraidValidationStack      (L6 — Validator Lambdas, review queue, SNS topics)
+├── LaboraidStorageStack         (S3 buckets, DynamoDB tables, Aurora cluster, minimal VPC)
+├── LaboraidProcessingStack      (L4 — Document classifier, ExtractorAgent runtime, Textract)
+├── LaboraidAIStack              (L5 — Bedrock Guardrails, Strands agents on AgentCore Runtime)
+├── LaboraidValidationStack      (L6 — Validator + renderer Lambdas, review queue, SNS, engine bus)
 ├── LaboraidApiStack             (L1+L2 — API Gateway, Lambdas, Cognito integration)
 ├── LaboraidUiStack              (L1 — S3 static site + CloudFront for admin SPA)
+├── LaboraidOrchestrationStack   (L3 — Step Functions main pipeline + S3-upload trigger)
 └── LaboraidObservabilityStack   (CloudWatch dashboards, X-Ray, alarms, SNS subscriptions)
 ```
+
+> **Note (build vs. spec):** the `NetworkStack` above was rolled into `StorageStack`
+> — the Aurora cluster owns a minimal no-NAT VPC inline, so a standalone network
+> stack added no value. Step Functions was promoted to its own
+> `OrchestrationStack` (a clean separation from Storage). Net result is **9 stacks**.
 
 Stack deployment order (CDK figures it out via dependencies, but logically):
 
@@ -439,15 +444,8 @@ The Business shell exists so LaborAid business users + Union SMEs can review wha
 | API Gateway (HTTP API) | `laboraid-{env}-l2-apigw-main` | Layer=l2 |
 | Custom domain | `api-{env}.laboraid.app` | — |
 | Cognito authorizer | `laboraid-{env}-l2-authz-cognito` | Layer=l2 |
-| Lambda — upload presign | `laboraid-{env}-l2-fn-upload-presign` | Layer=l2 |
-| Lambda — job status | `laboraid-{env}-l2-fn-job-status` | Layer=l2 |
-| Lambda — list rate sheets | `laboraid-{env}-l2-fn-ratesheet-list` | Layer=l2 |
-| Lambda — get rate sheet | `laboraid-{env}-l2-fn-ratesheet-get` | Layer=l2 |
-| Lambda — publish | `laboraid-{env}-l2-fn-ratesheet-publish` | Layer=l2 |
-| Lambda — override cell | `laboraid-{env}-l2-fn-cell-override` | Layer=l2 |
-| Lambda — ask CBA (proxy to Concierge agent) | `laboraid-{env}-l2-fn-ask-cba` | Layer=l2 |
-| Lambda — list profiles | `laboraid-{env}-l2-fn-profile-list` | Layer=l2 |
-| Lambda — update profile | `laboraid-{env}-l2-fn-profile-update` | Layer=l2 |
+| API Lambdas (19) | `laboraid-{env}-l2-fn-<handler>` — **see the §2.2 route table for the authoritative list** | Layer=l2 |
+| Authz layer (per-route Cognito group gate) | `laboraid-{env}-l2-layer-authz` | Layer=l2 |
 | Lambda execution role | `laboraid-{env}-l2-role-api-lambdas` | — |
 | WAF Web ACL | `laboraid-{env}-l2-waf-api` (rate-limit + AWS managed rules) | — |
 
@@ -1545,16 +1543,16 @@ laboraid-rate-engine/
 │   ├── uv.lock
 │   └── laboraid_cdk/                        # Python package
 │       ├── __init__.py
-│       ├── stacks/
+│       ├── stacks/                          # 9 stacks (NetworkStack rolled into Storage)
 │       │   ├── __init__.py
-│       │   ├── network_stack.py
 │       │   ├── security_stack.py
-│       │   ├── storage_stack.py
+│       │   ├── storage_stack.py             # also owns the minimal Aurora VPC
 │       │   ├── processing_stack.py
 │       │   ├── ai_stack.py
 │       │   ├── validation_stack.py
 │       │   ├── api_stack.py
 │       │   ├── ui_stack.py                  # Hosts the React SPA on S3+CloudFront+OAC
+│       │   ├── orchestration_stack.py       # L3 Step Functions main pipeline
 │       │   └── observability_stack.py
 │       ├── constructs/
 │       │   ├── __init__.py

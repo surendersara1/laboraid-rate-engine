@@ -320,6 +320,10 @@ depend on G and already pass.
     ExtractViaAgent is a Task (result_path `$.extract`), not a Pass.
     Gates: lambda pytest ✅ (71 passed incl. invoker 2); synth ✅; ruff/black/mypy --strict
     (26 files) ✅; cdk pytest ✅ (18).
+- [FIX-D1] Spec/09 §3 + §11 list 9 stacks (Network rolled into Storage) — DONE at 2026-06-02T00:00:00Z
+- [FIX-D2] Spec/09 §2.1 asset table points at §2.2 (19 API Lambdas) — DONE at 2026-06-02T00:00:00Z
+- [FIX-D3] BUILD_INSTRUCTIONS B.2: 6 → 7 DynamoDB tables (incl. agent-config) — DONE at 2026-06-02T00:00:00Z
+- [FIX-D8] README accuracy line: 483 = 100% Building (83.2% overall, 74 blanks) — DONE at 2026-06-02T00:00:00Z
 
 ---
 
