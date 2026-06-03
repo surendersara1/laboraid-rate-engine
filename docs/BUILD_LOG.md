@@ -392,3 +392,5 @@ above has the verified-ready runbook). It does not block the §4.1 / §4.2 gates
 
 **Final acceptance gate:** BUILD_INSTRUCTIONS §4 (repo checks + e2e smoke + spec
 match + SOW contract match).
+
+- [FIX-B5b] Correct CreateAgentRuntime API shape per AWS docs reference (`agentRuntimeArtifact.containerConfiguration` union + required `networkConfiguration`, `bedrock-agentcore-control` service, lifecycle keyed on `agentRuntimeId`, name normalised to `[a-zA-Z][a-zA-Z0-9_]{0,47}`, `iam:PassRole` scoped to the exec role) — DONE at 2026-06-03T00:00:00Z. Gates: cdk synth ✅ (9 stacks); ruff/black/mypy --strict ✅; cdk pytest ✅ (25, incl. 7 new test_strands_agent).
