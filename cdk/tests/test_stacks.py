@@ -167,6 +167,16 @@ def test_api_stack() -> None:
 
 
 def test_ui_stack() -> None:
+    # UiStack's BucketDeployment uses Source.asset("../ui/dist"); CDK validates
+    # the path exists at synth time. In CI the backend job runs in parallel
+    # with the React build, so ui/dist may be absent — drop a stub so this
+    # test stays hermetic (works locally and in CI without a prior pnpm build).
+    from pathlib import Path
+
+    ui_dist = Path(__file__).resolve().parents[2] / "ui" / "dist"
+    ui_dist.mkdir(parents=True, exist_ok=True)
+    (ui_dist / "index.html").write_text("<!doctype html><title>stub</title>")
+
     config = get_config("dev")
     app = cdk.App()
     from laboraid_cdk.stacks.ui_stack import UiStack
