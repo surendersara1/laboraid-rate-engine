@@ -136,6 +136,7 @@ orchestration = OrchestrationStack(
     xlsx=validation.xlsx,
     csv=validation.csv,
     articles=validation.articles,
+    agent_config_table=storage.agent_config_table,
 )
 orchestration.add_dependency(processing)
 orchestration.add_dependency(validation)

@@ -11,6 +11,7 @@ from __future__ import annotations
 from typing import Any
 
 from aws_cdk import CfnOutput, Duration, Stack
+from aws_cdk import aws_dynamodb as ddb
 from aws_cdk import aws_events as events
 from aws_cdk import aws_events_targets as targets
 from aws_cdk import aws_lambda as lambda_
@@ -42,6 +43,7 @@ class OrchestrationStack(Stack):
         xlsx: lambda_.IFunction,
         csv: lambda_.IFunction,
         articles: lambda_.IFunction,
+        agent_config_table: ddb.ITable,
         **kwargs: Any,
     ) -> None:
         super().__init__(scope, construct_id, **kwargs)
@@ -57,6 +59,7 @@ class OrchestrationStack(Stack):
             xlsx=xlsx,
             csv=csv,
             articles=articles,
+            agent_config_table=agent_config_table,
         )
 
         log_group = logs.LogGroup(

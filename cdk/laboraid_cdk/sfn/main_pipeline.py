@@ -2,8 +2,10 @@
 
 Builds the Standard-workflow chain for Stages 1-6:
   1. Classify (classifier Lambda)
-  2. Extract (ExtractorAgent on AgentCore Runtime — invoked out-of-band; modelled
-     here as a wait/pass since AgentCore has no native SFN service integration)
+  1a. GetAgentConfig (DynamoGetItem on the agent-config table for ExtractorAgent)
+  1b. Choice: is the ExtractorAgent enabled?
+        yes -> 2. Extract (ExtractorAgent on AgentCore Runtime)
+        no  -> bypass extraction, go straight to validation (Spec/09 §3.2 line 580)
   3. Validate (parallel checksum + range + confidence)
   4. Choice: all validators passed?
        yes -> 5. Render (parallel xlsx + csv + articles) -> 6. Publish (success)
@@ -14,6 +16,7 @@ Every Lambda task has retries; a top-level catch routes failures to a Fail state
 from __future__ import annotations
 
 from aws_cdk import Duration
+from aws_cdk import aws_dynamodb as ddb
 from aws_cdk import aws_lambda as lambda_
 from aws_cdk import aws_stepfunctions as sfn
 from aws_cdk import aws_stepfunctions_tasks as tasks
@@ -48,14 +51,31 @@ def build_definition(
     xlsx: lambda_.IFunction,
     csv: lambda_.IFunction,
     articles: lambda_.IFunction,
+    agent_config_table: ddb.ITable,
+    extract_task: sfn.IChainable | None = None,
 ) -> sfn.IChainable:
-    """Construct the pipeline chain. Tasks are created under ``scope``."""
+    """Construct the pipeline chain. Tasks are created under ``scope``.
+
+    ``extract_task`` is the Stage-2 extraction state; when ``None`` a placeholder
+    ``Pass`` is used (the agent runs out-of-band). FIX-B6 supplies a real
+    ``LambdaInvoke`` of the ExtractorInvoker here.
+    """
     classify = _invoke(scope, "Classify", classifier)
 
-    # Stage 2 — extraction runs on the ExtractorAgent (AgentCore Runtime). There
-    # is no native SFN->AgentCore integration in the POC, so this is a wait point;
-    # the agent writes canonical rows that the validators consume.
-    extract = sfn.Pass(scope, "ExtractViaAgent", comment="ExtractorAgent on AgentCore Runtime")
+    # Stage 1a — read the agent-config row so the pipeline can honour the
+    # Admin enable/disable toggle (Spec/09 §3.2 line 580).
+    get_agent_cfg = tasks.DynamoGetItem(
+        scope,
+        "GetAgentConfig",
+        table=agent_config_table,
+        key={"agent_name": tasks.DynamoAttributeValue.from_string("ExtractorAgent")},
+        result_path="$.agentCfg",
+    )
+
+    # Stage 2 — extraction runs on the ExtractorAgent (AgentCore Runtime).
+    extract: sfn.IChainable = extract_task or sfn.Pass(
+        scope, "ExtractViaAgent", comment="ExtractorAgent on AgentCore Runtime"
+    )
 
     validate = sfn.Parallel(scope, "Validate", result_path="$.validation")
     validate.branch(_invoke(scope, "Checksum", checksum))
@@ -82,7 +102,19 @@ def build_definition(
         .otherwise(to_review)
     )
 
+    # validate -> gate (single edge; reached from both Choice branches below).
+    validate.next(gate)
+    sfn.Chain.start(extract).next(validate)
+
+    # Stage 1b — gate the agent invocation on agent-config.enabled. When the
+    # ExtractorAgent is disabled, bypass Stage 2 and validate directly.
+    agent_gate = (
+        sfn.Choice(scope, "AgentEnabled")
+        .when(sfn.Condition.boolean_equals("$.agentCfg.Item.enabled.BOOL", True), extract)
+        .otherwise(validate)
+    )
+
     failed = sfn.Fail(scope, "PipelineFailed", error="PipelineError", cause="See execution input")
     classify.add_catch(failed, errors=["States.ALL"], result_path="$.error")
 
-    return classify.next(extract).next(validate).next(gate)
+    return classify.next(get_agent_cfg).next(agent_gate)

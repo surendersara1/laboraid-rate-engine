@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import json
+
 import aws_cdk as cdk
 from aws_cdk.assertions import Match, Template
 
@@ -237,6 +239,7 @@ def test_orchestration_stack() -> None:
         xlsx=validation.xlsx,
         csv=validation.csv,
         articles=validation.articles,
+        agent_config_table=storage.agent_config_table,
     )
     template = Template.from_stack(orch)
     template.resource_count_is("AWS::StepFunctions::StateMachine", 1)
@@ -245,6 +248,12 @@ def test_orchestration_stack() -> None:
         "AWS::Events::Rule",
         Match.object_like({"EventPattern": Match.object_like({"detail-type": ["Object Created"]})}),
     )
+    # FIX-B4: a Choice gates the agent invoke on agent-config.enabled, preceded by
+    # a DynamoDB GetItem on the agent-config table.
+    body = json.dumps(template.to_json())
+    assert "AgentEnabled" in body
+    assert "$.agentCfg.Item.enabled.BOOL" in body
+    assert "GetAgentConfig" in body
 
 
 def test_observability_stack() -> None:

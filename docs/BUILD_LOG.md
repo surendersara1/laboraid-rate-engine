@@ -296,6 +296,17 @@ depend on G and already pass.
     9 dirs that had none); fixed the B1/B2 handler tests to carry a valid group claim.
     Gates: lambda pytest ✅ (69 passed); synth ✅ (1 LayerVersion attached to 19 fns);
     ruff/black/mypy --strict (26 files) ✅; cdk pytest ✅ (18).
+- [FIX-B4] Step Functions gates ExtractorAgent on agent-config.enabled — DONE at 2026-06-02T00:00:00Z
+  - `build_definition` now reads the `agent-config` row via a `tasks.DynamoGetItem`
+    (`GetAgentConfig`, key `agent_name=ExtractorAgent`, result_path `$.agentCfg`) right
+    after Classify, then a `sfn.Choice` (`AgentEnabled`) routes to the Stage-2 extract
+    when `$.agentCfg.Item.enabled.BOOL == True` and bypasses straight to Validate
+    otherwise (Spec/09 §3.2 line 580). `validate.next(gate)` is wired once and reached
+    from both Choice branches. `agent_config_table` is injected through OrchestrationStack
+    (app.py passes `storage.agent_config_table`; the DynamoGetItem grants the SM role read).
+    Added an SFN-assertion test that the synthesized definition contains GetAgentConfig,
+    the AgentEnabled Choice, and the `$.agentCfg.Item.enabled.BOOL` condition.
+    Gates: synth ✅; ruff/black/mypy --strict (26 files) ✅; cdk pytest ✅ (18).
 
 ---
 
