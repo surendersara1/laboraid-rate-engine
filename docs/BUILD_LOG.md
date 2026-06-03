@@ -343,6 +343,29 @@ depend on G and already pass.
     (Aurora dimension already matches the cluster_identifier — left as-is per the audit.)
     Gates: synth ✅; ruff/black/mypy --strict (26 files) ✅; cdk pytest ✅ (18).
 
+### Audit fix pass — closing summary (2026-06-03)
+
+**15 `[FIX-XX]` commits landed** closing every BLOCKER and DRIFT in
+`docs/AUDIT_REPORT.md`: B5, B7, B8 (architectural calls per AUDIT_DECISIONS);
+B1, B2, B3 (publish 409 reads Aurora, approve/reject/unapprove persist + emit
+EventBridge, per-route Cognito group authz on 15 handlers via a shared layer);
+B4, B6 (Step Functions now gates the agent on agent-config.enabled and invokes
+it via a real ExtractorInvoker Lambda); D1–D9 (doc-vs-code alignment, UI 403 +
+Admins-only Costs + per-row comment, API 5xx alarm ApiId). D6 needed no code
+change (verified conformant).
+
+**Gates re-run green from a clean state:** `cdk synth` (9 stacks, both
+`domain_name=None` and `-c domain_name=...`); `ruff` / `black --check` /
+`mypy --strict laboraid_cdk` (25 files); `cdk pytest` (18); lambda pytest (71,
+incl. the new B1 anti-bypass, B2 persist+emit, B3 403, and B6 invoker tests);
+UI `typecheck` / `lint` / `vitest` (4) / `build`; e2e smoke (704 = 99.6%, PASS);
+kernel `--all` (704 = 99.6%, 483 = 83.2% with 74 sourced blanks + 0 wrong, 537
+floors held). `kernel/` untouched; no static creds; MandatoryTagsAspect intact.
+
+**Not fully closed:** none of the BLOCKER/DRIFT findings. NICE-TO-HAVE N1–N7 are
+out of scope for this pass (cosmetic / v1.1+), Group G (281/821 extractors) stays
+deferred to the kernel harness, and actual `cdk deploy` remains the human's call.
+
 ---
 
 ## RESUME POINTER (next run starts here)
