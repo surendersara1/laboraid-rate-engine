@@ -85,7 +85,15 @@ def test_ai_stack_guardrail() -> None:
 def test_processing_stack_resources() -> None:
     _, proc = _synth_processing()
     proc.resource_count_is("AWS::ECR::Repository", 1)
-    proc.resource_count_is("AWS::BedrockAgentCore::Runtime", 1)
+    # AgentCore Runtime is provisioned via an AwsCustomResource (Custom::AWS)
+    # calling bedrock-agentcore:CreateAgentRuntime — there is no native CFN type
+    # yet (audit B5 / decision D-B5).
+    proc.has_resource_properties(
+        "Custom::AWS",
+        Match.object_like(
+            {"Delete": Match.string_like_regexp("DeleteAgentRuntime")},
+        ),
+    )
     # Classifier Lambda is ARM64 (Graviton) per the project defaults.
     proc.has_resource_properties(
         "AWS::Lambda::Function",

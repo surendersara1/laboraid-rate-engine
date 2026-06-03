@@ -225,6 +225,18 @@ depend on G and already pass.
 - [BUILD-H.2] CI workflow — DONE at 2026-06-02T23:55:00Z
 - [BUILD-H.3] README overwrite — DONE at 2026-06-03T00:00:00Z
 
+## Audit fix pass (Pass 2) — closing AUDIT_REPORT.md findings
+
+- [FIX-B5] StrandsAgentRuntime → AwsCustomResource (bedrock-agentcore CreateAgentRuntime) — DONE at 2026-06-02T00:00:00Z
+  - Replaced the non-existent `AWS::BedrockAgentCore::Runtime` CfnResource with an
+    `AwsCustomResource` (Create/Update/Delete via `bedrock-agentcore` SDK), per
+    decision D-B5. `runtime_arn` now reads `get_response_field("agentRuntimeArn")`,
+    preserving the downstream output contract. `install_latest_aws_sdk=True` because
+    bedrock-agentcore post-dates Lambda's bundled SDK. Construct kwargs unchanged so
+    `processing_stack.py` needs no edit. Updated `test_stacks.py` to assert the
+    `Custom::AWS` resource (DeleteAgentRuntime call) instead of the old CFN type.
+    Gates: synth ✅ (9 stacks), ruff/black/mypy --strict (25 files) ✅, cdk pytest ✅ (18).
+
 ---
 
 ## RESUME POINTER (next run starts here)
