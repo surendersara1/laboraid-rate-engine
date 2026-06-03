@@ -98,7 +98,7 @@ CDK is **Python**, not TypeScript. Package is `aws-cdk-lib` (Python). App entry 
 | # | Build item | Output paths | Spec ref | Acceptance |
 |---|---|---|---|---|
 | B.1 | Security stack | `cdk/laboraid_cdk/stacks/security_stack.py` | Spec/09 §3 | KMS CMK + per-Lambda IAM roles + Cognito user pool with 4 groups |
-| B.2 | Storage stack | `cdk/laboraid_cdk/stacks/storage_stack.py` | Spec/09 §4 L3 (§3.1-3.5) | 6 S3 buckets (inputs/processed/outputs/profiles/audit/cba-corpus), 6 DynamoDB tables, Aurora Serverless v2 cluster with schema-init custom resource |
+| B.2 | Storage stack | `cdk/laboraid_cdk/stacks/storage_stack.py` | Spec/09 §4 L3 (§3.1-3.5) | 6 S3 buckets (inputs/processed/outputs/profiles/audit/cba-corpus), 7 DynamoDB tables (incl. agent-config), Aurora Serverless v2 cluster with schema-init custom resource |
 
 ### Group C — Processing + AI stacks (depend on B)
 
