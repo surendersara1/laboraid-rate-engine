@@ -236,6 +236,13 @@ depend on G and already pass.
     `processing_stack.py` needs no edit. Updated `test_stacks.py` to assert the
     `Custom::AWS` resource (DeleteAgentRuntime call) instead of the old CFN type.
     Gates: synth ✅ (9 stacks), ruff/black/mypy --strict (25 files) ✅, cdk pytest ✅ (18).
+- [FIX-B7] agent.py app.run() moved out of `__main__` guard — DONE at 2026-06-02T00:00:00Z
+  - AgentCore imports `agent.py` as a module (not `__main__`), so `app.run()` gated
+    on `__name__ == "__main__"` never fired and the container exited immediately.
+    Now `app.run()` runs unconditionally inside the `try` (only when the AgentCore
+    SDK is importable); the `except ImportError` path is a no-op `pass` so local
+    unit tests still import the @tool/build_agent logic. Per decision D-B7.
+    Gates: `py_compile` ✅, agent unit tests ✅ (3 passed).
 
 ---
 

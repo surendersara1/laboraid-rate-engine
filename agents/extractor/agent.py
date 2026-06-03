@@ -6,7 +6,9 @@ PDF-to-numbers work is the kernel's. The container puts the kernel on
 modules import as the top-level ``pipeline`` / ``canonical`` packages — NOT as
 ``kernel.pipeline``.
 
-Deployed on AgentCore Runtime via ``BedrockAgentCoreApp`` (see ``__main__``).
+Deployed on AgentCore Runtime via ``BedrockAgentCoreApp``; ``app.run()`` is
+called at module import time (not behind ``__main__``) so the container's
+import of this module starts the invoke server — see the bottom of the file.
 """
 
 from __future__ import annotations
@@ -207,8 +209,13 @@ try:  # pragma: no cover - only present in the deployed container
         agent = build_agent()
         return agent(payload.get("prompt", json.dumps(payload)))
 
-    if __name__ == "__main__":
-        app.run()
-except ImportError:  # pragma: no cover - local dev without AgentCore SDK
-    if __name__ == "__main__":  # pragma: no cover
-        print("bedrock_agentcore not installed; agent module imported for local dev only")
+    # Run unconditionally when the AgentCore SDK is importable. AgentCore loads
+    # this module on container start (it does NOT run it as __main__), so the
+    # server MUST start here — gating on `__name__ == "__main__"` would leave the
+    # entrypoint registered but never listening, and the container would exit
+    # immediately (audit B7 / decision D-B7).
+    app.run()
+except ImportError:  # pragma: no cover - local dev / unit tests without AgentCore SDK
+    # The Strands @tool functions and build_agent() remain importable so unit
+    # tests can exercise the agent logic without the AgentCore runtime.
+    pass
