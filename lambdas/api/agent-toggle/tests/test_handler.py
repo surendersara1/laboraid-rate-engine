@@ -20,3 +20,20 @@ def test_build_update_disable() -> None:
     assert upd["ExpressionAttributeValues"][":e"] is False
     assert upd["ExpressionAttributeValues"][":u"] == "sub-123"
     assert "enabled = :e" in upd["UpdateExpression"]
+
+
+def test_authz_forbidden_when_group_empty() -> None:
+    """audit B3: a JWT with an empty cognito:groups claim must get 403."""
+    event = {
+        "requestContext": {"authorizer": {"jwt": {"claims": {"cognito:groups": "[]"}}}},
+        "body": "{}",
+    }
+    result = _mod.handler(event, None)
+    assert result["statusCode"] == 403
+
+
+def test_authz_forbidden_when_group_missing() -> None:
+    """audit B3: a JWT with no cognito:groups claim must get 403."""
+    event = {"requestContext": {"authorizer": {"jwt": {"claims": {}}}}, "body": "{}"}
+    result = _mod.handler(event, None)
+    assert result["statusCode"] == 403

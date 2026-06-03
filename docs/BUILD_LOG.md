@@ -280,6 +280,22 @@ depend on G and already pass.
     UPDATE + PutEvents are both called with correct args on success and neither on failure.
     Gates: lambda pytest ✅ (approve/reject/unapprove: 15 passed); ruff/black/mypy --strict
     (26 files) ✅; synth ✅ (events:PutEvents + ENGINE_BUS_NAME present); cdk pytest ✅ (18).
+- [FIX-B3] Per-route Cognito group authz on every gated API handler — DONE at 2026-06-02T00:00:00Z
+  - New shared `lambdas/api/_shared/python/authz.py` (`extract_groups` + `enforce_groups`)
+    shipped as a Lambda layer (`/opt/python/authz.py`) attached to all 19 API functions in
+    `api_stack.py`. `extract_groups` normalizes the HTTP API v2 `cognito:groups` claim
+    (JSON-array string, bracketed space/comma list, or real list). 15 gated handlers now
+    call `enforce_groups(event, ALLOWED_GROUPS)` as the first action and return 403 on no
+    overlap, per the §2.2 map: Admins-only (agent-toggle, job-abort, profile-update);
+    Admins+Operations (upload-presign, job-list, job-status, job-retry, agent-list,
+    audit-list, ratesheet-publish); Business (ratesheet-approve/reject/unapprove,
+    cell-override, cell-comment). The 4 any-authenticated routes (profile-list,
+    ratesheet-list/get/audit) are intentionally ungated. `lambdas/conftest.py` puts the
+    layer dir on sys.path so tests resolve `import authz`. Added empty-claim + missing-claim
+    403 tests to all 15 (appended to 6 existing test_handler.py, created test_handler.py for
+    9 dirs that had none); fixed the B1/B2 handler tests to carry a valid group claim.
+    Gates: lambda pytest ✅ (69 passed); synth ✅ (1 LayerVersion attached to 19 fns);
+    ruff/black/mypy --strict (26 files) ✅; cdk pytest ✅ (18).
 
 ---
 

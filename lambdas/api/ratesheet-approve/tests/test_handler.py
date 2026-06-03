@@ -40,7 +40,9 @@ def _event() -> dict[str, Any]:
     return {
         "pathParameters": {"local": "150", "period": "2025-07-01"},
         "body": json.dumps({"approval_state": "pending_review", "review_queue_empty": True}),
-        "requestContext": {"authorizer": {"jwt": {"claims": {"sub": "approver-1"}}}},
+        "requestContext": {
+            "authorizer": {"jwt": {"claims": {"sub": "approver-1", "cognito:groups": "[Business]"}}}
+        },
     }
 
 
@@ -76,3 +78,20 @@ def test_approve_failure_neither_persists_nor_emits(monkeypatch: Any) -> None:
     result = handler(event, None)
     assert result["statusCode"] == 409
     assert calls == []
+
+
+def test_authz_forbidden_when_group_empty() -> None:
+    """audit B3: a JWT with an empty cognito:groups claim must get 403."""
+    event = {
+        "requestContext": {"authorizer": {"jwt": {"claims": {"cognito:groups": "[]"}}}},
+        "body": "{}",
+    }
+    result = _mod.handler(event, None)
+    assert result["statusCode"] == 403
+
+
+def test_authz_forbidden_when_group_missing() -> None:
+    """audit B3: a JWT with no cognito:groups claim must get 403."""
+    event = {"requestContext": {"authorizer": {"jwt": {"claims": {}}}}, "body": "{}"}
+    result = _mod.handler(event, None)
+    assert result["statusCode"] == 403

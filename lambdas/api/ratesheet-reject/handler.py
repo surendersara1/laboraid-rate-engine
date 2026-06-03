@@ -12,6 +12,8 @@ import json
 import os
 from typing import Any
 
+import authz  # shared Lambda layer (/opt/python/authz.py)
+
 ENGINE_BUS_NAME = os.environ.get("ENGINE_BUS_NAME", "")
 
 try:  # pragma: no cover - present in the Lambda runtime
@@ -113,9 +115,16 @@ def emit_event(detail_type: str, detail: dict[str, Any]) -> None:
     )
 
 
+# Per-route Cognito group gate (Spec/09 §2.2, audit B3).
+ALLOWED_GROUPS = ["Business"]
+
+
 @_instrument
 def handler(event: dict[str, Any], _context: Any) -> dict[str, Any]:
     try:
+        denied = authz.enforce_groups(event, ALLOWED_GROUPS)
+        if denied:
+            return denied
         body = json.loads(event.get("body") or "{}")
         params = event.get("pathParameters") or {}
         local, period = params.get("local"), params.get("period")

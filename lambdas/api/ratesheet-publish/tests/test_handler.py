@@ -35,7 +35,9 @@ def _event(body: dict[str, Any]) -> dict[str, Any]:
     return {
         "pathParameters": {"local": "150", "period": "2025-07-01"},
         "body": json.dumps(body),
-        "requestContext": {"authorizer": {"jwt": {"claims": {"sub": "u-1"}}}},
+        "requestContext": {
+            "authorizer": {"jwt": {"claims": {"sub": "u-1", "cognito:groups": "[Operations]"}}}
+        },
     }
 
 
@@ -59,3 +61,20 @@ def test_publish_404_when_period_missing(monkeypatch: Any) -> None:
     monkeypatch.setattr(_mod, "read_approval_state", lambda local, period: None)
     result = handler(_event({"approval_state": "approved"}), None)
     assert result["statusCode"] == 404
+
+
+def test_authz_forbidden_when_group_empty() -> None:
+    """audit B3: a JWT with an empty cognito:groups claim must get 403."""
+    event = {
+        "requestContext": {"authorizer": {"jwt": {"claims": {"cognito:groups": "[]"}}}},
+        "body": "{}",
+    }
+    result = _mod.handler(event, None)
+    assert result["statusCode"] == 403
+
+
+def test_authz_forbidden_when_group_missing() -> None:
+    """audit B3: a JWT with no cognito:groups claim must get 403."""
+    event = {"requestContext": {"authorizer": {"jwt": {"claims": {}}}}, "body": "{}"}
+    result = _mod.handler(event, None)
+    assert result["statusCode"] == 403

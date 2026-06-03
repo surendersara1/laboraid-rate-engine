@@ -5,6 +5,8 @@ from __future__ import annotations
 import json
 from typing import Any
 
+import authz  # shared Lambda layer (/opt/python/authz.py)
+
 try:  # pragma: no cover - present in the Lambda runtime
     from aws_lambda_powertools import Logger, Tracer
 
@@ -31,9 +33,16 @@ def _resp(body: dict[str, Any], status: int = 200) -> dict[str, Any]:
     }
 
 
+# Per-route Cognito group gate (Spec/09 §2.2, audit B3).
+ALLOWED_GROUPS = ["Admins"]
+
+
 @_instrument
 def handler(event: dict[str, Any], _context: Any) -> dict[str, Any]:
     try:
+        denied = authz.enforce_groups(event, ALLOWED_GROUPS)
+        if denied:
+            return denied
         local = event["pathParameters"]["local"]
         return _resp({"local": local, "status": "edit_profiles_in_repo"}, 501)
     except Exception:

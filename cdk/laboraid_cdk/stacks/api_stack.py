@@ -105,6 +105,18 @@ class ApiStack(Stack):
         super().__init__(scope, construct_id, **kwargs)
         env = config.env
 
+        # Shared authz layer (`/opt/python/authz.py`) imported by every gated
+        # handler for per-route Cognito group enforcement (audit B3).
+        authz_layer = lambda_.LayerVersion(
+            self,
+            "AuthzLayer",
+            layer_version_name=name(env, "l2", "layer", "authz"),
+            code=lambda_.Code.from_asset("../lambdas/api/_shared"),
+            compatible_runtimes=[lambda_.Runtime.PYTHON_3_12],
+            compatible_architectures=[lambda_.Architecture.ARM_64],
+            description="Shared per-route Cognito group authorization helper.",
+        )
+
         common_env = {
             "INPUTS_BUCKET": inputs_bucket.bucket_name,
             "JOBS_TABLE": jobs_table.table_name,
@@ -127,6 +139,7 @@ class ApiStack(Stack):
                 handler="handler.handler",
                 code=lambda_.Code.from_asset(f"../lambdas/api/{key}"),
                 environment=dict(common_env),
+                layers=[authz_layer],
             )
             cats = GRANTS[key]
             if "inputs" in cats:
