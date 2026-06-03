@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-import json
-
 import aws_cdk as cdk
 from aws_cdk.assertions import Match, Template
 
@@ -240,20 +238,33 @@ def test_orchestration_stack() -> None:
         csv=validation.csv,
         articles=validation.articles,
         agent_config_table=storage.agent_config_table,
+        extractor_runtime_arn=processing.extractor_runtime.runtime_arn,
     )
     template = Template.from_stack(orch)
     template.resource_count_is("AWS::StepFunctions::StateMachine", 1)
+    # FIX-B6: the ExtractorInvoker Lambda exists and ExtractViaAgent is a Lambda
+    # invoke task (not a Pass state).
+    template.resource_count_is("AWS::Lambda::Function", 1)
     # EventBridge rule starts the pipeline on S3 upload.
     template.has_resource_properties(
         "AWS::Events::Rule",
         Match.object_like({"EventPattern": Match.object_like({"detail-type": ["Object Created"]})}),
     )
+    # Reconstruct the ASL string from the DefinitionString Fn::Join literal parts.
+    sm = template.find_resources("AWS::StepFunctions::StateMachine")
+    (sm_props,) = (v["Properties"] for v in sm.values())
+    join_parts = sm_props["DefinitionString"]["Fn::Join"][1]
+    asl = "".join(p for p in join_parts if isinstance(p, str))
     # FIX-B4: a Choice gates the agent invoke on agent-config.enabled, preceded by
     # a DynamoDB GetItem on the agent-config table.
-    body = json.dumps(template.to_json())
-    assert "AgentEnabled" in body
-    assert "$.agentCfg.Item.enabled.BOOL" in body
-    assert "GetAgentConfig" in body
+    assert '"GetAgentConfig":{"Next":"AgentEnabled"' in asl
+    assert '"AgentEnabled":{"Type":"Choice"' in asl
+    assert '"Variable":"$.agentCfg.Item.enabled.BOOL","BooleanEquals":true' in asl
+    # FIX-B6: ExtractViaAgent is a LambdaInvoke Task (Next-first shape with a
+    # $.extract result path), not a Pass state.
+    assert '"ExtractViaAgent":{"Next":"Validate"' in asl
+    assert '"Type":"Task","ResultPath":"$.extract"' in asl
+    assert '"ExtractViaAgent":{"Type":"Pass"' not in asl
 
 
 def test_observability_stack() -> None:

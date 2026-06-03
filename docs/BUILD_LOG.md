@@ -307,6 +307,19 @@ depend on G and already pass.
     Added an SFN-assertion test that the synthesized definition contains GetAgentConfig,
     the AgentEnabled Choice, and the `$.agentCfg.Item.enabled.BOOL` condition.
     Gates: synth ✅; ruff/black/mypy --strict (26 files) ✅; cdk pytest ✅ (18).
+- [FIX-B6] ExtractViaAgent is a real LambdaInvoke of a new ExtractorInvoker — DONE at 2026-06-02T00:00:00Z
+  - New `lambdas/processing/extractor-invoker/` Lambda calls
+    `bedrock-agentcore:InvokeAgentRuntime` synchronously (no native SFN→AgentCore
+    integration) with the classified-doc + run context, returning the response to the
+    state machine. OrchestrationStack creates the invoker (TaggedLambda, l3), grants it
+    InvokeAgentRuntime on the runtime ARN (+`/*`), builds the `ExtractViaAgent`
+    LambdaInvoke task (retry, result_path `$.extract`) and passes it to `build_definition`
+    as `extract_task`, replacing the placeholder Pass. `extractor_runtime_arn` is threaded
+    from `processing.extractor_runtime.runtime_arn` (the FIX-B5 AwsCustomResource output)
+    through app.py. New invoker unit test mocks InvokeAgentRuntime; SFN test asserts
+    ExtractViaAgent is a Task (result_path `$.extract`), not a Pass.
+    Gates: lambda pytest ✅ (71 passed incl. invoker 2); synth ✅; ruff/black/mypy --strict
+    (26 files) ✅; cdk pytest ✅ (18).
 
 ---
 

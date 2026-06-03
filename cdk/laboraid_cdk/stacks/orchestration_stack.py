@@ -14,13 +14,16 @@ from aws_cdk import CfnOutput, Duration, Stack
 from aws_cdk import aws_dynamodb as ddb
 from aws_cdk import aws_events as events
 from aws_cdk import aws_events_targets as targets
+from aws_cdk import aws_iam as iam
 from aws_cdk import aws_lambda as lambda_
 from aws_cdk import aws_logs as logs
 from aws_cdk import aws_s3 as s3
 from aws_cdk import aws_stepfunctions as sfn
+from aws_cdk import aws_stepfunctions_tasks as tasks
 from constructs import Construct
 
 from laboraid_cdk.config import Config
+from laboraid_cdk.constructs.tagged_lambda import TaggedLambda
 from laboraid_cdk.sfn.main_pipeline import build_definition
 from laboraid_cdk.util.naming import name
 
@@ -44,10 +47,48 @@ class OrchestrationStack(Stack):
         csv: lambda_.IFunction,
         articles: lambda_.IFunction,
         agent_config_table: ddb.ITable,
+        extractor_runtime_arn: str,
         **kwargs: Any,
     ) -> None:
         super().__init__(scope, construct_id, **kwargs)
         env = config.env
+
+        # Stage-2 extraction: a thin Lambda invokes the ExtractorAgent on AgentCore
+        # Runtime synchronously (no native SFN -> AgentCore integration) — audit B6.
+        self.extractor_invoker = TaggedLambda(
+            self,
+            "ExtractorInvoker",
+            env=env,
+            layer="l3",
+            function_name=name(env, "l3", "fn", "extractor-invoker"),
+            handler="handler.handler",
+            code=lambda_.Code.from_asset("../lambdas/processing/extractor-invoker"),
+            environment={"EXTRACTOR_RUNTIME_ARN": extractor_runtime_arn},
+        )
+        self.extractor_invoker.add_to_role_policy(
+            iam.PolicyStatement(
+                effect=iam.Effect.ALLOW,
+                actions=["bedrock-agentcore:InvokeAgentRuntime"],
+                resources=[extractor_runtime_arn, f"{extractor_runtime_arn}/*"],
+            )
+        )
+        extract_task = tasks.LambdaInvoke(
+            self,
+            "ExtractViaAgent",
+            lambda_function=self.extractor_invoker,
+            payload_response_only=True,
+            result_path="$.extract",
+        )
+        extract_task.add_retry(
+            errors=[
+                "Lambda.ServiceException",
+                "Lambda.TooManyRequestsException",
+                "States.TaskFailed",
+            ],
+            interval=Duration.seconds(2),
+            max_attempts=3,
+            backoff_rate=2.0,
+        )
 
         definition = build_definition(
             self,
@@ -60,6 +101,7 @@ class OrchestrationStack(Stack):
             csv=csv,
             articles=articles,
             agent_config_table=agent_config_table,
+            extract_task=extract_task,
         )
 
         log_group = logs.LogGroup(
