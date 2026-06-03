@@ -74,9 +74,11 @@ bash tests/e2e/smoke-test.sh
 
 ## Measured accuracy (kernel regression guard)
 
-`kernel/pipeline/run.py --all` reproduces: **704 = 99.6%**, **483 Building =
-100%**, **537 = 67.4%** (sub-100% are confirmed-absent source values, left blank
-per the never-fabricate rule). CI re-runs these on every PR.
+`kernel/pipeline/run.py --all` reproduces: **704 = 99.6%**, **483 = 100% on the
+Building zone (83.2% overall including 74 sourced blanks)**, **537 = 67.4%**
+(sub-100% are confirmed-absent source values, left blank per the never-fabricate
+rule — the 483 overall figure counts a 74-cell apprentice/maintenance block the
+kernel leaves blank). CI re-runs these on every PR.
 
 ## Troubleshooting
 
