@@ -1,8 +1,14 @@
-"""Rate sheet publish Lambda (Spec/09 §4 L2). GATED: 409 unless approval_state='approved'."""
+"""Rate sheet publish Lambda (Spec/09 §4 L2). GATED: 409 unless approval_state='approved'.
+
+The 409 gate reads the *authoritative* approval_state from Aurora `rate_periods`
+for the `{local}/{period}` path params — it never trusts the request body (audit
+B1). A client cannot POST `{"approval_state":"approved"}` to bypass the gate.
+"""
 
 from __future__ import annotations
 
 import json
+import os
 from typing import Any
 
 try:  # pragma: no cover - present in the Lambda runtime
@@ -52,11 +58,48 @@ def publish_guard(approval_state: str) -> tuple[int, dict[str, Any]]:
     return 200, {"approval_state": "published"}
 
 
+def read_approval_state(local: str, period: str) -> str | None:
+    """Read the authoritative approval_state from Aurora for a `{local}/{period}`.
+
+    Joins `unions.local` (the path param) to `rate_periods.union_id` (a UUID FK).
+    Returns the state string, or ``None`` when no such rate period exists.
+    """
+    import boto3
+
+    sql = (
+        "SELECT rp.approval_state FROM rate_periods rp "
+        "JOIN unions u ON rp.union_id = u.id "
+        "WHERE u.local = :local AND rp.start_date = :period "
+        "ORDER BY rp.start_date DESC LIMIT 1"
+    )
+    resp = boto3.client("rds-data").execute_statement(
+        resourceArn=os.environ["AURORA_CLUSTER_ARN"],
+        secretArn=os.environ["AURORA_SECRET_ARN"],
+        database="laboraid",
+        sql=sql,
+        parameters=[
+            {"name": "local", "value": {"longValue": int(local)}},
+            {"name": "period", "value": {"stringValue": period}, "typeHint": "DATE"},
+        ],
+    )
+    records = resp.get("records", [])
+    if not records:
+        return None
+    return records[0][0].get("stringValue")
+
+
 @_instrument
 def handler(event: dict[str, Any], _context: Any) -> dict[str, Any]:
     try:
-        body = json.loads(event.get("body") or "{}")
-        status, result = publish_guard(body.get("approval_state", "pending_review"))
+        params = event.get("pathParameters") or {}
+        local, period = params.get("local"), params.get("period")
+        if not local or not period:
+            return _resp({"error": "missing_path_params"}, 400)
+        # Authoritative state from Aurora — the request body is intentionally ignored.
+        state = read_approval_state(local, period)
+        if state is None:
+            return _resp({"error": "not_found"}, 404)
+        status, result = publish_guard(state)
         if status == 200:
             result["published_by"] = _sub(event)
         return _resp(result, status)

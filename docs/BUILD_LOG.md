@@ -257,6 +257,15 @@ depend on G and already pass.
     credential-free. Per decision D-B8.
     Gates: synth ✅ with domain_name=None AND with `-c domain_name=admin-dev.laboraid.app`;
     ruff/black/mypy --strict (26 files) ✅; cdk pytest ✅ (18).
+- [FIX-B1] ratesheet-publish reads approval_state from Aurora — DONE at 2026-06-02T00:00:00Z
+  - The 409 gate now reads the authoritative `approval_state` from Aurora
+    `rate_periods` for the `{local}/{period}` path params (joining `unions.local`
+    → `rate_periods.union_id` UUID FK) via the RDS Data API, and ignores the request
+    body entirely. Closes the SOW-critical bypass where a client POSTing
+    `{"approval_state":"approved"}` got a 200. New tests prove the handler returns
+    409 when Aurora says pending_review despite an approved body, 200 when Aurora
+    says approved, 404 when the period is missing. Per audit B1.
+    Gates: lambda pytest ✅ (publish: 5 passed).
 
 ---
 
