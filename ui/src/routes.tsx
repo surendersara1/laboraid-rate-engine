@@ -19,6 +19,7 @@ import { ReviewQueue } from "./business/ReviewQueue";
 import { Me } from "./business/Me";
 
 const ADMIN = ["Admins", "Operations"];
+const ADMINS_ONLY = ["Admins"];
 const BUSINESS = ["Business"];
 
 export function AppRoutes(): JSX.Element {
@@ -40,7 +41,14 @@ export function AppRoutes(): JSX.Element {
         <Route path="agents" element={<Agents />} />
         <Route path="profiles" element={<Profiles />} />
         <Route path="audit" element={<Audit />} />
-        <Route path="costs" element={<Costs />} />
+        <Route
+          path="costs"
+          element={
+            <RouteGuard groups={ADMINS_ONLY}>
+              <Costs />
+            </RouteGuard>
+          }
+        />
       </Route>
 
       <Route
