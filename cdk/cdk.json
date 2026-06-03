@@ -18,6 +18,11 @@
     "@aws-cdk/core:validateSnapshotRemovalPolicy": true,
     "@aws-cdk/aws-s3:serverAccessLogsUseBucketPolicy": true,
     "@aws-cdk/aws-ecs:disableExplicitDeploymentControllerForCircuitBreaker": true,
-    "@aws-cdk/core:target-partitions": ["aws", "aws-cn"]
+    "@aws-cdk/core:target-partitions": ["aws", "aws-cn"],
+    "_comment_hosted_zone": "Dummy laboraid.app zone for the placeholder account (000000000000) so credential-free synth with -c domain_name=... resolves the HostedZone.from_lookup (audit B8). A real deploy uses a real account whose key won't match this, triggering a real lookup.",
+    "hosted-zone:account=000000000000:domainName=laboraid.app:region=us-east-1": {
+      "Id": "/hostedzone/DUMMYZONEFORSYNTH",
+      "Name": "laboraid.app."
+    }
   }
 }

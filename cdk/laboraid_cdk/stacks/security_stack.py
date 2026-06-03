@@ -35,10 +35,23 @@ class SecurityStack(Stack):
         construct_id: str,
         *,
         config: Config,
+        app_url: str | None = None,
         **kwargs: Any,
     ) -> None:
         super().__init__(scope, construct_id, **kwargs)
         self.config = config
+
+        # Cognito hosted-UI callback/logout target. In the wired app this is the
+        # UI stack's `app_url` (custom domain, or the CloudFront default), so the
+        # auth flow always lands somewhere resolvable (audit B8 / decision D-B8).
+        # When constructed standalone (unit tests / local dev) fall back to the
+        # custom domain if set, else the localhost SPA dev server.
+        if app_url is not None:
+            redirect_url = app_url
+        elif config.has_custom_domain:
+            redirect_url = f"https://{config.domain_name}"
+        else:
+            redirect_url = "http://localhost:5173"
 
         # --- Project master CMK -------------------------------------------------
         # Single per-purpose-equivalent CMK for the POC; rotation enabled. Used by
@@ -82,8 +95,8 @@ class SecurityStack(Stack):
             o_auth=cognito.OAuthSettings(
                 flows=cognito.OAuthFlows(authorization_code_grant=True),
                 scopes=[cognito.OAuthScope.OPENID, cognito.OAuthScope.EMAIL],
-                callback_urls=[f"https://{config.domain_name}/"],
-                logout_urls=[f"https://{config.domain_name}/"],
+                callback_urls=[f"{redirect_url}/"],
+                logout_urls=[f"{redirect_url}/"],
             ),
         )
 

@@ -4,10 +4,14 @@ Hosts the React SPA build (`ui/dist`) from a private S3 bucket fronted by
 CloudFront with Origin Access Control. A single distribution serves both
 `/admin/*` and `/business/*` (SPA fallback rewrites 403/404 to `/index.html`).
 
-The custom domain (ACM cert in us-east-1 + Route53 A record) is wired only when a
-`hosted_zone` is supplied — POC dev synthesizes credential-free against the
-default `*.cloudfront.net` domain. The Cognito hosted-UI domain already exists in
-the security stack.
+The custom domain (ACM cert in us-east-1 + Route53 A record) is wired only when
+`config.has_custom_domain` — the existing hosted zone is resolved internally via
+`HostedZone.from_lookup`. With no custom domain (the POC default) the SPA is
+served from the CloudFront default `*.cloudfront.net` domain (audit B8 / decision
+D-B8). Either way `self.app_url` is the canonical browser URL, consumed by the
+security stack for the Cognito hosted-UI callback URLs so the auth flow always
+lands somewhere resolvable. The Cognito hosted-UI domain itself lives in the
+security stack.
 """
 
 from __future__ import annotations
@@ -37,7 +41,6 @@ class UiStack(Stack):
         construct_id: str,
         *,
         config: Config,
-        hosted_zone: route53.IHostedZone | None = None,
         **kwargs: Any,
     ) -> None:
         super().__init__(scope, construct_id, **kwargs)
@@ -55,10 +58,18 @@ class UiStack(Stack):
             auto_delete_objects=not config.is_prod,
         )
 
-        # Optional custom domain (skipped credential-free in dev).
+        # Optional custom domain. When configured, resolve the existing hosted
+        # zone for the parent domain (e.g. `laboraid.app` for `admin.laboraid.app`)
+        # and provision the ACM cert. On an environment-agnostic stack (no `env=`)
+        # `from_lookup` returns a dummy zone so synth stays credential-free; the
+        # real lookup happens at deploy.
+        hosted_zone: route53.IHostedZone | None = None
         certificate: acm.ICertificate | None = None
         domain_names: list[str] | None = None
-        if hosted_zone is not None:
+        if config.has_custom_domain:
+            assert config.domain_name is not None  # guaranteed by has_custom_domain
+            parent_domain = config.domain_name.split(".", 1)[1]
+            hosted_zone = route53.HostedZone.from_lookup(self, "SpaZone", domain_name=parent_domain)
             certificate = acm.Certificate(
                 self,
                 "SpaCert",
@@ -93,7 +104,7 @@ class UiStack(Stack):
             domain_names=domain_names,
         )
 
-        if hosted_zone is not None:
+        if hosted_zone is not None and config.domain_name is not None:
             route53.ARecord(
                 self,
                 "SpaAliasRecord",
@@ -103,6 +114,10 @@ class UiStack(Stack):
                     route53_targets.CloudFrontTarget(self.distribution)
                 ),
             )
+            self.app_url = f"https://{config.domain_name}"
+        else:
+            # No custom domain — the SPA lives at the CloudFront default domain.
+            self.app_url = f"https://{self.distribution.distribution_domain_name}"
 
         # Deploy the React build (cd ui && pnpm build -> ui/dist).
         s3_deploy.BucketDeployment(
@@ -115,3 +130,4 @@ class UiStack(Stack):
         )
 
         CfnOutput(self, "DistributionDomain", value=self.distribution.distribution_domain_name)
+        CfnOutput(self, "AppUrl", value=self.app_url)

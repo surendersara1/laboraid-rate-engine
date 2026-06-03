@@ -14,7 +14,10 @@ CONFIG = Config(
     env="prod",
     account=os.environ.get("CDK_DEFAULT_ACCOUNT", "000000000000"),
     region=os.environ.get("CDK_DEFAULT_REGION", "us-east-1"),
-    domain_name="admin.laboraid.app",
     alarm_email="laboraid-alerts@northbaysolutions.com",
     slack_webhook_secret_name="laboraid-prod-l6-secret-slack-webhook",
+    # No custom domain by default — set at deploy on the account that owns the
+    # Route53 zone (audit B8 / decision D-B8):
+    #   npx cdk deploy -c env=prod -c domain_name=admin.laboraid.app
+    domain_name=None,
 )

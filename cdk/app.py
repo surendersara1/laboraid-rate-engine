@@ -9,6 +9,8 @@ Select the environment with CDK context: ``cdk synth -c env=prod`` (default dev)
 
 from __future__ import annotations
 
+from dataclasses import replace
+
 import aws_cdk as cdk
 
 from laboraid_cdk.aspects.mandatory_tags import MandatoryTagsAspect
@@ -28,6 +30,13 @@ app = cdk.App()
 env_name = str(app.node.try_get_context("env") or "dev")
 config = get_config(env_name)
 
+# Optional custom-domain override (audit B8 / decision D-B8). Default is no custom
+# domain (CloudFront default *.cloudfront.net). At deploy on the account that owns
+# the Route53 zone:  npx cdk deploy -c domain_name=admin-dev.laboraid.app
+domain_override = app.node.try_get_context("domain_name")
+if domain_override:
+    config = replace(config, domain_name=str(domain_override))
+
 # Stacks are environment-agnostic so `cdk synth` works without AWS credentials.
 # Deploy binds them to a concrete account/region via `CDK_DEFAULT_*` /
 # `cdk deploy` (the dev/prod split is carried by `config.env`, not the CDK env).
@@ -35,7 +44,25 @@ config = get_config(env_name)
 # --- Stacks (instantiated as build groups B–F complete) ---------------------
 # Dependency order (Spec/09 §3):
 #   Security -> Storage -> Processing -> AI -> Validation -> API -> UI -> Observability
-security = SecurityStack(app, f"Laboraid-{config.env}-Security", config=config)
+# UI is constructed first so its `app_url` (custom domain or CloudFront default)
+# can feed the Cognito hosted-UI callbacks in the security stack (audit B8).
+# When a custom domain is configured the UI stack must be account/region-bound so
+# `HostedZone.from_lookup` can resolve the zone; otherwise it stays env-agnostic
+# (credential-free synth). With no custom domain there is no lookup, so no binding.
+ui_env = (
+    cdk.Environment(account=config.account, region=config.region)
+    if config.has_custom_domain
+    else None
+)
+ui = UiStack(app, f"Laboraid-{config.env}-Ui", config=config, env=ui_env)
+
+security = SecurityStack(
+    app,
+    f"Laboraid-{config.env}-Security",
+    config=config,
+    app_url=ui.app_url,
+)
+security.add_dependency(ui)
 storage = StorageStack(
     app,
     f"Laboraid-{config.env}-Storage",
@@ -92,9 +119,6 @@ api = ApiStack(
 )
 api.add_dependency(security)
 api.add_dependency(storage)
-
-# UI hosting (custom domain wired only when a hosted zone is supplied).
-ui = UiStack(app, f"Laboraid-{config.env}-Ui", config=config)
 
 # Orchestration — Step Functions pipeline over the processing + validation fns.
 orchestration = OrchestrationStack(

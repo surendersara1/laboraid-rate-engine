@@ -14,7 +14,10 @@ CONFIG = Config(
     env="dev",
     account=os.environ.get("CDK_DEFAULT_ACCOUNT", "000000000000"),
     region=os.environ.get("CDK_DEFAULT_REGION", "us-east-1"),
-    domain_name="admin-dev.laboraid.app",
     alarm_email="laboraid-alerts@northbaysolutions.com",
     slack_webhook_secret_name="laboraid-dev-l6-secret-slack-webhook",
+    # No custom domain by default — UI + Cognito callbacks use the CloudFront
+    # default domain (audit B8 / decision D-B8). Override at deploy:
+    #   npx cdk deploy -c domain_name=admin-dev.laboraid.app
+    domain_name=None,
 )

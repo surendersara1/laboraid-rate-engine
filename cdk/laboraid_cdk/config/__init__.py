@@ -25,18 +25,30 @@ class Config:
     region: str
     """Primary region — ``us-east-1`` for Bedrock + AgentCore availability."""
 
-    domain_name: str
-    """Public hostname for the SPA / API (e.g. ``admin-dev.laboraid.app``)."""
-
     alarm_email: str
     """Email subscribed to the failures / alarm SNS topics."""
 
     slack_webhook_secret_name: str
     """Secrets Manager secret name holding the Slack incoming-webhook URL."""
 
+    domain_name: str | None = None
+    """Public hostname for the SPA (e.g. ``admin-dev.laboraid.app``).
+
+    ``None`` (the default) means *no custom domain*: the UI is served from the
+    CloudFront default ``*.cloudfront.net`` domain and the Cognito hosted-UI
+    callbacks point there too, so a deploy never produces a broken auth flow on
+    an account with no Route53 zone (audit B8 / decision D-B8). Override at deploy
+    time with ``cdk deploy -c domain_name=admin-dev.laboraid.app``.
+    """
+
     @property
     def is_prod(self) -> bool:
         return self.env == "prod"
+
+    @property
+    def has_custom_domain(self) -> bool:
+        """True when a custom domain is configured (ACM + Route53 + custom callbacks)."""
+        return self.domain_name is not None
 
     @property
     def mandatory_tags(self) -> dict[str, str]:

@@ -243,6 +243,20 @@ depend on G and already pass.
     SDK is importable); the `except ImportError` path is a no-op `pass` so local
     unit tests still import the @tool/build_agent logic. Per decision D-B7.
     Gates: `py_compile` ✅, agent unit tests ✅ (3 passed).
+- [FIX-B8] Optional custom domain; Cognito callbacks from ui.app_url — DONE at 2026-06-02T00:00:00Z
+  - `Config.domain_name` is now `str | None = None` (default: no custom domain) with
+    a `has_custom_domain` property; dev/prod set `None`. Override at deploy with
+    `-c domain_name=...` (app.py applies it via `dataclasses.replace`). UiStack does
+    `HostedZone.from_lookup` + ACM cert + Route53 A-record only when has_custom_domain,
+    and exposes `self.app_url` (custom domain, else the CloudFront default). UiStack is
+    constructed before SecurityStack and its `app_url` feeds the Cognito callback/logout
+    URLs (cross-stack import of the CloudFront domain when no custom domain), so the auth
+    flow always lands somewhere resolvable. UiStack is env-bound only when a custom domain
+    is set (so `from_lookup` can resolve); `cdk.context.json` seeds a dummy
+    `laboraid.app` zone for the placeholder account so the `-c domain_name=...` synth is
+    credential-free. Per decision D-B8.
+    Gates: synth ✅ with domain_name=None AND with `-c domain_name=admin-dev.laboraid.app`;
+    ruff/black/mypy --strict (26 files) ✅; cdk pytest ✅ (18).
 
 ---
 
