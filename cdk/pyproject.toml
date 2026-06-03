@@ -1,0 +1,46 @@
+[project]
+name = "laboraid-cdk"
+version = "0.1.0"
+description = "LaborAid Rate Engine POC — AWS CDK (Python) infrastructure"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "aws-cdk-lib>=2.170.0",
+    "constructs>=10.0.0,<11.0.0",
+]
+
+[dependency-groups]
+dev = [
+    "ruff>=0.6.0",
+    "black>=24.0.0",
+    "mypy>=1.11.0",
+    "pytest>=8.0.0",
+]
+
+# This is a CDK app, not a distributable library. `app.py` imports `laboraid_cdk`
+# directly off the cwd (cdk/), so uv only needs to manage the dependency set.
+[tool.uv]
+package = false
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+extend-exclude = ["cdk.out"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+
+[tool.black]
+line-length = 100
+target-version = ["py312"]
+extend-exclude = "cdk.out"
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+mypy_path = "."
+exclude = ["cdk.out"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]

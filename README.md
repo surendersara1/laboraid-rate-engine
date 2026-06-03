@@ -1,93 +1,101 @@
 # LaborAid Rate Engine
 
-AWS-deployed POC for the LaborAid Rate-Sheet pipeline — converts union Collective Bargaining Agreement (CBA) PDFs into structured ratesheets, with per-cell provenance and human-in-the-loop review.
+AWS POC that converts union Collective Bargaining Agreement (CBA) PDFs into
+structured rate sheets — with per-cell provenance, a deterministic extraction
+kernel wrapped by one Strands `ExtractorAgent` on Bedrock AgentCore Runtime, and a
+two-persona React review UI with a business approval gate.
 
-**Status:** active POC build, see [`docs/`](docs/) and [`Design/`](../Design/) in the parent project for the underlying analysis.
+**Status:** POC build complete for Groups A–F + H (CDK infra, agent, Lambdas,
+two-persona SPA, orchestration, observability, CI, smoke). Kernel extractors for
+unions 281 + 821 (Group G) run through the kernel's own harness — see
+[`docs/BUILD_LOG.md`](docs/BUILD_LOG.md).
 
----
-
-## What's in this repo
+## Architecture
 
 ```
-laboraid-rate-engine/
-├── kernel/              # Ashwani's deterministic extraction pipeline (subtree import)
-│                        # Provenance-tagged extraction, OCR, canonical model, per-union profiles.
-│                        # Imported from: git@bitbucket.org:northbay/labor_aid_poc.git
-├── cdk/                 # AWS CDK v2 (TypeScript) — 8-stack deployment
-├── agents/              # Strands agent containers (ExtractorAgent on AgentCore Runtime)
-├── lambdas/             # Python Lambdas — API, validation, rendering, classification
-├── ui/                  # React admin SPA (file upload, review, override, publish)
-├── containers/          # Custom container images (Docling, OCR helpers)
-├── profiles/            # Symlinks/copies of per-union YAML profiles from kernel/
-├── docs/                # Architecture, runbook, onboarding, UAT report
-├── scripts/             # Deploy + bootstrap helpers
-└── pyproject.toml       # Workspace-level Python deps (top-level)
+Admin UI ─▶ S3 inputs ─▶ EventBridge ─▶ Step Functions main pipeline
+  classify (Lambda) ─▶ extract (ExtractorAgent / AgentCore, wraps kernel)
+  ─▶ validate (checksum + range + confidence) ─▶ gate
+       passed ─▶ render (xlsx/csv/articles) ─▶ publish (Aurora + S3 + SNS)
+       else   ─▶ review queue
+Business UI ── review ── Approve/Reject ──▶ Admin Publish (409 unless approved)
 ```
 
----
+Nine Python CDK stacks (ARM64, `us-east-1`): Security · Storage · Ai · Processing
+· Validation · Api · Ui · Orchestration · Observability. Full design:
+[`docs/09_Technical_Implementation_Spec.md`](docs/09_Technical_Implementation_Spec.md).
+See also [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md),
+[`docs/RUNBOOK.md`](docs/RUNBOOK.md), [`docs/ONBOARDING.md`](docs/ONBOARDING.md).
 
-## Quick orientation
+## Layout
 
-| You want to… | Look at |
+```
+cdk/        Python CDK — 9 stacks (aws-cdk-lib). Entry: cdk/app.py.
+lambdas/    Python 3.12 Lambdas: api/ (19), processing/, validation/, rendering/.
+agents/     ExtractorAgent (Strands) container.
+kernel/     Ashwani's deterministic pipeline (git subtree — never hand-edit).
+ui/         React 18 + TS SPA (Vite). The only TypeScript in the repo.
+tests/e2e/  Smoke test + fixtures.
+docs/       Specs, runbook, architecture, onboarding, build log.
+```
+
+**Language split:** every layer is Python except `ui/` (React + TypeScript). CDK
+is Python, not TypeScript.
+
+## Build & deploy
+
+```bash
+# Backend (CDK + Lambdas) — Python via uv
+cd cdk
+uv sync
+npx cdk synth                 # acceptance gate — exits 0 for all 9 stacks
+uv run ruff check . && uv run black --check . && uv run mypy --strict laboraid_cdk
+uv run pytest && uv run pytest ../lambdas
+
+# UI — React via pnpm (corepack)
+cd ../ui
+corepack pnpm install
+corepack pnpm typecheck && corepack pnpm lint && corepack pnpm exec vitest run
+corepack pnpm build           # -> ui/dist (deployed by the Ui stack)
+
+# Kernel — deterministic extraction, no AWS
+cd ../kernel && uv sync && uv run python pipeline/run.py --all
+
+# Deploy (human's call; needs AWS creds + Bedrock model access + AgentCore)
+cd ../cdk && export CDK_DEFAULT_ACCOUNT=<acct> CDK_DEFAULT_REGION=us-east-1
+npx cdk bootstrap && npx cdk deploy --all       # prod: add -c env=prod
+
+# End-to-end smoke (local = kernel core; deployed = upload via API)
+bash tests/e2e/smoke-test.sh
+```
+
+> `cdk` is the Node AWS CDK CLI — invoke via `npx cdk` (not `uv run cdk`).
+> `pnpm` is reached via `corepack pnpm`.
+
+## Measured accuracy (kernel regression guard)
+
+`kernel/pipeline/run.py --all` reproduces: **704 = 99.6%**, **483 = 100% on the
+Building zone (83.2% overall including 74 sourced blanks)**, **537 = 67.4%**
+(sub-100% are confirmed-absent source values, left blank per the never-fabricate
+rule — the 483 overall figure counts a 74-cell apprentice/maintenance block the
+kernel leaves blank). CI re-runs these on every PR.
+
+## Troubleshooting
+
+| Symptom | Fix |
 |---|---|
-| Understand what the engine does | `kernel/README.md` + `kernel/DESIGN.md` |
-| Run the extraction pipeline locally | `kernel/pipeline/run.py` (per kernel README) |
-| Understand the AWS deployment | `cdk/` + parent project's `Design/09_Technical_Implementation_Spec.md` |
-| Understand the agent layer | `agents/extractor/` + parent project's `Design/07_Strands_AgentCore_Agentic_Design.md` |
-| See the SOW | Parent project `LaborAid - POC SOW.docx.pdf` |
-| See discovery findings | Parent project `discovery/11_Findings_for_Client.md` |
-
----
-
-## Architecture (one-liner)
-
-```
-PDF upload → S3 → Step Functions →
-   Classifier (Lambda) →
-   ExtractorAgent (Strands on AgentCore Runtime, wraps kernel/pipeline/extract) →
-   Validator Lambdas (checksum, range) →
-   Renderer Lambdas (xlsx, CSV) →
-   Aurora + S3 outputs →
-   LaborAid Calculator (consumes via API)
-```
-
-The deterministic extraction kernel (`kernel/`) is wrapped in a Strands agent (`agents/extractor/`) that runs on AWS Bedrock AgentCore Runtime. The agent satisfies the SOW's "AI Agentic" commitment; the kernel delivers the proven extraction accuracy.
-
----
+| `cdk synth` "no credentials" | Stacks are env-agnostic; should not happen. If a VPC/Route53 lookup is added, set `CDK_DEFAULT_ACCOUNT`. |
+| `uv run cdk` not found | Use `npx cdk` — the CDK CLI is Node, not a Python package. |
+| `pnpm: command not found` | Use `corepack pnpm <cmd>` (or `corepack enable`). |
+| Aspect "infinite loop" on synth | The tag aspect tags L1 CfnResources only — keep it that way. |
+| Alarm/pipeline failures | See [`docs/RUNBOOK.md`](docs/RUNBOOK.md). |
 
 ## Provenance
 
-This repo is the **AWS-deployable monorepo** for the LaborAid POC. The deterministic extraction kernel under `kernel/` was independently developed by **Ashwani / NBS** at `git@bitbucket.org:northbay/labor_aid_poc.git` and is imported here via `git subtree`. Per its measured accuracy (kernel/.claude/harness/evaluation-log.md): **704 = 99.6%, 483 Building = 100%, 537 = 67.4% (sub-100% are confirmed-absent source docs).**
-
-The AWS wrapping (CDK, agents, Lambdas, UI) is built on top of the kernel per the design in the parent project's `Design/` folder.
-
----
-
-## Branches
-
-- `main` — protected; merged code only
-- `feat/aws-strands-integration` — active development for the AWS deployment + Strands agent wrapping + missing union extractors (281, 821)
-
----
-
-## Build & run
-
-See `docs/SETUP.md` (to be created) for full setup. Quick start:
-
-```bash
-# 1. Kernel — extraction only, no AWS needed
-cd kernel
-uv sync
-uv run python pipeline/run.py --all
-
-# 2. Full AWS stack — once CDK is wired up
-cd cdk
-npm install
-npx cdk synth
-npx cdk deploy --all
-```
-
----
+The deterministic extraction kernel under `kernel/` was developed by **Ashwani /
+NBS** (`git@bitbucket.org:northbay/labor_aid_poc.git`) and is imported via
+`git subtree` — never hand-edit it; pull updates with `git subtree pull`. The AWS
+wrapping (CDK, agent, Lambdas, UI) is built on top per [`docs/`](docs/).
 
 ## License
 

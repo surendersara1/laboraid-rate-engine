@@ -1,0 +1,44 @@
+[project]
+name = "laboraid-extractor-agent"
+version = "0.1.0"
+description = "LaborAid ExtractorAgent — Strands agent on AgentCore Runtime"
+requires-python = ">=3.12"
+dependencies = [
+    "strands-agents>=0.1.0",
+    "bedrock-agentcore>=0.1.0",
+    "boto3>=1.34.0",
+    "pyyaml>=6.0",
+    # The kernel is installed editable into the image: `uv pip install -e /opt/kernel`.
+]
+
+[dependency-groups]
+dev = [
+    "ruff>=0.6.0",
+    "black>=24.0.0",
+    "mypy>=1.11.0",
+    "pytest>=8.0.0",
+]
+
+[tool.uv]
+package = false
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.black]
+line-length = 100
+target-version = ["py312"]
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+# Strands + AgentCore + the untyped flat kernel are not import-resolvable outside
+# the container; ignore missing imports so `mypy --strict` checks our own code.
+# With imports stubbed to Any, the inline import-ignores become redundant — don't
+# flag them (they document the boundary and are needed when deps ARE present).
+ignore_missing_imports = true
+warn_unused_ignores = false
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

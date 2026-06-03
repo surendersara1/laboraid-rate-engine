@@ -1,0 +1,42 @@
+import { useEffect, useState } from "react";
+import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
+import { PersonaChooser } from "./components/PersonaChooser";
+import { getGroups, personaForGroups } from "./lib/auth";
+import { useUserStore } from "./lib/store";
+import { AppRoutes } from "./routes";
+
+export function App(): JSX.Element {
+  const [ready, setReady] = useState(false);
+  const setUser = useUserStore((s) => s.setUser);
+  const persona = useUserStore((s) => s.persona);
+
+  useEffect(() => {
+    getGroups().then((groups) => {
+      setUser(groups, personaForGroups(groups));
+      setReady(true);
+    });
+  }, [setUser]);
+
+  if (!ready) return <div className="p-8">Loading…</div>;
+
+  const landing =
+    persona === "business" ? "/business/inbox" : "/admin/dashboard";
+
+  return (
+    <BrowserRouter>
+      <Routes>
+        <Route
+          path="/"
+          element={
+            persona === "both" ? (
+              <PersonaChooser />
+            ) : (
+              <Navigate to={landing} replace />
+            )
+          }
+        />
+        <Route path="/*" element={<AppRoutes />} />
+      </Routes>
+    </BrowserRouter>
+  );
+}
