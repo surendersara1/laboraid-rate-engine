@@ -86,6 +86,162 @@ to the console unless `--no-eval` is passed.
 
 ---
 
+## How the pipeline works (educational walkthrough)
+
+`pipeline/run.py` is the only file you actually invoke from the CLI. Everything
+else in `pipeline/` is a **library** that `run.py` imports and orchestrates. When
+you ran `uv run python pipeline/run.py --union sprinkler_fitters_704`, every
+module in `pipeline/` executed behind the scenes — you just didn't see them
+called by name.
+
+### The conductor
+
+`run.py` is ~95 lines and does exactly four things:
+
+```python
+profile = load_profile(union)                                  # read profiles/<union>.yaml
+rows, gaps = extract.EXTRACTORS[union](union_dir)              # PDF -> canonical rows
+n          = pivot.write_csv(profile, rows, out_csv)           # canonical -> wide CSV
+              evaluate.evaluate(gt, out_csv)                   # compare vs groundtruth
+```
+
+That's the whole pipeline. The interesting work happens inside the functions it
+calls.
+
+### What each module does and when it fires
+
+| File | Role | Where it fires during your run |
+|---|---|---|
+| **`run.py`** | CLI + orchestrator | You called it directly |
+| **`extract.py`** | Per-union extractors (`extract_704`, `extract_483`, `extract_537`). Reads PDFs and returns canonical `ClassificationRow` objects + a `gaps` list for anything it couldn't read. | Called once per union via `extract.EXTRACTORS[union](union_dir)` |
+| **`ingest.py`** | Lower-level PDF I/O. Opens a PDF, detects whether each page has a text layer or is image-only, returns pages as text or image objects. | Called *inside* `extract_704()` (and the other extractors) whenever they open a PDF |
+| **`ocr.py`** | Self-contained OCR using `rapidocr-onnxruntime` + `pypdfium2`. No system binaries, no API key. | Called by `ingest.py` when a page has no text layer (e.g., the 704 rate notice is image-only) |
+| **`compute.py`** | Applies the profile's **derived-column rules** — e.g., `Wage 1.5x = Wage × 1.5`, P&G multipliers, apprentice scales — using `Decimal.ROUND_HALF_UP` via the kernel's `r2()` helper. | Called by the extractors after raw values are read, before returning rows |
+| **`pivot.py`** | Takes the tidy canonical rows + the profile's `output_schema` and writes a **wide CSV** matching the groundtruth's exact column order and names. | Called once per union: `pivot.write_csv(profile, rows, out_csv)` |
+| **`evaluate.py`** | Post-hoc comparison: header diff, key-based row alignment, per-cell accuracy (±$0.01), per-column + per-zone breakdown, mismatch list. **Never used at production runtime** — only for development against a groundtruth. | Called by `run.py` unless you pass `--no-eval` |
+| **`__init__.py`** | Marks `pipeline/` as a Python package. | Implicit on every import |
+
+### The data flow (one chart)
+
+```
+                profiles/<union>.yaml
+                    │ (column list, derivation rules, source map)
+                    ▼
+data/<union>/cba/*.pdf ──► ingest.py ──► ocr.py (if image-only)
+                                 │
+                                 ▼
+                          extract.py (extract_704, _483, _537)
+                                 │
+                                 ▼  rows: List[ClassificationRow]
+                            compute.py (multipliers, splits, rounding)
+                                 │
+                                 ▼  rows: List[ClassificationRow] (with derived fields)
+                              pivot.py
+                                 │
+                                 ▼  CSV header + 13 rows
+                       data/<union>/ai_output/*.csv
+                                 │
+                                 ▼
+                            evaluate.py (vs data/<union>/ratesheet/*.csv)
+                                 │
+                                 ▼
+                       console output (per-column, per-zone, mismatches)
+                       data/<union>/ai_output/<union>.gaps.md
+```
+
+### Worked example: trace one cell
+
+Take the **Wage 1.5x** column for the **Building / Journeyman** row in the 704
+output (the value you'll see is `$82.05`). Here is exactly where each step
+happens in code:
+
+1. **`ingest.py`** opens `data/sprinkler_fitters_704/cba/2026.01.01.704 Rate Notice.pdf`,
+   detects it's image-only, and routes pages through `ocr.py`.
+2. **`ocr.py`** extracts text from each page — including the "Wage: $54.70"
+   table cell for Journeyman.
+3. **`extract_704()` in `extract.py`** locates that wage value, builds a
+   `RateCell(value=54.70, source_doc="2026.01.01.704 Rate Notice.pdf",
+   source_locator="page 2 / table 1 / row 3", confidence=0.95)` and attaches it
+   to a `ClassificationRow(zone="Building", package="Journeyman")`.
+4. **`compute.py`** reads `profiles/sprinkler_fitters_704.yaml` and finds
+   `Wage 1.5x: { multiplier_of: Wage, factor: 1.5 }`. It computes
+   `r2(54.70 * 1.5) = r2(82.05) = 82.05` (half-up rounding kicks in when there
+   are sub-cent values).
+5. **`pivot.py`** reads the profile's `output_schema` column order and writes
+   `82.05` into the `Wage 1.5x` column of the output CSV.
+6. **`evaluate.py`** reads `data/sprinkler_fitters_704/ratesheet/...csv`, locates
+   the same `Building/Journeyman/Wage 1.5x` cell, sees `82.05` matches `82.05`,
+   counts it as ✓, and reports `Wage 1.5x: 13/13` in the per-column block.
+
+Any cell that fails this trace ends up either (a) reported as a mismatch by
+`evaluate.py`, or (b) blanked + listed in `gaps.md` because the rule was
+"document doesn't say, refuse to fabricate". The 99.6% accuracy line you see
+means 259 of 260 cells trace cleanly through these six steps.
+
+### Recommended read order
+
+If you want to learn the kernel by reading code, go in dependency order — each
+file builds on the previous:
+
+```
+1.  canonical/model.py                # RateCell + ClassificationRow + r2()
+2.  canonical/fields.yaml             # the shared field dictionary
+3.  profiles/sprinkler_fitters_704.yaml  # one declarative output schema
+4.  pipeline/ingest.py                # PDF reading
+5.  pipeline/ocr.py                   # OCR fallback (only if you care about scanned PDFs)
+6.  pipeline/extract.py               # focus on extract_704() only
+7.  pipeline/compute.py               # derived columns
+8.  pipeline/pivot.py                 # canonical -> wide CSV
+9.  pipeline/evaluate.py              # scoring
+10. pipeline/run.py                   # the conductor (you've already seen this one)
+```
+
+### How to "run" individual modules
+
+The library modules don't have CLIs — only `run.py` has an `if __name__ == "__main__":`
+block. To see the others in action, use the Python REPL:
+
+```bash
+cd kernel
+uv run python
+```
+
+Then in the REPL:
+
+```python
+>>> from pipeline import extract
+>>> rows, gaps = extract.extract_704("data/sprinkler_fitters_704")
+>>> len(rows)
+13
+>>> rows[0].zone, rows[0].package         # ('Building', 'Foreman'), most likely
+>>> rows[0].cells["wage"]                 # inspect one RateCell — value + provenance
+>>> gaps                                  # what couldn't it read (and why)?
+```
+
+That's the most concrete way to see the kernel's internals — call its functions
+yourself and inspect the data structures. The same trick works for `ingest`,
+`compute`, `pivot`, and `evaluate`.
+
+### The "never fabricate" rule, made concrete
+
+Every value in the output CSV must trace back to a specific source document at a
+specific location. If a cell can't be sourced, the kernel writes nothing in
+that cell and adds an entry to `<union>.gaps.md` explaining why. **Never** does
+the kernel:
+
+- Read a value out of the groundtruth ratesheet and write it to the output (the
+  groundtruth is read-only and only consulted for column names + scoring)
+- Interpolate or guess a value because "it's probably reasonable"
+- Copy a value from another union or another period
+
+That's why 537 sits at 67.4% rather than 100% — the 3/1/2026 fund reallocation
+isn't stated in the books the kernel has access to. A human SME could put a
+value there from external knowledge; the kernel refuses to, and surfaces the
+absence in the gaps report instead. The AWS-side **Business UI's review queue**
+is where humans see those gaps and fill them.
+
+---
+
 ## Repository layout
 
 ```
