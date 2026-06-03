@@ -6,9 +6,10 @@ review-queue depth, API 5xx rate) wired to the failures SNS topic, and a
 CloudTrail trail. X-Ray tracing is enabled per-resource on the Lambdas and the
 Step Functions pipeline.
 
-Metrics are addressed by deterministic resource name/ARN (built from the naming
-convention) so this stack needs no direct cross-stack resource handles beyond the
-alarm SNS topic.
+Most metrics are addressed by deterministic resource name/ARN (built from the
+naming convention). The API Gateway 5xx alarm is the exception: its ``ApiId``
+dimension is the gateway-assigned random id, so the real ``api_id`` is passed in
+(audit D9), alongside the alarm SNS topic.
 """
 
 from __future__ import annotations
@@ -36,6 +37,7 @@ class ObservabilityStack(Stack):
         *,
         config: Config,
         alarm_topic: sns.ITopic,
+        api_id: str,
         **kwargs: Any,
     ) -> None:
         super().__init__(scope, construct_id, **kwargs)
@@ -47,7 +49,9 @@ class ObservabilityStack(Stack):
             f"stateMachine:{name(env, 'l3', 'sfn', 'main')}"
         )
         aurora_id = name(env, "l3", "aurora", "cluster")
-        api_name = name(env, "l2", "apigw", "main")
+        # The API GW 5xx metric is keyed by the gateway-assigned ApiId (a random
+        # id), NOT the resource name — pass the real id in (audit D9).
+        api_dimension_id = api_id
 
         # --- 5 dashboards (§8) ------------------------------------------------
         for board in ("overview", "pipeline", "agents", "storage", "api"):
@@ -137,7 +141,7 @@ class ObservabilityStack(Stack):
             cw.Metric(
                 namespace="AWS/ApiGateway",
                 metric_name="5xx",
-                dimensions_map={"ApiId": api_name},
+                dimensions_map={"ApiId": api_dimension_id},
                 statistic="Average",
                 period=Duration.minutes(5),
             ),

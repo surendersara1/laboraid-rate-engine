@@ -283,8 +283,21 @@ def test_observability_stack() -> None:
         outputs_bucket=storage.outputs_bucket,
         review_table=storage.review_table,
     )
-    obs = ObservabilityStack(app, "Obs", config=config, alarm_topic=validation.failures_topic.topic)
+    obs = ObservabilityStack(
+        app,
+        "Obs",
+        config=config,
+        alarm_topic=validation.failures_topic.topic,
+        api_id="abc123xyz",
+    )
     template = Template.from_stack(obs)
     template.resource_count_is("AWS::CloudWatch::Dashboard", 5)
     template.resource_count_is("AWS::CloudWatch::Alarm", 6)
     template.resource_count_is("AWS::CloudTrail::Trail", 1)
+    # FIX-D9: the API 5xx alarm uses the real ApiId, not the resource name.
+    template.has_resource_properties(
+        "AWS::CloudWatch::Alarm",
+        Match.object_like(
+            {"Dimensions": Match.array_with([{"Name": "ApiId", "Value": "abc123xyz"}])}
+        ),
+    )

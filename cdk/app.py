@@ -148,8 +148,10 @@ observability = ObservabilityStack(
     f"Laboraid-{config.env}-Observability",
     config=config,
     alarm_topic=validation.failures_topic.topic,
+    api_id=api.http_api.api_id,
 )
 observability.add_dependency(validation)
+observability.add_dependency(api)
 # ---------------------------------------------------------------------------
 
 # Mandatory tags on every resource (Spec/09 §2).

@@ -335,6 +335,13 @@ depend on G and already pass.
   - New `CellCommentModal.tsx` (POST /v1/cells/{cell_id}/comment); RateCellTable gains a
     trailing comment-button column that opens it (Spec/09 §1.5 "comment per row").
   - UI gates: typecheck ✅, lint ✅ (--max-warnings 0), vitest ✅ (4), build ✅.
+- [FIX-D9] API 5xx alarm uses the real ApiId, not the resource name — DONE at 2026-06-02T00:00:00Z
+  - ObservabilityStack takes an `api_id` param and uses it as the `ApiId` CloudWatch
+    dimension for the API GW 5xx alarm (the dimension is the gateway-assigned random id,
+    not the resource name, so the old alarm never matched a metric). app.py passes
+    `api.http_api.api_id` and adds the dependency. New test asserts the alarm dimension.
+    (Aurora dimension already matches the cluster_identifier — left as-is per the audit.)
+    Gates: synth ✅; ruff/black/mypy --strict (26 files) ✅; cdk pytest ✅ (18).
 
 ---
 
