@@ -116,9 +116,11 @@ api = ApiStack(
     overrides_table=storage.overrides_table,
     aurora=storage.aurora,
     aurora_secret=storage.aurora.secret,
+    engine_bus=validation.engine_bus,
 )
 api.add_dependency(security)
 api.add_dependency(storage)
+api.add_dependency(validation)
 
 # Orchestration — Step Functions pipeline over the processing + validation fns.
 orchestration = OrchestrationStack(

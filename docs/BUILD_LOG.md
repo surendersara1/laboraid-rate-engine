@@ -266,6 +266,20 @@ depend on G and already pass.
     409 when Aurora says pending_review despite an approved body, 200 when Aurora
     says approved, 404 when the period is missing. Per audit B1.
     Gates: lambda pytest ✅ (publish: 5 passed).
+- [FIX-B2] approve/reject/unapprove persist to Aurora + emit EventBridge — DONE at 2026-06-02T00:00:00Z
+  - Each handler, on a successful transition, now (a) runs a parameterized UPDATE on
+    `rate_periods` via the RDS Data API (approve→approval_state/approved_by/approved_at;
+    reject→rejected_by/rejected_at/rejection_reason/rejection_tags as a cast TEXT[];
+    unapprove→pending_review + clears approver) targeting the period by
+    `union_id = (SELECT id FROM unions WHERE local=:local) AND start_date=:period`, and
+    (b) PutEvents to the engine bus with DetailType `laboraid.rate-sheet.approved` /
+    `.rejected` / `.unapproved`. API stack: new `engine_bus` param → `ENGINE_BUS_NAME`
+    env + `grant_put_events_to` for the 3 fns; app.py passes `validation.engine_bus`
+    and adds the dependency. (`.unapproved` mirrors the approved/rejected pattern; the
+    exact string isn't quoted in the audit so chose the natural analog.) New tests assert
+    UPDATE + PutEvents are both called with correct args on success and neither on failure.
+    Gates: lambda pytest ✅ (approve/reject/unapprove: 15 passed); ruff/black/mypy --strict
+    (26 files) ✅; synth ✅ (events:PutEvents + ENGINE_BUS_NAME present); cdk pytest ✅ (18).
 
 ---
 

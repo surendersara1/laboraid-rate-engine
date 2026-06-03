@@ -1,9 +1,18 @@
-"""Rate sheet reject Lambda (Spec/09 §4 L2). Business rejection; requires a reason."""
+"""Rate sheet reject Lambda (Spec/09 §4 L2). Business rejection; requires a reason.
+
+On a successful rejection the handler persists approval_state/rejected_by/
+rejected_at/rejection_reason/rejection_tags to Aurora `rate_periods` via the RDS
+Data API and emits ``laboraid.rate-sheet.rejected`` to the engine EventBridge bus
+(audit B2).
+"""
 
 from __future__ import annotations
 
 import json
+import os
 from typing import Any
+
+ENGINE_BUS_NAME = os.environ.get("ENGINE_BUS_NAME", "")
 
 try:  # pragma: no cover - present in the Lambda runtime
     from aws_lambda_powertools import Logger, Tracer
@@ -58,17 +67,81 @@ def reject_transition(
     return 200, {"approval_state": "rejected", "rejection_reason": reason}
 
 
+def persist_rejection(
+    local: str, period: str, rejected_by: str, reason: str, tags: list[str]
+) -> None:
+    """Persist the rejection (incl. reason + tags) to Aurora via the RDS Data API."""
+    import boto3
+
+    # rejection_tags is a Postgres TEXT[] — pass an array literal and cast it.
+    tags_literal = "{" + ",".join(tags) + "}"
+    sql = (
+        "UPDATE rate_periods SET approval_state='rejected', rejected_by=:by, "
+        "rejected_at=NOW(), rejection_reason=:reason, "
+        "rejection_tags=CAST(:tags AS TEXT[]) "
+        "WHERE union_id = (SELECT id FROM unions WHERE local = :local) "
+        "AND start_date = :period"
+    )
+    boto3.client("rds-data").execute_statement(
+        resourceArn=os.environ["AURORA_CLUSTER_ARN"],
+        secretArn=os.environ["AURORA_SECRET_ARN"],
+        database="laboraid",
+        sql=sql,
+        parameters=[
+            {"name": "by", "value": {"stringValue": rejected_by}},
+            {"name": "reason", "value": {"stringValue": reason}},
+            {"name": "tags", "value": {"stringValue": tags_literal}},
+            {"name": "local", "value": {"longValue": int(local)}},
+            {"name": "period", "value": {"stringValue": period}, "typeHint": "DATE"},
+        ],
+    )
+
+
+def emit_event(detail_type: str, detail: dict[str, Any]) -> None:
+    """Emit a rate-sheet lifecycle event to the engine EventBridge bus."""
+    import boto3
+
+    boto3.client("events").put_events(
+        Entries=[
+            {
+                "Source": "laboraid.api",
+                "DetailType": detail_type,
+                "Detail": json.dumps(detail),
+                "EventBusName": ENGINE_BUS_NAME,
+            }
+        ]
+    )
+
+
 @_instrument
 def handler(event: dict[str, Any], _context: Any) -> dict[str, Any]:
     try:
         body = json.loads(event.get("body") or "{}")
+        params = event.get("pathParameters") or {}
+        local, period = params.get("local"), params.get("period")
+        reason = body.get("reason", "")
+        tags = body.get("tags") or []
         status, result = reject_transition(
             body.get("approval_state", "pending_review"),
-            body.get("reason", ""),
-            body.get("tags"),
+            reason,
+            tags,
         )
         if status == 200:
-            result["rejected_by"] = _sub(event)
+            if not local or not period:
+                return _resp({"error": "missing_path_params"}, 400)
+            rejected_by = _sub(event)
+            persist_rejection(local, period, rejected_by, reason, tags)
+            emit_event(
+                "laboraid.rate-sheet.rejected",
+                {
+                    "local": local,
+                    "period": period,
+                    "rejected_by": rejected_by,
+                    "rejection_reason": reason,
+                    "rejection_tags": tags,
+                },
+            )
+            result["rejected_by"] = rejected_by
         return _resp(result, status)
     except Exception:
         logger.exception("ratesheet-reject failed")

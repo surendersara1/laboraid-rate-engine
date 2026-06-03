@@ -20,6 +20,7 @@ from aws_cdk import aws_apigatewayv2_authorizers as authorizers
 from aws_cdk import aws_apigatewayv2_integrations as integrations
 from aws_cdk import aws_cognito as cognito
 from aws_cdk import aws_dynamodb as ddb
+from aws_cdk import aws_events as events
 from aws_cdk import aws_lambda as lambda_
 from aws_cdk import aws_rds as rds
 from aws_cdk import aws_s3 as s3
@@ -55,7 +56,9 @@ ROUTES: list[tuple[str, str, str]] = [
     ("GET", "/v1/audit", "audit-list"),
 ]
 
-# Lambda dir -> resource categories it needs grants for.
+# Lambda dir -> resource categories it needs grants for. The "events" category
+# grants PutEvents on the engine bus (the approve/reject/unapprove workflow fns
+# emit rate-sheet lifecycle events — audit B2).
 GRANTS: dict[str, set[str]] = {
     "upload-presign": {"inputs"},
     "job-list": {"jobs"},
@@ -69,9 +72,9 @@ GRANTS: dict[str, set[str]] = {
     "audit-list": {"aurora"},
     "ratesheet-list": {"aurora"},
     "ratesheet-get": {"aurora"},
-    "ratesheet-approve": {"aurora"},
-    "ratesheet-reject": {"aurora"},
-    "ratesheet-unapprove": {"aurora"},
+    "ratesheet-approve": {"aurora", "events"},
+    "ratesheet-reject": {"aurora", "events"},
+    "ratesheet-unapprove": {"aurora", "events"},
     "ratesheet-publish": {"aurora"},
     "ratesheet-audit": {"aurora"},
     "cell-override": {"overrides"},
@@ -96,6 +99,7 @@ class ApiStack(Stack):
         overrides_table: ddb.ITable,
         aurora: rds.IDatabaseCluster,
         aurora_secret: secretsmanager.ISecret,
+        engine_bus: events.IEventBus,
         **kwargs: Any,
     ) -> None:
         super().__init__(scope, construct_id, **kwargs)
@@ -108,6 +112,7 @@ class ApiStack(Stack):
             "OVERRIDES_TABLE": overrides_table.table_name,
             "AURORA_CLUSTER_ARN": aurora.cluster_arn,
             "AURORA_SECRET_ARN": aurora_secret.secret_arn,
+            "ENGINE_BUS_NAME": engine_bus.event_bus_name,
         }
 
         # --- Create one Lambda per unique dir, applying its grants -------------
@@ -135,6 +140,8 @@ class ApiStack(Stack):
             if "aurora" in cats:
                 aurora.grant_data_api_access(fn)
                 aurora_secret.grant_read(fn)
+            if "events" in cats:
+                engine_bus.grant_put_events_to(fn)
             self.functions[key] = fn
 
         # --- HTTP API + Cognito authorizer ------------------------------------

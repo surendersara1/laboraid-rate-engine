@@ -132,7 +132,12 @@ def _synth_api() -> Template:
     app = cdk.App()
     security = SecurityStack(app, "Sec", config=config)
     storage = StorageStack(app, "Stg", config=config, master_key=security.master_key)
+    from aws_cdk import aws_events as events
+
     from laboraid_cdk.stacks.api_stack import ApiStack
+
+    bus_stack = cdk.Stack(app, "BusStack")
+    engine_bus = events.EventBus(bus_stack, "EngineBus", event_bus_name="laboraid-dev-l3-eb-engine")
 
     assert storage.aurora.secret is not None
     api = ApiStack(
@@ -147,6 +152,7 @@ def _synth_api() -> Template:
         overrides_table=storage.overrides_table,
         aurora=storage.aurora,
         aurora_secret=storage.aurora.secret,
+        engine_bus=engine_bus,
     )
     return Template.from_stack(api)
 
