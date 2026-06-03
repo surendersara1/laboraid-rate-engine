@@ -324,6 +324,17 @@ depend on G and already pass.
 - [FIX-D2] Spec/09 §2.1 asset table points at §2.2 (19 API Lambdas) — DONE at 2026-06-02T00:00:00Z
 - [FIX-D3] BUILD_INSTRUCTIONS B.2: 6 → 7 DynamoDB tables (incl. agent-config) — DONE at 2026-06-02T00:00:00Z
 - [FIX-D8] README accuracy line: 483 = 100% Building (83.2% overall, 74 blanks) — DONE at 2026-06-02T00:00:00Z
+- [FIX-D4] RouteGuard renders Forbidden403 instead of silent redirect — DONE at 2026-06-02T00:00:00Z
+  - New `Forbidden403.tsx`; RouteGuard now renders it on group-denial (Spec/09 §1.1:
+    `/admin/*` returns 403 for Business users). Root `/` landing redirect stays in App.tsx.
+- [FIX-D5] /admin/costs gated to Admins-only; removed "Admins-only" body text — DONE at 2026-06-02T00:00:00Z
+  - `costs` route wrapped in its own `<RouteGuard groups={["Admins"]}>` (the shared ADMIN
+    gate is Admins+Operations); Costs.tsx body text trimmed since the gate enforces it.
+- [FIX-D6] No code change — verified conformant (Agents page admins+ops, toggle admins-only).
+- [FIX-D7] Per-row comment affordance on RateCellTable — DONE at 2026-06-02T00:00:00Z
+  - New `CellCommentModal.tsx` (POST /v1/cells/{cell_id}/comment); RateCellTable gains a
+    trailing comment-button column that opens it (Spec/09 §1.5 "comment per row").
+  - UI gates: typecheck ✅, lint ✅ (--max-warnings 0), vitest ✅ (4), build ✅.
 
 ---
 
