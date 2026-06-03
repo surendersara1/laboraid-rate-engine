@@ -10,6 +10,21 @@ two-persona SPA, orchestration, observability, CI, smoke). Kernel extractors for
 unions 281 + 821 (Group G) run through the kernel's own harness — see
 [`docs/BUILD_LOG.md`](docs/BUILD_LOG.md).
 
+## Documentation
+
+| Audience / purpose | File |
+|---|---|
+| **CTO / management** — layer-by-layer summary, SOW match, risks, cost | [`docs/CTO_SUMMARY.md`](docs/CTO_SUMMARY.md) |
+| **New developer** — clone-and-go setup | [`docs/ONBOARDING.md`](docs/ONBOARDING.md) |
+| **Architects** — system design + decisions | [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) |
+| **Full technical spec** — every layer, every resource, 6-pillar coverage | [`docs/09_Technical_Implementation_Spec.md`](docs/09_Technical_Implementation_Spec.md) |
+| **Build queue** — how this repo was generated (Groups A–H) | [`BUILD_INSTRUCTIONS.md`](BUILD_INSTRUCTIONS.md) |
+| **Build log** — chronological audit trail per commit | [`docs/BUILD_LOG.md`](docs/BUILD_LOG.md) |
+| **Ops** — runbook, alarms, retry/abort, incidents | [`docs/RUNBOOK.md`](docs/RUNBOOK.md) |
+| **Audit (initial)** — 8 BLOCKER + 9 DRIFT + 7 NICE-TO-HAVE findings | [`docs/AUDIT_REPORT.md`](docs/AUDIT_REPORT.md) |
+| **Audit (verification)** — independent re-check after fix passes | [`docs/AUDIT_VERIFICATION.md`](docs/AUDIT_VERIFICATION.md) |
+| **Earlier design docs** — discovery, schemas, DSL, provenance, ground truth | [`docs/00_README.md`](docs/00_README.md) through [`docs/08_*.md`](docs/) |
+
 ## Architecture
 
 ```
