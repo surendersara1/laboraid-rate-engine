@@ -1,0 +1,890 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>LaborAid Rate Engine — End-to-End Architecture Flow</title>
+  <script type="module">
+    import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
+    mermaid.initialize({
+      startOnLoad: true,
+      securityLevel: 'loose',
+      theme: 'default',
+      flowchart: { useMaxWidth: true, htmlLabels: true, curve: 'basis' },
+      sequence: { useMaxWidth: true, mirrorActors: false, showSequenceNumbers: true },
+      state: { useMaxWidth: true }
+    });
+  </script>
+  <style>
+    :root {
+      --bg: #f9fafb;
+      --panel: #ffffff;
+      --text: #111827;
+      --muted: #6b7280;
+      --brand: #0369a1;
+      --border: #e5e7eb;
+      --code-bg: #f3f4f6;
+      --code-border: #e5e7eb;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.55;
+    }
+    header {
+      background: var(--panel);
+      border-bottom: 1px solid var(--border);
+      padding: 1.5rem 2rem;
+      position: sticky;
+      top: 0;
+      z-index: 10;
+    }
+    header h1 {
+      margin: 0;
+      font-size: 1.5rem;
+      color: var(--brand);
+    }
+    header p {
+      margin: 0.25rem 0 0;
+      color: var(--muted);
+      font-size: 0.95rem;
+    }
+    nav {
+      background: var(--panel);
+      border-bottom: 1px solid var(--border);
+      padding: 0.75rem 2rem;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem 1.5rem;
+      font-size: 0.9rem;
+    }
+    nav a {
+      color: var(--brand);
+      text-decoration: none;
+      white-space: nowrap;
+    }
+    nav a:hover { text-decoration: underline; }
+    main {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 2rem;
+    }
+    section {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 1.5rem 2rem;
+      margin-bottom: 1.5rem;
+      scroll-margin-top: 6rem;
+    }
+    h2 {
+      margin-top: 0;
+      color: var(--brand);
+      border-bottom: 2px solid var(--brand);
+      padding-bottom: 0.5rem;
+      font-size: 1.4rem;
+    }
+    h3 {
+      margin-top: 1.5rem;
+      color: #374151;
+      font-size: 1.1rem;
+    }
+    p, li { font-size: 0.95rem; }
+    code {
+      background: var(--code-bg);
+      border: 1px solid var(--code-border);
+      border-radius: 3px;
+      padding: 0.1em 0.4em;
+      font-family: "SF Mono", "Cascadia Code", Menlo, Consolas, monospace;
+      font-size: 0.85em;
+    }
+    .mermaid {
+      background: #fafafa;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 1rem;
+      margin: 1rem 0;
+      overflow-x: auto;
+      text-align: center;
+    }
+    .mermaid svg { max-width: 100%; height: auto; }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 1rem 0;
+      font-size: 0.9rem;
+    }
+    th, td {
+      border: 1px solid var(--border);
+      padding: 0.5rem 0.75rem;
+      text-align: left;
+      vertical-align: top;
+    }
+    th { background: #f3f4f6; }
+    .takeaway {
+      background: #fef3c7;
+      border-left: 4px solid #d97706;
+      padding: 0.75rem 1rem;
+      border-radius: 4px;
+      margin: 1rem 0;
+      font-size: 0.92rem;
+    }
+    .takeaway strong { color: #78350f; }
+    .legend {
+      font-size: 0.85rem;
+      color: var(--muted);
+      margin: 0.5rem 0;
+    }
+    footer {
+      text-align: center;
+      color: var(--muted);
+      font-size: 0.85rem;
+      padding: 2rem;
+    }
+    footer a { color: var(--brand); }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>LaborAid Rate Engine — End-to-End Architecture Flow</h1>
+  <p>Visual companion to <a href="Learning_Lessons.md">Learning_Lessons.md</a>. One master diagram, then per-lesson zoom-ins.</p>
+</header>
+
+<nav>
+  <a href="#s0">§0 Master flow</a>
+  <a href="#s1">§1 Canonical (L1)</a>
+  <a href="#s2">§2 Strands Agent (L2)</a>
+  <a href="#s3">§3 Step Functions (L3)</a>
+  <a href="#s4">§4 Approval Gate (L4)</a>
+  <a href="#s5">§5 CDK Foundation (L5)</a>
+  <a href="#s6">§6 Storage Stack (L6)</a>
+  <a href="#s7">§7 React UI (L7)</a>
+  <a href="#s8">§8 Full sequence</a>
+  <a href="#cheatsheet">Cheat sheet</a>
+</nav>
+
+<main>
+
+<!-- ===================== §0 MASTER FLOW ===================== -->
+<section id="s0">
+  <h2>§0 — The whole system in one diagram</h2>
+
+  <div class="mermaid">
+flowchart TB
+    PDF["📄 PDF<br/>Customer uploads a CBA or Rate Notice"]
+    Admin["👨‍💼 Admin / Operations<br/>(NBS + LaborAid ops)"]
+    Business["👩‍💼 Business / SME<br/>(LaborAid + Union rep)"]
+    Calc["📊 LaborAid Calculator<br/>(downstream)"]
+
+    subgraph UI["UI Layer — Lesson 7"]
+        AdminUI["/admin/* shell<br/>8 pages, Cognito gated"]
+        BusinessUI["/business/* shell<br/>7 pages, Cognito gated"]
+    end
+
+    subgraph Engine["Engine Layer — Lessons 1 + 2"]
+        Kernel["Kernel (deterministic)<br/>PDF → canonical → CSV"]
+        Agent["Strands ExtractorAgent on AgentCore<br/>6 @tools + Bedrock fallback"]
+    end
+
+    subgraph Orchestration["Orchestration — Lesson 3"]
+        SFN["Step Functions<br/>Classify → Gate → Extract → Validate → Render"]
+    end
+
+    subgraph Storage["Storage — Lesson 6"]
+        S3["6 S3 buckets"]
+        DDB["7 DynamoDB tables"]
+        Aurora["Aurora Postgres<br/>rate_periods + approval_state"]
+    end
+
+    subgraph Approval["Approval Gate — Lesson 4"]
+        Approve["ratesheet-approve (Business)"]
+        Reject["ratesheet-reject (Business)"]
+        Publish["ratesheet-publish (Admin/Ops)<br/>409 unless approved"]
+    end
+
+    CDK["CDK Foundation — Lesson 5<br/>Config + naming + tags + tagged constructs"]
+
+    Admin -->|1. Upload PDF| AdminUI
+    AdminUI -->|presigned URL| S3
+    PDF -.->|lands in| S3
+    S3 -->|2. ObjectCreated| SFN
+    SFN -->|3a. Classify| SFN
+    SFN -->|3b. Read agent-config| DDB
+    SFN -->|3c. Extract| Agent
+    Agent -->|calls @tool| Kernel
+    Agent -->|Bedrock fallback| Engine
+    Agent -->|results| SFN
+    SFN -->|4. Validate| SFN
+    SFN -->|5. Render → S3| S3
+    SFN -->|6. INSERT pending_review| Aurora
+
+    Aurora -->|shows in Inbox| BusinessUI
+    Business -->|Open / Review| BusinessUI
+    BusinessUI -->|Approve| Approve
+    BusinessUI -->|Reject| Reject
+    Approve -->|UPDATE state=approved| Aurora
+    Reject -->|UPDATE state=rejected| Aurora
+
+    Admin -->|click Publish| AdminUI
+    AdminUI -->|POST /publish| Publish
+    Publish -->|read state| Aurora
+    Publish -->|UPDATE state=published| Aurora
+
+    Aurora -->|GET rate-sheet| Calc
+
+    CDK -.->|deploys via cdk deploy| Orchestration
+    CDK -.->|deploys via cdk deploy| Storage
+    CDK -.->|deploys via cdk deploy| Approval
+    CDK -.->|deploys via cdk deploy| Engine
+    CDK -.->|deploys via cdk deploy| UI
+
+    classDef adminBlock fill:#fef3c7,stroke:#d97706,color:#78350f
+    classDef businessBlock fill:#fce7f3,stroke:#db2777,color:#831843
+    classDef engineBlock fill:#ede9fe,stroke:#7c3aed,color:#4c1d95
+    classDef orchBlock fill:#e0f2fe,stroke:#0284c7,color:#0c4a6e
+    classDef storageBlock fill:#dcfce7,stroke:#15803d,color:#14532d
+
+    class AdminUI,Publish adminBlock
+    class BusinessUI,Approve,Reject businessBlock
+    class Kernel,Agent engineBlock
+    class SFN orchBlock
+    class S3,DDB,Aurora storageBlock
+  </div>
+
+  <h3>Read the diagram with the lesson lens</h3>
+  <table>
+    <thead><tr><th>Block</th><th>Lesson</th><th>What it teaches</th></tr></thead>
+    <tbody>
+      <tr><td>Engine Layer (Kernel + Agent)</td><td>1 + 2</td><td>PDF → canonical → CSV; agent wraps kernel as @tools</td></tr>
+      <tr><td>Orchestration Layer (Step Functions)</td><td>3</td><td>Who triggers what; the 6 stages; the agent enable/disable gate</td></tr>
+      <tr><td>Approval Gate (Lambdas + Aurora state)</td><td>4</td><td>publish 409 guard + Business approve/reject + audit trail</td></tr>
+      <tr><td>CDK Foundation (cross-cutting)</td><td>5</td><td>Patterns every stack reuses</td></tr>
+      <tr><td>Storage Layer</td><td>6</td><td>One concrete stack showing every pattern</td></tr>
+      <tr><td>UI Layer (two personas)</td><td>7</td><td>Where humans interact; how button clicks map to Lambdas</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- ===================== §1 CANONICAL LAYER ===================== -->
+<section id="s1">
+  <h2>§1 — Lesson 1 zoom-in: The Canonical Layer</h2>
+  <p><strong>Where it fits:</strong> inside the "Engine Layer" block. The canonical layer is the in-memory shape the kernel and agent both operate on.</p>
+
+  <div class="mermaid">
+flowchart LR
+    PDF["📄 Union PDF<br/>(rate notice / CBA)"]
+    Extractor["extract_704()<br/>per-union extractor"]
+    Compute["compute.py<br/>derived columns<br/>(wage × 1.5, P&G ×1.10/1.15/1.25)"]
+    Pivot["pivot.py<br/>canonical → wide CSV<br/>(matches groundtruth header)"]
+    Output["📄 Output CSV<br/>data/&lt;union&gt;/ai_output/...csv"]
+
+    Profile["profiles/704.yaml<br/>columns + multiplier_of + factor"]
+    Fields["canonical/fields.yaml<br/>wage / health_welfare / pension /<br/>apprenticeship_training / ..."]
+
+    subgraph CanonLayer["canonical/ (in-memory shapes)"]
+        direction TB
+        RC["RateCell<br/>━━━━━━<br/>zone: Building<br/>classification: Journeyman<br/>canonical_field: wage<br/>value: 54.70<br/>source_doc + locator<br/>confidence: 0.95"]
+        CR["ClassificationRow<br/>━━━━━━<br/>cells: { wage, health_welfare,<br/>pension, sis, ... }"]
+        R2["r2() half-up rounding<br/>83.505 → 83.51 (not 83.50)"]
+        RC --> CR
+    end
+
+    PDF --> Extractor
+    Extractor --> RC
+    CR --> Compute
+    Compute --> Pivot
+    Pivot --> Output
+    Profile --> Compute
+    Profile --> Pivot
+    Fields --> Extractor
+    R2 -.-> Compute
+
+    classDef io fill:#f0f9ff,stroke:#0369a1,color:#0c4a6e
+    classDef code fill:#fef9c3,stroke:#a16207,color:#713f12
+    classDef canon fill:#ede9fe,stroke:#7c3aed,color:#4c1d95
+    classDef cfg fill:#fae8ff,stroke:#a21caf,color:#581c87
+    class PDF,Output io
+    class Extractor,Compute,Pivot code
+    class RC,CR,R2 canon
+    class Profile,Fields cfg
+  </div>
+
+  <div class="takeaway">
+    <strong>Key takeaway:</strong> three vocabularies — PDF native ("Wage", "H&W"), canonical internal (<code>wage</code>, <code>health_welfare</code>), output CSV header. RateCell carries provenance so every output value is auditable.
+  </div>
+</section>
+
+<!-- ===================== §2 STRANDS AGENT ===================== -->
+<section id="s2">
+  <h2>§2 — Lesson 2 zoom-in: The Strands Agent on AgentCore</h2>
+  <p><strong>Where it fits:</strong> inside the "Engine Layer" block, on top of the kernel. The agent is what makes the kernel callable from AWS.</p>
+
+  <div class="mermaid">
+flowchart TB
+    Input["Step Functions payload<br/>{ union, s3_prefix, job_id }"]
+
+    subgraph AgentCore["AgentCore Runtime container"]
+        direction TB
+        Entry["app.py BedrockAgentCoreApp<br/>@entrypoint def invoke(payload)"]
+        Brain["LLM brain reads system-prompt.md<br/>RFC-2119 7-step procedure"]
+        Steering["ExtractorSteering<br/>blocks completion unless<br/>checksum_validated AND<br/>gaps escalated"]
+
+        subgraph Tools["6 @tool functions"]
+            direction TB
+            T1["@tool stage_inputs_from_s3"]
+            T2["@tool run_kernel_extractor<br/>→ k_extract.EXTRACTORS[union]()"]
+            T3["@tool compute_derived_columns<br/>→ k_compute.resolve_row()"]
+            T4["@tool pivot_to_ratesheet_csv<br/>→ k_pivot.write_csv()"]
+            T5["@tool validate_total_package_checksum"]
+            T6["@tool escalate_to_claude_multimodal<br/>(Bedrock Sonnet 4.6 + PDF)"]
+        end
+
+        Entry --> Brain
+        Brain <--> Steering
+        Brain --> Tools
+    end
+
+    subgraph Kernel["Kernel (Lesson 1)"]
+        direction TB
+        K1["pipeline/extract.py"]
+        K2["pipeline/compute.py"]
+        K3["pipeline/pivot.py"]
+        K4["canonical/model.py — r2() etc."]
+    end
+
+    S3In["S3 inputs bucket"]
+    S3Out["S3 outputs bucket"]
+    Bedrock["AWS Bedrock<br/>Claude Sonnet 4.6 + Haiku 4.5<br/>+ PII Guardrail"]
+
+    Input --> Entry
+    T1 --> S3In
+    T2 --> K1
+    T3 --> K2
+    T4 --> K3
+    T4 --> S3Out
+    T5 --> K4
+    T6 --> Bedrock
+
+    AgentCore -->|returns result| Output["Step Functions resumes"]
+
+    classDef io fill:#f0f9ff,stroke:#0369a1,color:#0c4a6e
+    classDef brain fill:#ede9fe,stroke:#7c3aed,color:#4c1d95
+    classDef steer fill:#fee2e2,stroke:#dc2626,color:#7f1d1d
+    classDef tool fill:#dbeafe,stroke:#1d4ed8,color:#1e3a8a
+    classDef fallback fill:#fae8ff,stroke:#a21caf,color:#581c87
+    classDef kernel fill:#fef9c3,stroke:#a16207,color:#713f12
+    classDef external fill:#fed7aa,stroke:#c2410c,color:#7c2d12
+    class Input,Output io
+    class Entry,Brain brain
+    class Steering steer
+    class T1,T2,T3,T4,T5 tool
+    class T6 fallback
+    class K1,K2,K3,K4 kernel
+    class S3In,S3Out,Bedrock external
+  </div>
+
+  <div class="takeaway">
+    <strong>Key takeaway:</strong> 5 of 6 tools just call the deterministic kernel. Only <code>escalate_to_claude_multimodal</code> hits an LLM, and only when the kernel can't read a cell. The SteeringHandler prevents the LLM brain from claiming "done" prematurely.
+  </div>
+</section>
+
+<!-- ===================== §3 STEP FUNCTIONS ===================== -->
+<section id="s3">
+  <h2>§3 — Lesson 3 zoom-in: The Step Functions Orchestration</h2>
+  <p><strong>Where it fits:</strong> the "Orchestration Layer" block. The conductor that ties everything together.</p>
+
+  <div class="mermaid">
+flowchart TB
+    S3["📦 S3 inputs bucket<br/>(EventBridge enabled)"]
+    EB["EventBridge rule<br/>source=aws.s3<br/>detailType=Object Created"]
+
+    subgraph SFN["Step Functions main pipeline"]
+        direction TB
+        Classify["Stage 1 — Classify Lambda<br/>filename regex → union/period"]
+        GetCfg["Stage 1a — DynamoGetItem<br/>read agent-config"]
+        AgentGate{Stage 1b<br/>AgentEnabled?}
+        Extract["Stage 2 — ExtractorInvoker Lambda<br/>↓<br/>bedrock-agentcore:InvokeAgentRuntime"]
+        Validate["Stage 3 — Validate Parallel<br/>checksum + range + confidence"]
+        Gate{Stage 4<br/>All passed?}
+        Render["Stage 5 — Render Parallel<br/>xlsx + csv + articles"]
+        Review["RouteToReview Lambda<br/>writes to DDB review table"]
+        Pub["Stage 6 — Published<br/>(Succeed)"]
+        Await["AwaitingReview<br/>(Succeed)"]
+        Fail["PipelineFailed<br/>(Fail)"]
+    end
+
+    AgentCore["🤖 AgentCore Runtime<br/>(Lesson 2)"]
+    DDBAgent[("agent-config<br/>DDB table")]
+    DDBReview[("review<br/>DDB table")]
+    S3Out["📦 S3 outputs bucket"]
+    AuroraIn["Aurora rate_periods<br/>INSERT state=pending_review"]
+    SNS["📡 SNS failures topic<br/>email + Slack"]
+
+    S3 --> EB --> Classify
+    Classify --> GetCfg
+    Classify -.->|on error| Fail
+    GetCfg --> AgentGate
+    DDBAgent -.-> GetCfg
+    AgentGate -->|enabled=true| Extract
+    AgentGate -->|enabled=false| Validate
+    Extract <--> AgentCore
+    Extract --> Validate
+    Validate --> Gate
+    Gate -->|passed| Render
+    Gate -->|failed| Review
+    Render --> Pub
+    Render --> S3Out
+    Render --> AuroraIn
+    Review --> DDBReview
+    Review --> Await
+    Fail -.-> SNS
+
+    classDef storage fill:#dcfce7,stroke:#15803d,color:#14532d
+    classDef orch fill:#e0f2fe,stroke:#0284c7,color:#0c4a6e
+    classDef lambda fill:#fef3c7,stroke:#d97706,color:#78350f
+    classDef choice fill:#fce7f3,stroke:#db2777,color:#831843
+    classDef parallel fill:#dbeafe,stroke:#1d4ed8,color:#1e3a8a
+    classDef agent fill:#ede9fe,stroke:#7c3aed,color:#4c1d95
+    classDef success fill:#bbf7d0,stroke:#15803d,color:#14532d
+    classDef failure fill:#fecaca,stroke:#b91c1c,color:#7f1d1d
+    classDef external fill:#fed7aa,stroke:#c2410c,color:#7c2d12
+    class S3,DDBAgent,DDBReview,S3Out,AuroraIn storage
+    class EB orch
+    class Classify,Extract,Review lambda
+    class AgentGate,Gate choice
+    class Validate,Render parallel
+    class AgentCore agent
+    class Pub,Await success
+    class Fail failure
+    class SNS external
+  </div>
+
+  <div class="takeaway">
+    <strong>Key takeaway:</strong> every Lambda has automatic retries (3× exp backoff). Choice states are where human-meaningful decisions live — the admin's enable/disable toggle, the validators' verdict. Low-confidence cells go to the review queue; pipeline failures go to SNS + ops.
+  </div>
+</section>
+
+<!-- ===================== §4 APPROVAL GATE ===================== -->
+<section id="s4">
+  <h2>§4 — Lesson 4 zoom-in: The Human Approval Gate</h2>
+  <p><strong>Where it fits:</strong> the "Approval Gate" block — between "rate sheet produced" and "rate sheet consumed by Calculator."</p>
+
+  <h3>Approval state machine</h3>
+  <div class="mermaid">
+stateDiagram-v2
+    direction LR
+    [*] --> pending_review : engine produces rate sheet
+    pending_review --> approved : Business clicks Approve (queue empty)
+    pending_review --> rejected : Business clicks Reject (reason required)
+    rejected --> pending_review : engine re-runs after corrections
+    approved --> pending_review : Business unapprove (within 24h)
+    approved --> published : Admin/Ops Publish (409 unless approved)
+    published --> [*] : Calculator pulls rate sheet
+  </div>
+
+  <h3>The 4 endpoints + shared authz layer</h3>
+  <div class="mermaid">
+flowchart TB
+    User["Cognito JWT<br/>(cognito:groups claim)"]
+    APIGW["API Gateway HTTP API<br/>Cognito JWT authorizer (auth only)"]
+
+    subgraph Layer["Shared Lambda Layer (/opt/python/authz.py)"]
+        Authz["authz.enforce_groups(event, ALLOWED_GROUPS)<br/>━━━━━━━━━━━━━<br/>returns 403 if<br/>cognito:groups ∩ ALLOWED = ∅"]
+    end
+
+    subgraph Lambdas["Approval-state Lambdas"]
+        direction TB
+        Pub["ratesheet-publish<br/>ALLOWED = Admins, Operations<br/>1. enforce_groups<br/>2. read_approval_state (Aurora)<br/>3. publish_guard — 409 unless approved<br/>4. stamp published_by"]
+        App["ratesheet-approve<br/>ALLOWED = Business<br/>1. enforce_groups<br/>2. approve_transition — 422 if queue<br/>3. UPDATE state=approved<br/>4. put_events approved"]
+        Rej["ratesheet-reject<br/>ALLOWED = Business<br/>1. enforce_groups<br/>2. reject_transition — 422 if no reason<br/>3. UPDATE with reason+tags<br/>4. put_events rejected"]
+        Un["ratesheet-unapprove<br/>ALLOWED = Business<br/>original approver only<br/>within 24h, before publish"]
+    end
+
+    Aurora[("Aurora rate_periods<br/>approval_state<br/>approved_by, approved_at<br/>rejected_by, rejected_at<br/>rejection_reason, rejection_tags<br/>published_by, published_at")]
+    EB["EventBridge engine bus<br/>laboraid.rate-sheet.{approved,<br/>rejected, published}"]
+
+    User --> APIGW
+    APIGW --> Authz
+    Authz -->|passed| Pub
+    Authz -->|passed| App
+    Authz -->|passed| Rej
+    Authz -->|passed| Un
+    Authz -.->|denied 403| User
+
+    Pub -->|SELECT| Aurora
+    App -->|UPDATE| Aurora
+    Rej -->|UPDATE| Aurora
+    Un -->|UPDATE| Aurora
+
+    App --> EB
+    Rej --> EB
+    Pub --> EB
+
+    classDef in fill:#f0f9ff,stroke:#0369a1,color:#0c4a6e
+    classDef shared fill:#f3f4f6,stroke:#525252,color:#262626
+    classDef admin fill:#fef3c7,stroke:#d97706,color:#78350f
+    classDef biz fill:#fce7f3,stroke:#db2777,color:#831843
+    classDef orch fill:#e0f2fe,stroke:#0284c7,color:#0c4a6e
+    classDef storage fill:#dcfce7,stroke:#15803d,color:#14532d
+    class User in
+    class Authz,APIGW shared
+    class Pub admin
+    class App,Rej,Un biz
+    class EB orch
+    class Aurora storage
+  </div>
+
+  <div class="takeaway">
+    <strong>Key takeaway:</strong> the 409 guard reads from Aurora (not request body — audit fix <strong>B1</strong>). Approve writes to Aurora AND fires EventBridge (audit fix <strong>B2</strong>). Every gated Lambda checks Cognito groups via the shared layer (audit fix <strong>B3</strong>).
+  </div>
+</section>
+
+<!-- ===================== §5 CDK FOUNDATION ===================== -->
+<section id="s5">
+  <h2>§5 — Lesson 5 zoom-in: The CDK Foundation</h2>
+  <p><strong>Where it fits:</strong> the dashed CDK Foundation block. Doesn't run at runtime — it's how everything else gets <em>described</em> and <em>deployed</em>.</p>
+
+  <div class="mermaid">
+flowchart TB
+    Dev["👨‍💻 Developer / CI<br/>npx cdk synth<br/>npx cdk deploy --all"]
+
+    subgraph Foundation["CDK Foundation — 5 patterns"]
+        direction TB
+        Config["1. Config dataclass<br/>env, account, region<br/>mandatory_tags (13)<br/>domain_name"]
+        Naming["2. naming.name()<br/>laboraid-{env}-{layer}-{type}-{purpose}<br/>(kebab-case validated)"]
+        Tags["3. MandatoryTagsAspect<br/>visits every L1 CfnResource<br/>stamps 13 tags (priority 100)"]
+        Constructs["4. Tagged wrappers<br/>TaggedBucket: KMS + BPA + TLS + versioned<br/>TaggedLambda: Py3.12 ARM64 + Powertools<br/>SnsTopicWithSubs<br/>StrandsAgentRuntime"]
+        AppPy["5. cdk/app.py entry<br/>read context (-c env=prod)<br/>instantiate 9 stacks<br/>add_dependency() ordering<br/>Aspects.of(app).add(...)<br/>app.synth()"]
+    end
+
+    subgraph Stacks["9 stacks (assembled by app.py)"]
+        direction TB
+        UI["UiStack"]
+        Sec["SecurityStack"]
+        Stor["StorageStack"]
+        AI["AiStack"]
+        Proc["ProcessingStack"]
+        Val["ValidationStack"]
+        Api["ApiStack"]
+        Orch["OrchestrationStack"]
+        Obs["ObservabilityStack"]
+    end
+
+    CFN["CloudFormation templates<br/>cdk.out/*.template.json"]
+    AWS["☁️ AWS<br/>9 CloudFormation stacks<br/>(dependency order)"]
+
+    Dev --> Foundation
+    Foundation --> Stacks
+    Stacks --> CFN
+    CFN --> AWS
+
+    Config -.-> Stacks
+    Naming -.-> Stacks
+    Tags -.-> Stacks
+    Constructs -.-> Stacks
+    AppPy -.-> Stacks
+
+    classDef in fill:#f0f9ff,stroke:#0369a1,color:#0c4a6e
+    classDef pat fill:#ede9fe,stroke:#7c3aed,color:#4c1d95
+    classDef stack fill:#dbeafe,stroke:#1d4ed8,color:#1e3a8a
+    classDef out fill:#f0fdf4,stroke:#16a34a,color:#14532d
+    class Dev in
+    class Config,Naming,Tags,Constructs,AppPy pat
+    class UI,Sec,Stor,AI,Proc,Val,Api,Orch,Obs stack
+    class CFN,AWS out
+  </div>
+
+  <div class="takeaway">
+    <strong>Key takeaway:</strong> 5 patterns + 1 entry file = 9 stacks. Adding a 10th stack is the same recipe: Config in, name() everywhere, TaggedBucket/Lambda for resources, register in app.py, MandatoryTagsAspect tags everything.
+  </div>
+</section>
+
+<!-- ===================== §6 STORAGE STACK ===================== -->
+<section id="s6">
+  <h2>§6 — Lesson 6 zoom-in: The Storage Stack</h2>
+  <p><strong>Where it fits:</strong> the "Storage Layer" block. Every other stack depends on this one.</p>
+
+  <div class="mermaid">
+flowchart TB
+    Sec["SecurityStack<br/>provides master_key KMS CMK"]
+
+    subgraph Storage["StorageStack"]
+        direction TB
+
+        subgraph S3B["6 S3 buckets — TaggedBucket: KMS + BPA + TLS + versioned"]
+            direction LR
+            B0["audit<br/>(server-access-log target)"]
+            B1["inputs ★<br/>EventBridge=ON<br/>fires SFN<br/>archive lifecycle"]
+            B2["processed<br/>90-day expiry"]
+            B3["outputs<br/>archive lifecycle<br/>Object Lock (prod)"]
+            B4["profiles<br/>(ops-managed)"]
+            B5["cba-corpus<br/>(KB deferred)"]
+        end
+
+        subgraph DDBT["7 DynamoDB tables — PAY_PER_REQUEST + KMS + PITR"]
+            direction LR
+            T1["files<br/>tenant#union / period#filename<br/>📡 stream"]
+            T2["jobs<br/>job_id<br/>📡 stream"]
+            T3["review<br/>tenant / created_at#cell_id"]
+            T4["overrides"]
+            T5["cadence"]
+            T6["idempotency (TTL 24h)"]
+            T7["agent-config ★<br/>(admin toggle)"]
+        end
+
+        subgraph AuroraB["Aurora Serverless v2"]
+            direction TB
+            Net["Minimal VPC<br/>max_azs=2, nat_gateways=0<br/>PRIVATE_ISOLATED"]
+            DB[("Aurora cluster<br/>0.5-2 ACU autoscale<br/>enable_data_api=TRUE<br/>unions, rate_periods,<br/>rate_cells, audit_log")]
+            SI["SchemaInitFn (Custom Resource)<br/>runs schema.sql via RDS Data API<br/>idempotent (IF NOT EXISTS)"]
+            Sm[("Secrets Manager<br/>laboraid-{env}-l3-secret-aurora")]
+            DB --- Sm
+            DB --- Net
+            SI --> DB
+        end
+    end
+
+    DownStacks["Downstream stacks<br/>(Processing, API, Orchestration, ...)"]
+    SFN["Step Functions<br/>(Lesson 3)"]
+    Lambdas["Lesson 4 Lambdas<br/>(publish/approve/reject)"]
+
+    Sec --> Storage
+    Storage --> DownStacks
+    B1 -->|EventBridge ObjectCreated| SFN
+    T7 -->|DynamoGetItem in SFN| SFN
+    DB -->|Data API HTTPS| Lambdas
+
+    classDef ext fill:#f3f4f6,stroke:#525252,color:#262626
+    classDef audit fill:#fef3c7,stroke:#d97706,color:#78350f
+    classDef inb fill:#dbeafe,stroke:#1d4ed8,color:#1e3a8a
+    classDef inter fill:#fef9c3,stroke:#a16207,color:#713f12
+    classDef out fill:#f0fdf4,stroke:#16a34a,color:#14532d
+    classDef cfg fill:#fae8ff,stroke:#a21caf,color:#581c87
+    classDef def fill:#e5e7eb,stroke:#6b7280,color:#374151
+    classDef ddb fill:#dcfce7,stroke:#15803d,color:#14532d
+    classDef strm fill:#86efac,stroke:#15803d,color:#14532d
+    classDef net fill:#e0f2fe,stroke:#0284c7,color:#0c4a6e
+    classDef au fill:#fce7f3,stroke:#db2777,color:#831843
+    classDef cr fill:#ede9fe,stroke:#7c3aed,color:#4c1d95
+    classDef sm fill:#fee2e2,stroke:#dc2626,color:#7f1d1d
+    class Sec,DownStacks,SFN,Lambdas ext
+    class B0 audit
+    class B1 inb
+    class B2 inter
+    class B3 out
+    class B4 cfg
+    class B5 def
+    class T1,T2 strm
+    class T3,T4,T5,T6,T7 ddb
+    class Net net
+    class DB au
+    class SI cr
+    class Sm sm
+  </div>
+
+  <p class="legend">★ = referenced by name from the master flow. The <code>inputs</code> bucket fires SFN; the <code>agent-config</code> table powers the admin toggle.</p>
+
+  <div class="takeaway">
+    <strong>Key takeaway:</strong> Aurora lives in an isolated VPC (no NAT, no internet). Lambdas reach it via the RDS Data API over HTTPS — no VPC attachment needed. Schema is applied automatically by a CloudFormation custom resource on every deploy.
+  </div>
+</section>
+
+<!-- ===================== §7 REACT UI ===================== -->
+<section id="s7">
+  <h2>§7 — Lesson 7 zoom-in: The React UI</h2>
+  <p><strong>Where it fits:</strong> the "UI Layer" block. Two personas, one Vite build, gated by Cognito groups.</p>
+
+  <div class="mermaid">
+flowchart TB
+    Boot["main.tsx → App.tsx<br/>useEffect(getGroups, [])<br/>persona = personaForGroups(groups)<br/>landing based on persona"]
+    Cog["Cognito<br/>fetchAuthSession()<br/>cognito:groups claim"]
+    Store[("Zustand stores<br/>useUserStore + useOverrideStore")]
+
+    subgraph Routing["routes.tsx + RouteGuard"]
+        direction TB
+        Const["ADMIN = [Admins, Operations]<br/>ADMINS_ONLY = [Admins]<br/>BUSINESS = [Business]"]
+        Guard["RouteGuard<br/>if groups ∩ allowed = ∅<br/>→ Forbidden403"]
+    end
+
+    subgraph AdminTree["/admin/* — AdminLayout"]
+        direction TB
+        Dash["Dashboard"]
+        Ups["Uploads (presigned URL)"]
+        Jobs["Jobs ★ (usePolling 5s)"]
+        JD["JobDetail"]
+        Agents["Agents (AgentToggle PATCH)"]
+        Prof["Profiles"]
+        Aud["Audit"]
+        Costs["Costs (Admins-only)"]
+    end
+
+    subgraph BizTree["/business/* — BusinessLayout"]
+        direction TB
+        Inbox["Inbox (pending_review)"]
+        RSR["RateSheetReview ★★<br/>3-panel: PDF + table + provenance<br/>+ ApproveRejectBar"]
+        ByU["ByUnion"]
+        Ap["Approved"]
+        Rj["Rejected"]
+        RQ["ReviewQueue"]
+        Me["Me"]
+    end
+
+    subgraph Libs["Shared libs"]
+        direction LR
+        Auth["lib/auth.ts<br/>getGroups, getJwt"]
+        Api["lib/api.ts<br/>fetch with JWT<br/>get/post/put/patch"]
+        Poll["lib/usePolling.ts<br/>5s gated on active"]
+    end
+
+    Bedrock["API Gateway → Lambdas<br/>(Lesson 4)"]
+
+    Cog --> Auth --> Store
+    Auth --> Boot
+    Boot --> Guard
+    Guard --> AdminTree
+    Guard --> BizTree
+    AdminTree --> Api
+    BizTree --> Api
+    Costs -.->|extra ADMINS_ONLY guard| Guard
+    Api --> Bedrock
+
+    classDef in fill:#fef3c7,stroke:#d97706,color:#78350f
+    classDef ext fill:#f3f4f6,stroke:#525252,color:#262626
+    classDef store fill:#fce7f3,stroke:#db2777,color:#831843
+    classDef gd fill:#fee2e2,stroke:#dc2626,color:#7f1d1d
+    classDef page fill:#dbeafe,stroke:#1d4ed8,color:#1e3a8a
+    classDef lib fill:#ede9fe,stroke:#7c3aed,color:#4c1d95
+    class Boot in
+    class Cog,Bedrock,Const ext
+    class Store store
+    class Guard gd
+    class Dash,Ups,Jobs,JD,Agents,Prof,Aud,Costs,Inbox,RSR,ByU,Ap,Rj,RQ,Me page
+    class Auth,Api,Poll lib
+  </div>
+
+  <p class="legend">★ Jobs is the canonical CRUD pattern. ★★ RateSheetReview is the most complex page — its ApproveRejectBar is the line-by-line UI client for Lesson 4's approve/reject Lambdas.</p>
+
+  <div class="takeaway">
+    <strong>Key takeaway:</strong> the UI is the rendered version of the API. Every button click maps to one Lambda. There's no UI-only logic — defense in depth (UI disables buttons + Lambda returns 4xx), but the source of truth is always the Lambda.
+  </div>
+</section>
+
+<!-- ===================== §8 FULL SEQUENCE ===================== -->
+<section id="s8">
+  <h2>§8 — The full wire: end-to-end sequence diagram</h2>
+  <p>This is the master flow as a time-ordered sequence chart — actor by actor, message by message, across all five stages.</p>
+
+  <div class="mermaid">
+sequenceDiagram
+    autonumber
+    actor Admin as 👨‍💼 Admin/Ops
+    actor Business as 👩‍💼 Business/SME
+    participant AdminUI as Admin UI
+    participant BusinessUI as Business UI
+    participant API as API Gateway + Lambdas
+    participant S3 as S3 inputs
+    participant SFN as Step Functions
+    participant DDB as agent-config DDB
+    participant Agent as ExtractorAgent on AgentCore
+    participant Kernel as Kernel (deterministic)
+    participant Bedrock as Bedrock Claude (fallback)
+    participant Aurora as Aurora rate_periods
+    participant Calc as Calculator
+
+    Note over Admin,Calc: Stage A — Upload (Lesson 7 UI + Lesson 6 Storage)
+    Admin->>AdminUI: Click Uploads, drop PDF
+    AdminUI->>API: GET /v1/uploads (presign)
+    API-->>AdminUI: presigned URL
+    AdminUI->>S3: PUT PDF
+    S3-->>SFN: EventBridge Object Created
+
+    Note over Admin,Calc: Stage B — Pipeline (Lesson 3 + Lesson 2)
+    SFN->>SFN: Classify Lambda (regex)
+    SFN->>DDB: GetItem agent-config
+    DDB-->>SFN: enabled=true
+    SFN->>Agent: ExtractorInvoker → InvokeAgentRuntime
+    Agent->>Kernel: run_kernel_extractor (Lesson 1)
+    Kernel-->>Agent: rows + gaps
+    Note over Agent: SteeringHandler enforces checksum
+    opt low-confidence cells
+        Agent->>Bedrock: escalate_to_claude_multimodal
+        Bedrock-->>Agent: missing cells
+    end
+    Agent-->>SFN: extraction complete
+    SFN->>SFN: Validate Parallel (checksum + range + confidence)
+    SFN->>S3: Render xlsx + csv + articles → outputs
+    SFN->>Aurora: INSERT rate_periods (pending_review)
+
+    Note over Admin,Calc: Stage C — Human Approval (Lesson 4 + Lesson 7)
+    Business->>BusinessUI: Open Inbox, click rate sheet
+    BusinessUI->>API: GET /v1/unions/704/rate-sheets/2026-01-01
+    API-->>BusinessUI: canonical JSON
+    Business->>BusinessUI: Review 3-panel, all OK
+    Business->>BusinessUI: Click Approve
+    BusinessUI->>API: POST .../approve
+    API->>API: authz.enforce_groups(Business) ✓
+    API->>Aurora: UPDATE state=approved
+    API-->>BusinessUI: { state: approved }
+
+    Note over Admin,Calc: Stage D — Publish (Lesson 4)
+    Admin->>AdminUI: Click Publish
+    AdminUI->>API: POST .../publish
+    API->>API: authz.enforce_groups(Admins,Operations) ✓
+    API->>Aurora: SELECT approval_state
+    Aurora-->>API: approved
+    API->>Aurora: UPDATE state=published
+    API-->>AdminUI: { state: published }
+
+    Note over Admin,Calc: Stage E — Consume
+    Calc->>API: GET /v1/unions/704/rate-sheets/2026-01-01
+    API->>Aurora: SELECT canonical_json
+    Aurora-->>API: rate sheet
+    API-->>Calc: canonical JSON (immutable)
+  </div>
+</section>
+
+<!-- ===================== CHEAT SHEET ===================== -->
+<section id="cheatsheet">
+  <h2>Per-lesson mapping (cheat sheet)</h2>
+  <p>When you're looking at the master flow and asking "where does X come from?", use this:</p>
+  <table>
+    <thead><tr><th>Block in §0 master flow</th><th>Lesson</th><th>What to open in repo</th></tr></thead>
+    <tbody>
+      <tr><td>PDF upload via Admin UI</td><td>7 (Pattern 4)</td><td><code>ui/src/admin/Uploads.tsx</code> + <code>lib/api.ts</code></td></tr>
+      <tr><td>S3 → EventBridge → SFN</td><td>3 (Part 1)</td><td><code>cdk/laboraid_cdk/stacks/orchestration_stack.py</code></td></tr>
+      <tr><td>Classify Lambda</td><td>3 (Stage 1)</td><td><code>lambdas/processing/classifier/handler.py</code></td></tr>
+      <tr><td>Agent enable/disable toggle</td><td>3 (Stage 1a/1b) + 4 (agent-toggle)</td><td><code>agent-config</code> DDB + Choice state in <code>sfn/main_pipeline.py</code></td></tr>
+      <tr><td>Strands ExtractorAgent</td><td>2</td><td><code>agents/extractor/agent.py</code> + <code>steering.py</code> + <code>system-prompt.md</code></td></tr>
+      <tr><td>Kernel deterministic extraction</td><td>1 + 2</td><td><code>kernel/pipeline/{extract,compute,pivot}.py</code></td></tr>
+      <tr><td>Validators (3 parallel)</td><td>3 (Stage 3)</td><td><code>lambdas/validation/{checksum,range,confidence}/handler.py</code></td></tr>
+      <tr><td>Render (3 parallel)</td><td>3 (Stage 5)</td><td><code>lambdas/rendering/{xlsx,csv,articles}-renderer/handler.py</code></td></tr>
+      <tr><td>Review queue write</td><td>3 (review path)</td><td><code>lambdas/validation/review-router/handler.py</code></td></tr>
+      <tr><td>Aurora <code>rate_periods</code> schema</td><td>4 (Part 7) + 6 (Part 4)</td><td><code>cdk/assets/schema_init/schema.sql</code></td></tr>
+      <tr><td>Business Approve/Reject</td><td>4 + 7</td><td><code>ratesheet-{approve,reject}/handler.py</code> + <code>ApproveRejectBar.tsx</code></td></tr>
+      <tr><td>Publish 409 gate</td><td>4 (Part 2)</td><td><code>ratesheet-publish/handler.py</code></td></tr>
+      <tr><td>Cognito group checks</td><td>4 (Part 1) + 7 (Pattern 2)</td><td><code>lambdas/api/_shared/python/authz.py</code> + <code>RouteGuard.tsx</code></td></tr>
+      <tr><td>Calculator consumes published</td><td>4 (state machine)</td><td>GET ratesheet Lambda + Aurora SELECT</td></tr>
+      <tr><td>All resources tagged + named</td><td>5</td><td><code>cdk/laboraid_cdk/{util/naming,aspects/mandatory_tags,config}.py</code></td></tr>
+      <tr><td>Stack composition + deploy order</td><td>5 (Pattern 5)</td><td><code>cdk/app.py</code></td></tr>
+    </tbody>
+  </table>
+</section>
+
+</main>
+
+<footer>
+  <p>
+    For depth on any lesson block → <a href="Learning_Lessons.md">Learning_Lessons.md</a>
+    · Read-order roadmap → <a href="Understanding.md">Understanding.md</a>
+    · Spec → <a href="09_Technical_Implementation_Spec.md">09_Technical_Implementation_Spec.md</a>
+    · Management → <a href="CTO_SUMMARY.md">CTO_SUMMARY.md</a>
+    · Audit → <a href="AUDIT_REPORT.md">AUDIT_REPORT.md</a> + <a href="AUDIT_VERIFICATION.md">AUDIT_VERIFICATION.md</a>
+  </p>
+</footer>
+
+</body>
+</html>
