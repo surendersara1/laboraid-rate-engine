@@ -4,15 +4,28 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>LaborAid Rate Engine — End-to-End Architecture Flow</title>
-  <script type="module">
-    import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
-    mermaid.initialize({
-      startOnLoad: true,
-      securityLevel: 'loose',
-      theme: 'default',
-      flowchart: { useMaxWidth: true, htmlLabels: true, curve: 'basis' },
-      sequence: { useMaxWidth: true, mirrorActors: false, showSequenceNumbers: true },
-      state: { useMaxWidth: true }
+  <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', function () {
+      if (typeof mermaid === 'undefined') {
+        console.error('Mermaid library failed to load from CDN.');
+        document.querySelectorAll('.mermaid').forEach(function (el) {
+          var note = document.createElement('div');
+          note.style.cssText = 'color:#b91c1c;font-size:0.85rem;padding:0.5rem;background:#fee2e2;border-radius:4px;margin-bottom:0.5rem;';
+          note.textContent = 'Mermaid CDN blocked — open this file locally (file://) to view rendered diagrams.';
+          el.parentNode.insertBefore(note, el);
+        });
+        return;
+      }
+      mermaid.initialize({
+        startOnLoad: true,
+        securityLevel: 'loose',
+        theme: 'default',
+        flowchart: { useMaxWidth: true, htmlLabels: true, curve: 'basis' },
+        sequence: { useMaxWidth: true, showSequenceNumbers: true },
+        state: { useMaxWidth: true }
+      });
+      mermaid.run({ querySelector: '.mermaid' });
     });
   </script>
   <style>
