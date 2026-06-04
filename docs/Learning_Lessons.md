@@ -903,9 +903,486 @@ Total: ~11 seconds for a typical 704 Rate Notice. Most of that is the agent + ke
 
 ---
 
+---
+
+## Lesson 4 — The Human Approval Gate
+
+### Q4.1 — Walk me through how human approval works
+
+> *"Let's move to lesson 4."*
+
+### Answer
+
+This is where humans take over from the engine. Lesson 3 ended with a finished rate sheet sitting at `approval_state='pending_review'` in Aurora. Lesson 4 covers the **four endpoints** that drive that row through the rest of its lifecycle, plus the **shared authz layer** that every gated endpoint uses, plus the **audit story** of what was broken before and how it was fixed.
+
+### The approval state machine
+
+Every rate sheet's `rate_periods.approval_state` column moves through this state graph:
+
+```
+                  ┌──────────────────┐
+                  │  pending_review  │ ← engine produced rate sheet; SME hasn't looked yet
+                  └──────────────────┘
+                    │              │
+                    │ approve      │ reject (reason required)
+                    ▼              ▼
+                  ┌──────────┐  ┌──────────┐
+                  │ approved │  │ rejected │
+                  └──────────┘  └──────────┘
+                    │     │
+            publish │     │ unapprove (within 24h, original approver, before publish)
+                    │     ▼
+                    │  back to pending_review
+                    ▼
+                 ┌───────────┐
+                 │ published │ ← Calculator can consume; immutable terminal state
+                 └───────────┘
+```
+
+**One row in `rate_periods` per (union, period).** Four API endpoints can transition it. Each endpoint is its own Lambda. Below: every endpoint, with the actual code.
+
+### Part 1 — The shared authz module (audit fix B3)
+
+Every gated handler imports the same `authz` module from a Lambda Layer at `/opt/python/authz.py`. It enforces **Cognito group gating** — *which* group can call *which* endpoint.
+
+The full file (`lambdas/api/_shared/python/authz.py`):
+
+```python
+def extract_groups(event):
+    """Return the caller's Cognito groups as a list (empty when absent)."""
+    raw = (event.get("requestContext", {})
+                .get("authorizer", {})
+                .get("jwt", {})
+                .get("claims", {})
+                .get("cognito:groups"))
+    if raw is None:
+        return []
+    if isinstance(raw, list):
+        return [str(g) for g in raw if str(g)]
+    # ... handle JSON-array strings and bracketed-space-separated strings ...
+
+
+def enforce_groups(event, allowed):
+    """Return a 403 response when the caller is in none of `allowed`, else None."""
+    groups = extract_groups(event)
+    if any(g in allowed for g in groups):
+        return None
+    return {
+        "statusCode": 403,
+        "headers": {"Content-Type": "application/json"},
+        "body": json.dumps({"error": "forbidden", "required_groups": list(allowed)}),
+    }
+```
+
+**Why this exists.** The API Gateway's Cognito JWT authorizer only enforces *authentication* — "is this caller logged in?" It does NOT enforce *authorization* — "is this caller in the right group for this endpoint?" That's the Lambda's job, and `enforce_groups()` is the one-liner every handler uses.
+
+**Usage pattern in every gated handler:**
+
+```python
+ALLOWED_GROUPS = ["Business"]   # or ["Admins", "Operations"] etc., declared at module top
+
+@_instrument
+def handler(event, _context):
+    denied = authz.enforce_groups(event, ALLOWED_GROUPS)
+    if denied:
+        return denied
+    # ... actual handler logic ...
+```
+
+**The audit caught this.** Original `B3 BLOCKER`: zero handlers checked groups. Any authenticated Cognito user (even a `ServiceClient` M2M token) could hit `agent-toggle`, `ratesheet-publish`, `ratesheet-reject`. The fix was this shared layer + per-handler `ALLOWED_GROUPS` constants matching Spec/09 §2.2.
+
+You can grep this exact pattern across every Lambda in `lambdas/api/`:
+
+```
+ratesheet-publish:    ALLOWED_GROUPS = ["Admins", "Operations"]
+ratesheet-approve:    ALLOWED_GROUPS = ["Business"]
+ratesheet-reject:     ALLOWED_GROUPS = ["Business"]
+ratesheet-unapprove:  ALLOWED_GROUPS = ["Business"]
+cell-comment:         ALLOWED_GROUPS = ["Business"]
+agent-toggle:         ALLOWED_GROUPS = ["Admins"]   # Admins ONLY — not Operations
+cell-override:        ALLOWED_GROUPS = ["Business"]
+```
+
+This is how the SOW commitment "Strands + AgentCore + two-persona UI" actually gets enforced at the API layer.
+
+### Part 2 — `ratesheet-publish` (the 409 gate — audit fix B1)
+
+This is the **most important** handler in the system. It enforces the SOW contract: a rate sheet cannot be published unless a Business user has approved it.
+
+The full handler (~85 lines):
+
+```python
+# Per-route Cognito group gate (Spec/09 §2.2, audit B3).
+ALLOWED_GROUPS = ["Admins", "Operations"]
+
+
+def publish_guard(approval_state):
+    """Publish guard (SOW contract). Returns (http_status, body)."""
+    if approval_state != "approved":
+        return 409, {"error": "not_approved", "approval_state": approval_state}
+    return 200, {"approval_state": "published"}
+
+
+def read_approval_state(local, period):
+    """Read the authoritative approval_state from Aurora for a {local}/{period}."""
+    sql = (
+        "SELECT rp.approval_state FROM rate_periods rp "
+        "JOIN unions u ON rp.union_id = u.id "
+        "WHERE u.local = :local AND rp.start_date = :period "
+        "ORDER BY rp.start_date DESC LIMIT 1"
+    )
+    resp = boto3.client("rds-data").execute_statement(
+        resourceArn=os.environ["AURORA_CLUSTER_ARN"],
+        secretArn=os.environ["AURORA_SECRET_ARN"],
+        database="laboraid",
+        sql=sql,
+        parameters=[
+            {"name": "local", "value": {"longValue": int(local)}},
+            {"name": "period", "value": {"stringValue": period}, "typeHint": "DATE"},
+        ],
+    )
+    records = resp.get("records", [])
+    return records[0][0].get("stringValue") if records else None
+
+
+@_instrument
+def handler(event, _context):
+    denied = authz.enforce_groups(event, ALLOWED_GROUPS)
+    if denied:
+        return denied
+    params = event.get("pathParameters") or {}
+    local, period = params.get("local"), params.get("period")
+    if not local or not period:
+        return _resp({"error": "missing_path_params"}, 400)
+
+    # Authoritative state from Aurora — the request body is intentionally ignored.
+    state = read_approval_state(local, period)
+    if state is None:
+        return _resp({"error": "not_found"}, 404)
+    status, result = publish_guard(state)
+    if status == 200:
+        result["published_by"] = _sub(event)
+    return _resp(result, status)
+```
+
+#### What this does, step by step
+
+1. **Group gate** — caller must be in `Admins` or `Operations`. Business users get 403. ServiceClients get 403.
+2. **Path params** — read `{local}` and `{period}` from the URL (e.g. `POST /v1/unions/704/rate-sheets/2026-01-01/publish`).
+3. **Read Aurora** — query `rate_periods` JOIN `unions` for this specific (local, period) → get the current `approval_state`.
+4. **Apply the guard** — if `approval_state != 'approved'`, return **HTTP 409 Conflict** with the actual state in the body. Otherwise, allow the publish.
+5. **Stamp the publisher** — record `published_by = <Cognito sub>` on success.
+
+#### The B1 bug that the audit caught
+
+**Original code (broken):**
+
+```python
+# Hypothetically — what the original buggy version did:
+def handler(event, _context):
+    body = json.loads(event.get("body", "{}"))
+    approval_state = body.get("approval_state", "pending_review")   # ← from REQUEST BODY
+    if approval_state != "approved":
+        return _resp({"error": "not_approved"}, 409)
+    # ... proceeded to publish ...
+```
+
+The problem: `approval_state` was read from the **request body**. Any caller could just send `{"approval_state": "approved"}` in their POST and bypass the gate entirely. The 409 guard was decorative.
+
+**The fix:** `read_approval_state()` queries Aurora using the path params (`{local}` + `{period}`). The request body is **intentionally ignored**. The state is authoritative because Aurora is the only place that gets written by the approve/reject/unapprove handlers — there's no path for a client to forge it.
+
+This is the most critical audit fix because the SOW promised a human approval gate, and without B1 the gate didn't exist.
+
+#### Why HTTP 409 (not 401 or 403)?
+
+- **401** = "I don't know who you are" (authentication failed)
+- **403** = "I know who you are, but you can't do this" (authorization failed; what `authz.enforce_groups` returns)
+- **409** = "What you asked for conflicts with the current state of the resource" — the right code for "you can't publish because this rate sheet hasn't been approved yet"
+
+The body includes the current state (`{"error": "not_approved", "approval_state": "pending_review"}`) so the caller knows *why* it failed and can take corrective action (ask a Business user to approve).
+
+### Part 3 — `ratesheet-approve` (Business sign-off — audit fix B2)
+
+This is the **other side** of the gate. A Business user calls this to flip the state to `approved`.
+
+```python
+ALLOWED_GROUPS = ["Business"]
+
+
+def approve_transition(approval_state, review_queue_empty):
+    """Decide the approve transition. Returns (http_status, body)."""
+    if not review_queue_empty:
+        return 422, {"error": "review_queue_not_empty"}
+    if approval_state not in ("pending_review", "rejected"):
+        return 409, {"error": "not_approvable", "approval_state": approval_state}
+    return 200, {"approval_state": "approved"}
+
+
+def persist_approval(local, period, approved_by):
+    """Persist the approval to Aurora `rate_periods` via the RDS Data API."""
+    sql = (
+        "UPDATE rate_periods SET approval_state='approved', approved_by=:by, "
+        "approved_at=NOW() "
+        "WHERE union_id = (SELECT id FROM unions WHERE local = :local) "
+        "AND start_date = :period"
+    )
+    boto3.client("rds-data").execute_statement(
+        resourceArn=os.environ["AURORA_CLUSTER_ARN"],
+        secretArn=os.environ["AURORA_SECRET_ARN"],
+        database="laboraid",
+        sql=sql,
+        parameters=[
+            {"name": "by", "value": {"stringValue": approved_by}},
+            {"name": "local", "value": {"longValue": int(local)}},
+            {"name": "period", "value": {"stringValue": period}, "typeHint": "DATE"},
+        ],
+    )
+
+
+def emit_event(detail_type, detail):
+    """Emit a rate-sheet lifecycle event to the engine EventBridge bus."""
+    boto3.client("events").put_events(Entries=[{
+        "Source": "laboraid.api",
+        "DetailType": detail_type,
+        "Detail": json.dumps(detail),
+        "EventBusName": ENGINE_BUS_NAME,
+    }])
+
+
+@_instrument
+def handler(event, _context):
+    denied = authz.enforce_groups(event, ALLOWED_GROUPS)
+    if denied:
+        return denied
+    body = json.loads(event.get("body") or "{}")
+    params = event.get("pathParameters") or {}
+    local, period = params.get("local"), params.get("period")
+
+    status, result = approve_transition(
+        body.get("approval_state", "pending_review"),
+        bool(body.get("review_queue_empty", False)),
+    )
+    if status == 200:
+        approver = _sub(event)
+        persist_approval(local, period, approver)
+        emit_event(
+            "laboraid.rate-sheet.approved",
+            {"local": local, "period": period, "approved_by": approver},
+        )
+        result["approved_by"] = approver
+    return _resp(result, status)
+```
+
+#### What this does, step by step
+
+1. **Group gate** — only Business users. Admin/Operations get 403 (they can publish but cannot approve — separation of duties).
+2. **Transition logic** (`approve_transition`) — pure function, easy to unit test:
+   - If `review_queue_empty=False` → **422 Unprocessable** (can't approve until all low-confidence cells are dealt with)
+   - If state is `published` or already `approved` → **409 Conflict**
+   - Otherwise (state is `pending_review` or `rejected`) → **200 OK** with `approval_state='approved'`
+3. **Persist** — `UPDATE rate_periods SET approval_state='approved', approved_by=<sub>, approved_at=NOW()` via the RDS Data API.
+4. **Emit event** — fire `laboraid.rate-sheet.approved` to the engine EventBridge bus so downstream subscribers (notification Lambdas, audit log writers) know.
+5. **Return** — the approver's Cognito sub is included in the response body.
+
+#### The B2 bug that the audit caught
+
+**Original code (broken):** the handler returned `{"approval_state": "approved"}` in the HTTP response body but **did nothing else**. No Aurora UPDATE. No EventBridge event. Just an in-memory string. The next time the Business UI polled, the rate sheet was still showing `pending_review` because nothing had actually been persisted.
+
+**The fix:** the two helper functions `persist_approval()` and `emit_event()` — both called only on the success path. The handler is now **side-effecting** by design.
+
+#### Why "review queue must be empty" matters
+
+Per Spec/09 §1.5: the Business UI's Approve button is disabled until the review queue is empty for that rate sheet. The server-side check is the same constraint, defense-in-depth — even if a Business user crafts a curl request bypassing the UI, the handler will reject with 422.
+
+### Part 4 — `ratesheet-reject` (Business rejection with reason)
+
+```python
+ALLOWED_GROUPS = ["Business"]
+VALID_TAGS = {"missing_data", "wrong_extraction", "cba_mismatch", "other"}
+
+
+def reject_transition(approval_state, reason, tags=None):
+    """Decide the reject transition. Returns (http_status, body)."""
+    if not reason or not reason.strip():
+        return 422, {"error": "reason_required"}
+    if approval_state == "published":
+        return 409, {"error": "already_published"}
+    bad = [t for t in (tags or []) if t not in VALID_TAGS]
+    if bad:
+        return 422, {"error": "invalid_tags", "invalid": bad}
+    return 200, {"approval_state": "rejected", "rejection_reason": reason}
+
+
+def persist_rejection(local, period, rejected_by, reason, tags):
+    # rejection_tags is a Postgres TEXT[] — pass an array literal and cast it.
+    tags_literal = "{" + ",".join(tags) + "}"
+    sql = (
+        "UPDATE rate_periods SET approval_state='rejected', rejected_by=:by, "
+        "rejected_at=NOW(), rejection_reason=:reason, "
+        "rejection_tags=CAST(:tags AS TEXT[]) "
+        "WHERE union_id = (SELECT id FROM unions WHERE local = :local) "
+        "AND start_date = :period"
+    )
+    # ... execute via rds-data ...
+```
+
+#### Three constraints encoded
+
+1. **`reason` required** — empty or whitespace-only string → **422 Unprocessable**. No silent rejections.
+2. **Cannot reject a published rate sheet** — if already published → **409 Conflict** (use a different process to retract).
+3. **Tags must come from a controlled vocabulary** — `{missing_data, wrong_extraction, cba_mismatch, other}`. Any other tag → 422. This keeps reporting/dashboards usable; arbitrary free-text tags would be noise.
+
+`persist_rejection()` writes all the same columns approve does, plus `rejection_reason` (free text) and `rejection_tags` (Postgres array). The SQL `CAST(:tags AS TEXT[])` is the standard pattern for passing an array to the RDS Data API (which accepts only strings/numbers/booleans natively).
+
+Then emits `laboraid.rate-sheet.rejected` to the EventBridge bus → the engine can pick it up and re-run the extraction with whatever corrections are warranted.
+
+### Part 5 — `ratesheet-unapprove` (24h escape hatch)
+
+```python
+ALLOWED_GROUPS = ["Business"]
+```
+
+The shape of the handler is identical to approve, but the transition logic is the inverse:
+
+- Only callable if `approval_state='approved'`
+- Only by the **original approver** (`rate_periods.approved_by == caller's sub`)
+- Only **within 24 hours** of approval (compare `approved_at` to NOW())
+- Only **before publish** (state must still be `approved`, not `published`)
+
+On success it `UPDATE`s back to `pending_review`, clears `approved_by` + `approved_at`, and emits `laboraid.rate-sheet.unapproved`. This is the "I clicked Approve too fast, give me a do-over" escape hatch. After the 24h window or once published, no unapprove — at that point you have to go through a new period creation cycle.
+
+### Part 6 — How the four endpoints compose
+
+A typical lifecycle from the API's point of view:
+
+```
+T+0:   Engine produces rate sheet                approval_state='pending_review'
+       (Lesson 3 ends here)
+
+T+1h:  Business user opens /business/inbox
+       Reviews the rate sheet
+       Resolves all low-confidence cells (review queue empty)
+       Clicks Approve
+       → POST /v1/unions/704/rate-sheets/2026-01-01/approve
+       → ratesheet-approve Lambda:
+             authz.enforce_groups(Business) ✓
+             approve_transition(pending_review, queue_empty=true) → (200, approved)
+             persist_approval(local=704, period=2026-01-01, approver=user-sub-abc)
+             emit_event(laboraid.rate-sheet.approved)
+       Aurora row:                               approval_state='approved'
+                                                 approved_by='user-sub-abc'
+                                                 approved_at=NOW()
+
+T+2h:  Admin/Ops user (release manager)
+       Clicks Publish on the next scheduled release
+       → POST /v1/unions/704/rate-sheets/2026-01-01/publish
+       → ratesheet-publish Lambda:
+             authz.enforce_groups(Admins | Operations) ✓
+             read_approval_state(704, 2026-01-01) → 'approved'
+             publish_guard('approved') → (200, published)
+       Aurora row (downstream write would land):  approval_state='published'
+                                                  published_by='admin-sub-xyz'
+                                                  published_at=NOW()
+
+T+3h:  LaborAid Calculator pulls
+       → GET /v1/unions/704/rate-sheets/2026-01-01  (returns the canonical JSON)
+       → Calculator consumes the published rate sheet
+```
+
+If at T+1h the Business user instead clicked **Reject** with reason "missing data on Apprentice Class 10":
+
+```
+       → POST /v1/unions/704/rate-sheets/2026-01-01/reject
+         body: {"reason": "missing data on Apprentice Class 10", "tags": ["missing_data"]}
+       → ratesheet-reject Lambda:
+             authz.enforce_groups(Business) ✓
+             reject_transition('pending_review', reason, ['missing_data']) → (200, rejected)
+             persist_rejection(704, 2026-01-01, user-sub-abc, reason, ['missing_data'])
+             emit_event(laboraid.rate-sheet.rejected)
+       Aurora row:                               approval_state='rejected'
+                                                 rejection_reason='missing data on Apprentice Class 10'
+                                                 rejection_tags=['missing_data']
+                                                 rejected_by='user-sub-abc'
+                                                 rejected_at=NOW()
+
+       EventBridge fires laboraid.rate-sheet.rejected
+       → Engine subscribers can pick this up and re-run extraction
+```
+
+Then later, after the engine produces a corrected rate sheet, the state goes back to `pending_review` and the cycle continues.
+
+### Part 7 — The Aurora schema (what makes this all auditable)
+
+From [`09_Technical_Implementation_Spec.md`](09_Technical_Implementation_Spec.md) §3.3:
+
+```sql
+CREATE TABLE rate_periods (
+  id UUID PRIMARY KEY,
+  union_id UUID REFERENCES unions(id),
+  start_date DATE,
+  end_date DATE,
+  status TEXT,                                  -- engine pipeline status
+  approval_state TEXT NOT NULL DEFAULT 'pending_review',
+                                                -- business-facing state lifecycle
+  approved_by TEXT,                             -- Cognito sub of approver
+  approved_at TIMESTAMPTZ,
+  rejected_by TEXT,                             -- Cognito sub of rejector
+  rejected_at TIMESTAMPTZ,
+  rejection_reason TEXT,                        -- free text, required when rejected
+  rejection_tags TEXT[],                        -- structured tags from VALID_TAGS
+  published_by TEXT,                            -- Cognito sub of publisher
+  published_at TIMESTAMPTZ,
+  canonical_json JSONB,
+  source_files JSONB
+);
+
+ALTER TABLE rate_periods
+  ADD CONSTRAINT publish_requires_approval
+  CHECK (approval_state IN ('pending_review','approved','rejected','published'));
+
+CREATE INDEX idx_periods_inbox ON rate_periods (approval_state, start_date DESC);
+```
+
+**Why each column exists:**
+
+- `approval_state` — the single source of truth for "where is this rate sheet in its lifecycle?" Everything else derives from this.
+- `approved_by` / `approved_at` — who said yes, when. The unapprove handler reads these to verify "original approver only, within 24h."
+- `rejected_by` / `rejected_at` / `rejection_reason` / `rejection_tags` — full provenance of the rejection. Surfaced in the `/business/rejected` UI page.
+- `published_by` / `published_at` — who pulled the trigger on release. The Admin who clicked Publish.
+- `CHECK` constraint — defense in depth at the database level. Even if a buggy Lambda wrote `approval_state='foobar'`, Postgres rejects the UPDATE.
+- `idx_periods_inbox` — speeds up the Business inbox query (`WHERE approval_state='pending_review' ORDER BY start_date DESC`). Without this, the inbox page would full-table-scan as the system grows.
+
+**The full audit trail of any rate sheet:** read the row. Who approved? `approved_by` + `approved_at`. Why rejected once? `rejection_reason` + `rejection_tags`. Who published? `published_by` + `published_at`. All in one row, no JOINs needed.
+
+### Part 8 — Files involved (summary)
+
+| File | Role |
+|---|---|
+| `lambdas/api/_shared/python/authz.py` | Shipped as a Lambda Layer at `/opt/python/authz.py`. Every gated handler imports it. `extract_groups()` + `enforce_groups()`. |
+| `lambdas/api/ratesheet-publish/handler.py` | The 409 gate. Reads Aurora authoritatively (ignores request body). Admin + Operations only. |
+| `lambdas/api/ratesheet-approve/handler.py` | Business sign-off. UPDATE Aurora + EventBridge emit. Requires empty review queue. |
+| `lambdas/api/ratesheet-reject/handler.py` | Business rejection. Requires `reason`. Optional tags from controlled vocabulary. |
+| `lambdas/api/ratesheet-unapprove/handler.py` | 24-hour escape hatch. Original approver only, before publish. |
+| `cdk/laboraid_cdk/stacks/api_stack.py` | Wires all 4 Lambdas behind API Gateway routes with the Cognito JWT authorizer. |
+| `cdk/laboraid_cdk/stacks/storage_stack.py` | Defines the `rate_periods` Aurora table + approval_state columns + CHECK constraint + idx_periods_inbox. |
+
+### What you should be able to answer after Lesson 4
+
+- *What stops a Business user from publishing?* — `ALLOWED_GROUPS = ["Admins", "Operations"]` on the publish handler returns 403.
+- *What stops an Admin from approving?* — `ALLOWED_GROUPS = ["Business"]` on the approve handler returns 403. Separation of duties.
+- *What stops a malicious caller from POSTing `{"approval_state":"approved"}` to publish?* — The publish handler **ignores the body** and reads the state from Aurora via `read_approval_state()`. The 409 guard fires regardless of what the caller sent.
+- *What does HTTP 409 vs 422 mean here?* — 409 = state conflict (not approved yet, or already published). 422 = the request was semantically invalid (no reason on reject, review queue not empty on approve).
+- *Where does the audit trail live?* — All in `rate_periods` row columns: `approved_by`, `approved_at`, `rejected_by`, `rejected_at`, `rejection_reason`, `rejection_tags`, `published_by`, `published_at`. One row, full story.
+- *What audit blockers did this part of the system fix?* — B1 (publish gate now reads Aurora not body), B2 (approve/reject/unapprove now persist + emit events), B3 (every gated handler checks `cognito:groups`).
+
+**Question to lock it in:** if you wanted to publish a rate sheet via curl but you only had a Business-user Cognito token, where exactly would you get rejected — by which line of code in which file?
+
+*Answer: in `ratesheet-publish/handler.py`, the very first thing the handler does is call `authz.enforce_groups(event, ["Admins", "Operations"])`. A Business user's groups don't intersect that list, so `enforce_groups` returns a 403 response, and the handler returns that immediately without ever reading Aurora.*
+
+---
+
 Next lesson candidates (ask when ready):
-- The human approval gate (`ratesheet-publish` + `ratesheet-approve` Lambdas + Aurora `approval_state` lifecycle — the audit-fix B1/B2 story)
-- The CDK foundation (`cdk/app.py` + naming + tags + tagged constructs)
-- One stack end-to-end (Storage stack is a good pick — 6 buckets + 7 DDB tables + Aurora)
-- The React UI (start with `routes.tsx` + `RouteGuard.tsx`)
+- The CDK foundation (`cdk/app.py` + naming + tags + tagged constructs) — the patterns every stack uses
+- One stack end-to-end (Storage stack — 6 buckets + 7 DDB tables + Aurora cluster with schema-init)
+- The React UI (start with `routes.tsx` + `RouteGuard.tsx` + the two-shell layout split)
 - The tests (what's tested, how, and why some bugs slip past green tests — the audit story)
