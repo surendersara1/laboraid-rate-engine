@@ -1832,7 +1832,455 @@ The 9 existing stacks all follow this recipe. Once you see it, you can read any 
 
 ---
 
+---
+
+## Lesson 6 — One Stack End-to-End: the Storage Stack
+
+### Q6.1 — Walk through one stack so I see the patterns in action
+
+> *"Next lesson."*
+
+### Answer
+
+This is the most interesting single stack in the repo. It owns **all the data**: 6 S3 buckets, 7 DynamoDB tables, an Aurora Serverless v2 Postgres cluster, and a CloudFormation custom resource that applies the Aurora DDL automatically. 251 lines total. Every other stack depends on it. Once you can read this one, you can read the other 8.
+
+We'll also see the **five Lesson 5 patterns in action** — Config, naming, mandatory tags, tagged constructs, app-level dependency wiring — applied to real resources.
+
+### The big picture: three data layers
+
+| Layer | Tech | What's in it | Why it lives here |
+|---|---|---|---|
+| **Object storage** | 6 S3 buckets | Raw PDFs, intermediate JSON, rendered CSV/xlsx outputs, Profile YAMLs, audit logs, CBA corpus | Big binary stuff — buckets are the only place this scales cheaply |
+| **Key-value / per-job state** | 7 DynamoDB tables | File metadata, job execution state, review queue, override history, cadence, idempotency tokens, agent-config | Low-latency lookups + streams for change-data-capture into EventBridge |
+| **Relational + transactional** | Aurora Serverless v2 Postgres | unions, rate_periods (with approval_state lifecycle), rate_cells, audit_log | Multi-row transactions, foreign keys, JOINs, the approval state machine |
+
+Each stack downstream consumes some subset of these. The Strands agent only needs S3 + the agent-config DDB table. The publish Lambda needs Aurora + Cognito. The validators need the review DDB table + S3 outputs. Etc.
+
+### Stack signature: who passes what in
+
+```python
+class StorageStack(Stack):
+    def __init__(self, scope, construct_id, *,
+                 config: Config,                    # ← Pattern 1
+                 master_key: kms.IKey,              # ← cross-stack input from SecurityStack
+                 **kwargs):
+        super().__init__(scope, construct_id, **kwargs)
+        self.config = config
+        env = config.env
+        retain = RemovalPolicy.RETAIN if config.is_prod else RemovalPolicy.DESTROY
+```
+
+Read this as: the stack takes the `Config` dataclass + a KMS key from the Security stack. The first thing it computes is the **removal policy** — production keeps data on stack delete (`RETAIN`), dev throws it away (`DESTROY`). This single line propagates to every bucket, every table, and the Aurora cluster below — so production data is never accidentally wiped when someone runs `cdk destroy`.
+
+The `master_key` argument is how CDK does cross-stack references: SecurityStack creates the KMS CMK and exposes `self.master_key`, then `app.py` passes it in here as a constructor argument. Both stacks reference the same key in the final CloudFormation, and CDK handles the cross-stack export/import automatically.
+
+### Part 1 — 6 S3 buckets (Spec/09 §3.1)
+
+#### The audit bucket goes first
+
+```python
+# Audit bucket first: it is the server-access-log target for the others.
+self.audit_bucket = TaggedBucket(
+    self,
+    "AuditBucket",
+    bucket_name=name(env, "l3", "bucket", "audit"),
+    encryption_key=master_key,
+    data_classification="audit-log",
+    object_lock_enabled=config.is_prod,
+    removal_policy=retain,
+)
+```
+
+There's a chicken-and-egg: every other bucket logs its access events to a target bucket. That target needs to exist first. So **AuditBucket is constructed before any other bucket**, and the rest will pass `server_access_logs_bucket=self.audit_bucket`.
+
+Notice the patterns from Lesson 5 all here:
+
+- `TaggedBucket` (Pattern 4) — KMS + BlockPublicAccess + versioned + TLS-only built in
+- `name(env, "l3", "bucket", "audit")` (Pattern 2) → `laboraid-prod-l3-bucket-audit`
+- `MandatoryTagsAspect` (Pattern 3) at app level will stamp 13 tags on this
+- `data_classification="audit-log"` — override on the `DataClassification` tag for this specific resource
+
+`object_lock_enabled=config.is_prod` — in production, audit logs are immutable for the retention period. You can't delete them even with admin rights. In dev, this is off so testing isn't painful.
+
+#### A helper closure for the other 5 buckets
+
+```python
+def _bucket(cid, purpose, classification, *,
+            lifecycle=None, object_lock=False, event_bridge=False) -> TaggedBucket:
+    return TaggedBucket(
+        self,
+        cid,
+        bucket_name=name(env, "l3", "bucket", purpose),
+        encryption_key=master_key,
+        data_classification=classification,
+        server_access_logs_bucket=self.audit_bucket,
+        server_access_logs_prefix=f"{purpose}/",
+        object_lock_enabled=object_lock and config.is_prod,
+        lifecycle_rules=lifecycle,
+        event_bridge_enabled=event_bridge,
+        removal_policy=retain,
+    )
+```
+
+This is a **closure** that captures `self`, `env`, `master_key`, `retain` — so the call sites below stay short. It's not a separate utility because it's storage-stack-specific (uses `self.audit_bucket`).
+
+Three optional kwargs:
+
+- `lifecycle` — transitions (Intelligent-Tiering after 30 days, Deep Archive after 365), or expiration (processed bucket expires after 90 days)
+- `object_lock` — only enabled in prod; dev gets mutable buckets
+- `event_bridge` — emits S3 events to EventBridge default bus. **Only inputs gets this** — it's what fires the Step Functions pipeline (Lesson 3 §3.4).
+
+#### Two reusable lifecycle rules
+
+```python
+archive_lifecycle = [
+    s3.LifecycleRule(
+        transitions=[
+            s3.Transition(storage_class=s3.StorageClass.INTELLIGENT_TIERING,
+                          transition_after=Duration.days(30)),
+            s3.Transition(storage_class=s3.StorageClass.DEEP_ARCHIVE,
+                          transition_after=Duration.days(365)),
+        ]
+    )
+]
+processed_lifecycle = [s3.LifecycleRule(expiration=Duration.days(90))]
+```
+
+- **Archive lifecycle** = "keep forever but get cheaper over time" (inputs + outputs). Intelligent-Tiering auto-shuffles between hot/cold based on access; Deep Archive is the cheapest possible at the cost of ~12-hour restore time.
+- **Processed lifecycle** = "throw away after 90 days" (intermediate scratch buckets).
+
+#### The 5 specific buckets
+
+```python
+self.inputs_bucket = _bucket("InputsBucket", "inputs", "customer-input",
+                             lifecycle=archive_lifecycle, object_lock=True,
+                             event_bridge=True)              # ← only this one
+self.processed_bucket = _bucket("ProcessedBucket", "processed", "engine-intermediate",
+                                lifecycle=processed_lifecycle)
+self.outputs_bucket = _bucket("OutputsBucket", "outputs", "engine-output",
+                              lifecycle=archive_lifecycle, object_lock=True)
+self.profiles_bucket = _bucket("ProfilesBucket", "profiles", "ops-config")
+self.cba_corpus_bucket = _bucket("CbaCorpusBucket", "cba-corpus", "customer-input")
+```
+
+| Bucket | Purpose | Lifecycle | Object Lock | EventBridge |
+|---|---|---|---|---|
+| audit | Server access logs from all other buckets | — | prod-only | — |
+| **inputs** | Customer's uploaded PDFs | archive (Intelligent → Deep Archive) | prod-only | ✓ — fires SFN pipeline |
+| processed | Intermediate JSON between pipeline stages | 90-day expiry | — | — |
+| outputs | Final rendered xlsx/CSV/articles | archive | prod-only | — |
+| profiles | Per-union Profile YAMLs (ops-managed) | — | — | — |
+| cba-corpus | CBA documents for the (deferred) Knowledge Base | — | — | — |
+
+Each bucket exposes itself as `self.<name>_bucket` so other stacks (passed via `app.py`) can grant their Lambdas read/write access on it.
+
+### Part 2 — 7 DynamoDB tables (Spec/09 §3.2)
+
+Same closure pattern, different defaults.
+
+```python
+def _table(cid, purpose, pk, sk=None, *, stream=False, ttl_attr=None) -> ddb.Table:
+    return ddb.Table(
+        self, cid,
+        table_name=name(env, "l3", "ddb", purpose),
+        partition_key=ddb.Attribute(name=pk, type=ddb.AttributeType.STRING),
+        sort_key=(ddb.Attribute(name=sk, type=ddb.AttributeType.STRING) if sk else None),
+        billing_mode=ddb.BillingMode.PAY_PER_REQUEST,                     # on-demand
+        encryption=ddb.TableEncryption.CUSTOMER_MANAGED,
+        encryption_key=master_key,
+        point_in_time_recovery_specification=ddb.PointInTimeRecoverySpecification(
+            point_in_time_recovery_enabled=True),
+        time_to_live_attribute=ttl_attr,
+        stream=(ddb.StreamViewType.NEW_AND_OLD_IMAGES if stream else None),
+        removal_policy=retain,
+    )
+```
+
+Defaults baked in:
+
+- **`PAY_PER_REQUEST`** = on-demand pricing. Scales to zero between bursts; no capacity planning. Good for POC variable traffic.
+- **`CUSTOMER_MANAGED`** + `master_key` = encryption with the project CMK, not the AWS-managed key.
+- **`point_in_time_recovery_enabled=True`** = continuous backups for 35 days. You can restore to any point in that window.
+- **Stream optional** — when on, every Put/Update/Delete emits a `NEW_AND_OLD_IMAGES` record (both pre- and post-image) to a DynamoDB Stream. EventBridge Pipes or Lambda triggers consume these for change-data-capture.
+- **TTL optional** — when set, DDB auto-deletes items whose `ttl` attribute is past. Free GC.
+
+#### The 7 specific tables
+
+```python
+self.files_table       = _table("FilesTable",       "files",       "tenant#union",         "period#filename",   stream=True)
+self.jobs_table        = _table("JobsTable",        "jobs",        "job_id",                                    stream=True)
+self.review_table      = _table("ReviewTable",      "review",      "tenant",               "created_at#cell_id")
+self.overrides_table   = _table("OverridesTable",   "overrides",   "tenant#union#period",  "cell_id#timestamp")
+self.cadence_table     = _table("CadenceTable",     "cadence",     "tenant#union")
+self.idempotency_table = _table("IdempotencyTable", "idempotency", "request_hash",                              ttl_attr="ttl")
+self.agent_config_table = _table("AgentConfigTable","agent-config","agent_name")
+```
+
+| Table | PK | SK | Stream | Purpose |
+|---|---|---|---|---|
+| **files** | `tenant#union` | `period#filename` | ✓ | File metadata + classification + processing status |
+| **jobs** | `job_id` | — | ✓ | SFN execution state + retry counters |
+| **review** | `tenant` | `created_at#cell_id` | — | Cells awaiting human review (Lesson 4 review queue) |
+| **overrides** | `tenant#union#period` | `cell_id#timestamp` | — | Manual cell overrides history |
+| **cadence** | `tenant#union` | — | — | Expected next-Notice date per union |
+| **idempotency** | `request_hash` | — | — (TTL 24h) | Dedup duplicate processing |
+| **agent-config** | `agent_name` | — | — | Admin enable/disable toggle (Lesson 3 §1a/1b) |
+
+#### Composite-key naming convention
+
+Notice keys like `"tenant#union"` and `"period#filename"`. These are **composite partition keys** — strings with a `#` separator that the application code constructs and parses. Example for files:
+
+```
+PK: "laboraid#sprinkler_fitters_704"
+SK: "2026-01-01#2026.01.01.704 Rate Notice.pdf"
+```
+
+This is the standard DDB single-table design pattern. The PK groups items together for one tenant+union; the SK lets you do range queries within that group (e.g., "all files for the 2026-01-01 period").
+
+#### Why only `files` and `jobs` have streams
+
+Streams cost money (~$0.02/100k reads). The downstream needs to be real:
+
+- **files-stream** — drives EventBridge events when classification status changes (e.g., a file moves from "ingested" to "classified" to "extracted")
+- **jobs-stream** — drives execution status changes to dashboards + alerts
+
+The other tables either don't change frequently enough or have direct API access patterns that don't need CDC.
+
+### Part 3 — Aurora Serverless v2 + VPC
+
+#### The minimal VPC
+
+```python
+self.vpc = ec2.Vpc(
+    self, "Vpc",
+    max_azs=2,
+    nat_gateways=0,                                              # ← critical
+    subnet_configuration=[
+        ec2.SubnetConfiguration(
+            name="db",
+            subnet_type=ec2.SubnetType.PRIVATE_ISOLATED,
+            cidr_mask=24,
+        )
+    ],
+)
+```
+
+This VPC is **only for Aurora**. Three key choices:
+
+1. **`max_azs=2`** = minimum for Aurora multi-AZ. Not 3+ because POC cost matters and Aurora HA only needs 2.
+2. **`nat_gateways=0`** = NO NAT gateway. NATs cost ~$45/month each just to exist. Skipping them is the single biggest VPC cost optimization for serverless workloads.
+3. **`PRIVATE_ISOLATED`** subnets only — no public subnet, no internet egress. Aurora has no business reaching the internet.
+
+But wait — if there's no NAT and Aurora is isolated, how does the schema-init Lambda talk to it? Read on.
+
+#### The Aurora cluster
+
+```python
+self.aurora = rds.DatabaseCluster(
+    self, "Aurora",
+    cluster_identifier=name(env, "l3", "aurora", "cluster"),
+    engine=rds.DatabaseClusterEngine.aurora_postgres(
+        version=rds.AuroraPostgresEngineVersion.of("16.6", "16")
+    ),
+    vpc=self.vpc,
+    vpc_subnets=ec2.SubnetSelection(subnet_type=ec2.SubnetType.PRIVATE_ISOLATED),
+    serverless_v2_min_capacity=0.5,                              # idle
+    serverless_v2_max_capacity=2,                                # peak
+    writer=rds.ClusterInstance.serverless_v2("Writer"),
+    readers=[rds.ClusterInstance.serverless_v2("Reader", scale_with_writer=True)],
+    credentials=rds.Credentials.from_generated_secret(
+        "laboraid_admin", secret_name=name(env, "l3", "secret", "aurora")
+    ),
+    default_database_name="laboraid",
+    storage_encryption_key=master_key,
+    enable_data_api=True,                                        # ← critical
+    removal_policy=retain,
+)
+```
+
+Five things worth understanding:
+
+1. **Serverless v2 0.5–2 ACU**. An ACU (Aurora Capacity Unit) ≈ 2 GB RAM. So idle this is ~1 GB RAM / 0.25 vCPU, peak ~4 GB / 1 vCPU. Cost: ~$45/month idle, ~$180 peak. Auto-scales. No instance sizing.
+2. **`from_generated_secret(...)`** — Aurora generates a random password and stores it in Secrets Manager. The secret name is naming-helper-compliant. Lambdas read the secret to get the password (`secret.grant_read(lambda)`); the password never appears in code.
+3. **`default_database_name="laboraid"`** — every connection lands in this DB.
+4. **`storage_encryption_key=master_key`** = the project CMK, same as buckets + tables. End-to-end consistent encryption with one rotation point.
+5. **`enable_data_api=True`** — this is the secret weapon. Lets you query Aurora via the **RDS Data API** instead of a TCP connection. The Data API is **HTTPS over the public internet** (no VPC attachment needed). Every approve/reject/publish Lambda from Lesson 4 uses this — `boto3.client("rds-data").execute_statement(...)`. That's why none of those Lambdas need VPC config and they all cold-start fast.
+
+This is the cleanest serverless DB pattern in AWS: Aurora in an isolated VPC for security; Lambdas outside the VPC talking via the Data API for performance + simplicity.
+
+### Part 4 — The schema-init custom resource
+
+The Aurora cluster is empty when CloudFormation creates it. The DDL has to be applied to it (the `rate_periods`, `unions`, `rate_cells`, `audit_log` tables you saw in Lesson 4). This stack does that **automatically on every deploy** via a CloudFormation **custom resource**.
+
+```python
+def _add_schema_init(self) -> None:
+    """Custom resource that applies the Aurora DDL via the RDS Data API."""
+    secret = self.aurora.secret
+    assert secret is not None
+
+    on_event = lambda_.Function(
+        self, "SchemaInitFn",
+        function_name=name(self.config.env, "l3", "fn", "schema-init"),
+        runtime=lambda_.Runtime.PYTHON_3_12,
+        architecture=lambda_.Architecture.ARM_64,
+        handler="handler.on_event",
+        code=lambda_.Code.from_asset("assets/schema_init"),
+        timeout=Duration.minutes(5),
+        log_group=logs.LogGroup(self, "SchemaInitLogGroup",
+            retention=logs.RetentionDays.ONE_MONTH,
+            removal_policy=RemovalPolicy.DESTROY),
+        environment={
+            "CLUSTER_ARN": self.aurora.cluster_arn,
+            "SECRET_ARN": secret.secret_arn,
+            "DB_NAME": "laboraid",
+        },
+    )
+    secret.grant_read(on_event)
+    self.aurora.grant_data_api_access(on_event)
+
+    provider = cr.Provider(self, "SchemaInitProvider", on_event_handler=on_event)
+    resource = CustomResource(
+        self, "SchemaInit",
+        service_token=provider.service_token,
+        properties={"schemaVersion": "1"},
+    )
+    resource.node.add_dependency(self.aurora)
+```
+
+#### What's happening
+
+1. A Lambda (`SchemaInitFn`) is created with read access to the Aurora secret + Data API access to the cluster.
+2. CDK's `custom_resources.Provider` wraps the Lambda into a CloudFormation **custom resource provider** — boilerplate that handles the Create/Update/Delete lifecycle protocol.
+3. A `CustomResource` is added to the template. CloudFormation calls the provider's Lambda on every stack create/update.
+4. `properties={"schemaVersion": "1"}` — bump this string to "2" to force CloudFormation to re-run the schema-init (otherwise it considers the resource unchanged and skips).
+5. The explicit `add_dependency(self.aurora)` ensures the Lambda doesn't run until the cluster exists.
+
+#### The Lambda handler (`assets/schema_init/handler.py`)
+
+```python
+def on_event(event, _context):
+    request_type = event.get("RequestType")
+    if request_type in ("Create", "Update"):
+        applied = _apply()
+        return {"PhysicalResourceId": "laboraid-schema-init", "Data": {"Applied": applied}}
+    # Delete: leave the schema in place (data retention); nothing to undo.
+    return {"PhysicalResourceId": event.get("PhysicalResourceId", "laboraid-schema-init")}
+
+
+def _apply() -> int:
+    cluster_arn = os.environ["CLUSTER_ARN"]
+    secret_arn  = os.environ["SECRET_ARN"]
+    db_name     = os.environ["DB_NAME"]
+    count = 0
+    for stmt in _statements():
+        _rds_data.execute_statement(
+            resourceArn=cluster_arn,
+            secretArn=secret_arn,
+            database=db_name,
+            sql=stmt,
+        )
+        count += 1
+    return count
+```
+
+And `_statements()` reads `schema.sql` (same directory) and splits it on `;`:
+
+```python
+def _statements():
+    sql = (Path(__file__).parent / "schema.sql").read_text(encoding="utf-8")
+    lines = [ln for ln in sql.splitlines() if not ln.strip().startswith("--")]
+    body = "\n".join(lines)
+    return [s.strip() for s in body.split(";") if s.strip()]
+```
+
+#### Key properties
+
+- **Idempotent.** The DDL in `schema.sql` uses `CREATE TABLE IF NOT EXISTS` everywhere. Running it 10 times in a row has the same effect as running it once.
+- **Delete is a no-op.** On stack destroy, the handler doesn't drop the tables. Why? Because dropping prod data should require a human, not a stack delete. (In dev with `RemovalPolicy.DESTROY`, the whole Aurora cluster goes — schema goes with it.)
+- **No VPC attachment.** The Lambda uses the Data API, so it doesn't need to be in the VPC with Aurora. Cold-start stays fast.
+- **One Lambda, one place to maintain.** All Aurora DDL is in `cdk/assets/schema_init/schema.sql`. When you add the `approval_state` columns from Lesson 4, you edit this file and bump `schemaVersion` to force a re-run.
+
+### Part 5 — Outputs
+
+```python
+CfnOutput(self, "InputsBucketName",  value=self.inputs_bucket.bucket_name)
+CfnOutput(self, "OutputsBucketName", value=self.outputs_bucket.bucket_name)
+CfnOutput(self, "AuroraClusterArn",  value=self.aurora.cluster_arn)
+```
+
+`CfnOutput` adds entries to the CloudFormation `Outputs` section of the synthesized template. Once deployed, you can read these via the CloudFormation console or `aws cloudformation describe-stacks`. They're optional but useful for:
+
+- Quick lookup of resource names from outside CDK (e.g., a shell script that uploads test files)
+- Cross-stack references when you don't want to import the whole construct
+
+The bucket/cluster references via `self.<x>` are how *other CDK stacks* read these (via `app.py` passing `storage.inputs_bucket` to `processing.ProcessingStack(..., inputs_bucket=storage.inputs_bucket)`). CDK turns that into a cross-stack export/import automatically.
+
+### How other stacks consume the Storage stack
+
+Look at `cdk/app.py` (Lesson 5 §5):
+
+```python
+storage = StorageStack(app, f"Laboraid-{config.env}-Storage",
+                       config=config, master_key=security.master_key)
+
+processing = ProcessingStack(app, f"Laboraid-{config.env}-Processing",
+                             config=config,
+                             master_key=security.master_key,
+                             inputs_bucket=storage.inputs_bucket,        # ← from Storage
+                             outputs_bucket=storage.outputs_bucket,      # ← from Storage
+                             files_table=storage.files_table,            # ← from Storage
+                             guardrail_id=ai.guardrail_id)
+
+api = ApiStack(app, f"Laboraid-{config.env}-Api",
+               config=config,
+               user_pool=security.user_pool,
+               user_pool_client=security.user_pool_client,
+               inputs_bucket=storage.inputs_bucket,             # ← from Storage
+               jobs_table=storage.jobs_table,                   # ← from Storage
+               agent_config_table=storage.agent_config_table,   # ← from Storage
+               overrides_table=storage.overrides_table,         # ← from Storage
+               aurora=storage.aurora,                           # ← from Storage
+               aurora_secret=storage.aurora.secret,             # ← from Storage
+               engine_bus=validation.engine_bus)
+
+orchestration = OrchestrationStack(app, f"Laboraid-{config.env}-Orchestration",
+                                   config=config,
+                                   inputs_bucket=storage.inputs_bucket,         # ← from Storage
+                                   ...
+                                   agent_config_table=storage.agent_config_table,
+                                   ...)
+```
+
+Every stack that needs data references the storage stack's bucket/table/cluster attributes. CDK figures out which CloudFormation **exports** are needed and **imports** them in the dependent stack. The `add_dependency()` calls in `app.py` make CDK serialize the deploy order — Storage first, then Processing/API/Orchestration after.
+
+### Recap: the 5 Lesson-5 patterns visible in one file
+
+Look back at the file and count:
+
+1. **Config dataclass** — `config: Config` constructor arg; `config.env`, `config.is_prod` used throughout.
+2. **`name()` helper** — every bucket, table, cluster, secret, function name flows through it.
+3. **Mandatory tags Aspect** — invisible here; applied at app.py and stamps every L1 resource this file produces.
+4. **Tagged constructs** — every bucket uses `TaggedBucket`. (DDB tables don't have a wrapper — there's only one place they're created so the closure `_table()` plays that role.)
+5. **App entry wiring** — every `self.<name>` exposed becomes a constructor arg into a downstream stack via `app.py`.
+
+That's why this is the canonical "one stack" lesson — it exercises every pattern in the foundation.
+
+### What you should be able to answer after Lesson 6
+
+- *Why is the audit bucket created first?* — It's the server-access-log target for every other bucket; chicken-and-egg dependency.
+- *Why does the inputs bucket have `event_bridge_enabled=True` but no other bucket does?* — Only inputs needs to trigger the Step Functions pipeline on upload (Lesson 3). Other buckets are written by Lambdas; we don't need to fire SFN on those.
+- *Why is the VPC `nat_gateways=0`?* — NAT costs $45/month each. Aurora in isolated subnets doesn't need outbound internet. Lambdas reach Aurora via the Data API (over the AWS network, not the VPC).
+- *How does the publish Lambda from Lesson 4 reach Aurora?* — `enable_data_api=True` on the cluster + `secret.grant_read()` + `aurora.grant_data_api_access()` in the Lambda's stack. The Lambda uses `boto3.client("rds-data").execute_statement()` — no VPC attachment.
+- *How does the Aurora schema get created?* — A CloudFormation custom resource calls a Lambda that runs the SQL in `assets/schema_init/schema.sql` via the RDS Data API. Idempotent (`IF NOT EXISTS`). Re-runs on every deploy if `schemaVersion` changes.
+- *What happens to data on `cdk destroy` in prod vs dev?* — `RemovalPolicy.RETAIN` in prod keeps buckets/tables/cluster alive after stack delete. `RemovalPolicy.DESTROY` in dev wipes them. One line at the top of the stack controls it for every resource.
+- *Where does the `agent-config` DDB table come from?* — Created here as one of the 7 DDB tables. The Lesson 3 SFN reads it; the Lesson 5 `agent-toggle` Lambda from the API stack writes it.
+
+**Question to lock it in:** if a customer wanted you to add a new bucket called `audit-exports` for compliance reports, where exactly would you add the code, and what would change in `app.py`?
+
+*Answer: Add one line inside StorageStack: `self.audit_exports_bucket = _bucket("AuditExportsBucket", "audit-exports", "audit-log", lifecycle=archive_lifecycle, object_lock=True)`. Add a CfnOutput line if other stacks need its name. Nothing changes in `app.py` unless a downstream stack needs to read/write it — in which case add an `audit_exports_bucket=storage.audit_exports_bucket` arg to that stack's constructor.*
+
+---
+
 Next lesson candidates (ask when ready):
-- One stack end-to-end (Storage stack — 6 buckets + 7 DDB tables + Aurora cluster with schema-init custom resource)
 - The React UI (start with `routes.tsx` + `RouteGuard.tsx` + the two-shell layout split)
 - The tests (what's tested, how, and why some bugs slip past green tests — the audit story)
