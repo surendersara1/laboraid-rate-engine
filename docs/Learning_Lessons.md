@@ -1381,8 +1381,458 @@ CREATE INDEX idx_periods_inbox ON rate_periods (approval_state, start_date DESC)
 
 ---
 
+---
+
+## Lesson 5 — CDK Foundation: the patterns every stack reuses
+
+### Q5.1 — Walk me through the CDK foundation
+
+> *"Next lesson."*
+
+### Answer
+
+Lesson 1–4 taught what the system DOES. Lesson 5 teaches how the **infrastructure is described** so that all of it can be deployed by `cdk deploy`. Five patterns. Once you know them, you can read any of the 9 stacks without me re-teaching the basics.
+
+The five patterns:
+
+1. **The Config dataclass** — environment-specific values + the 13 mandatory tags, all in one place
+2. **The naming helper** — `laboraid-{env}-{layer}-{type}-{purpose}`, enforced
+3. **The Mandatory Tags Aspect** — applies the 13 tags to every resource, once, at app level
+4. **Tagged construct wrappers** — `TaggedBucket`, `TaggedLambda`, `SnsTopicWithSubs` — secure defaults baked in
+5. **The app entry point** (`cdk/app.py`) — wires the 9 stacks with explicit dependency order
+
+Every stack in the repo combines these five patterns. Master them and the stacks are simple.
+
+### Pattern 1 — `Config` dataclass (one source of truth per environment)
+
+The file [`../cdk/laboraid_cdk/config/__init__.py`](../cdk/laboraid_cdk/config/__init__.py) defines a frozen dataclass that every stack constructor takes as `config: Config`:
+
+```python
+@dataclass(frozen=True)
+class Config:
+    env: str                              # "dev" | "prod"
+    account: str                          # AWS account ID
+    region: str                           # "us-east-1" — Bedrock + AgentCore availability
+    alarm_email: str                      # subscriber on the failures SNS topic
+    slack_webhook_secret_name: str        # Secrets Manager name (not the value)
+    domain_name: str | None = None        # SPA custom domain, or None → CloudFront default
+
+    @property
+    def is_prod(self) -> bool:
+        return self.env == "prod"
+
+    @property
+    def has_custom_domain(self) -> bool:
+        return self.domain_name is not None
+
+    @property
+    def mandatory_tags(self) -> dict[str, str]:
+        """The 13 mandatory tags applied to every resource (Spec/09 §2)."""
+        return {
+            "Project": "LaborAid-POC",
+            "Customer": "LaborAid",
+            "Environment": self.env,
+            "ManagedBy": "CDK",
+            "Repository": "github.com/NorthBay/laboraid-rate-engine",
+            "CostCenter": "NBS-POC-2026",
+            "Owner": "NBS-Engineering",
+            "Layer": "shared",
+            "SOW": "LaborAid-POC-SOW-v1",
+            "AwsPartner": "NorthBay-Premier",
+            "PublicUseCase": "true",
+            "PII": "false",
+            "DataClassification": "internal",
+        }
+
+
+def get_config(env: str) -> Config:
+    if env == "dev":
+        from laboraid_cdk.config.dev import CONFIG
+        return CONFIG
+    if env == "prod":
+        from laboraid_cdk.config.prod import CONFIG
+        return CONFIG
+    raise ValueError(f"unknown env {env!r}; expected 'dev' or 'prod'")
+```
+
+And the dev + prod files (23 lines each):
+
+```python
+# cdk/laboraid_cdk/config/dev.py
+CONFIG = Config(
+    env="dev",
+    account=os.environ.get("CDK_DEFAULT_ACCOUNT", "000000000000"),   # ← placeholder for synth
+    region=os.environ.get("CDK_DEFAULT_REGION", "us-east-1"),
+    alarm_email="laboraid-alerts@northbaysolutions.com",
+    slack_webhook_secret_name="laboraid-dev-l6-secret-slack-webhook",
+    domain_name=None,    # CloudFront default; override at deploy time
+)
+```
+
+#### Why this pattern works
+
+- **Frozen dataclass** = immutable. You can't accidentally mutate `config.env` from `dev` to `prod` halfway through stack construction.
+- **Properties** (`is_prod`, `has_custom_domain`, `mandatory_tags`) = derived values computed on demand, so every stack sees a consistent view.
+- **`mandatory_tags` lives on the Config** = the 13 SOW tags are environment-aware (the `Environment` tag is `self.env`), and there's exactly one place to change them. Spec/09 §2 lives in code, not in a doc.
+- **Account defaults to env var placeholder `000000000000`** = `cdk synth` works on any developer machine without AWS creds. Deploy is the only step that needs a real account.
+- **`get_config(env)`** = lazy import to avoid circular dependency. The `dev.py`/`prod.py` files import `Config` from `__init__.py`; the dispatcher imports `dev.py`/`prod.py` only when asked.
+
+#### How stacks consume it
+
+Every stack constructor has the same signature:
+
+```python
+class StorageStack(Stack):
+    def __init__(self, scope: Construct, construct_id: str, *,
+                 config: Config,
+                 master_key: kms.IKey,        # cross-stack input from SecurityStack
+                 **kwargs: Any) -> None:
+        ...
+        env = config.env          # "dev" or "prod"
+        if config.is_prod:
+            removal_policy = RemovalPolicy.RETAIN
+        else:
+            removal_policy = RemovalPolicy.DESTROY
+        ...
+```
+
+`config` is the only "global" stacks ever see. No env vars are read inside stacks. No hardcoded account/region. Single source of truth.
+
+### Pattern 2 — The naming helper (`util/naming.py`)
+
+The full file is 39 lines:
+
+```python
+# cdk/laboraid_cdk/util/naming.py
+_LAYERS = frozenset(f"l{n}" for n in range(1, 8))  # l1..l7
+_SEGMENT = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
+
+
+def name(env: str, layer: str, type_: str, purpose: str) -> str:
+    """Build a convention-compliant resource name.
+
+    Returns: laboraid-{env}-{layer}-{type_}-{purpose} — all lowercase, kebab-case.
+    Raises: ValueError if any segment is malformed.
+    """
+    if env not in ("dev", "prod"):
+        raise ValueError(f"env must be 'dev' or 'prod', got {env!r}")
+    if layer not in _LAYERS:
+        raise ValueError(f"layer must be one of l1..l7, got {layer!r}")
+    for label, value in (("type_", type_), ("purpose", purpose)):
+        if not _SEGMENT.match(value):
+            raise ValueError(f"{label} must be lowercase kebab-case, got {value!r}")
+    return f"laboraid-{env}-{layer}-{type_}-{purpose}"
+```
+
+#### What this does
+
+Every AWS resource in the repo gets named by this function. **No hardcoded names anywhere.** Examples:
+
+```python
+name("prod", "l3", "bucket", "inputs")     # → "laboraid-prod-l3-bucket-inputs"
+name("dev",  "l4", "fn",     "classifier") # → "laboraid-dev-l4-fn-classifier"
+name("prod", "l5", "agent",  "extractor")  # → "laboraid-prod-l5-agent-extractor"
+name("dev",  "l6", "sns",    "failures")   # → "laboraid-dev-l6-sns-failures"
+```
+
+The convention from Spec/09 §1: `laboraid-{env}-{layer}-{resource_type}-{purpose}`.
+
+#### Why validate
+
+- **`env` whitelist** = only `dev`/`prod` allowed. Typos like `"Prod"` or `"production"` fail fast at synth time, not at deploy time.
+- **`layer` whitelist** = `l1..l7` only. Catches typos and accidentally invented layers.
+- **`_SEGMENT` regex** = lowercase + kebab-case. Catches typos like `"Inputs"` (capital), `"input_files"` (underscore), or `"input files"` (space).
+- **Pure function** = easy to unit test. The actual tests are in `cdk/tests/test_naming.py`.
+
+#### Where you'll see it
+
+Open any stack and you'll see `name()` everywhere a resource is named:
+
+```python
+self.inputs_bucket = TaggedBucket(self, "InputsBucket",
+    bucket_name=name(env, "l3", "bucket", "inputs"),
+    encryption_key=master_key,
+)
+
+self.classifier = TaggedLambda(self, "Classifier",
+    env=env, layer="l4",
+    function_name=name(env, "l4", "fn", "classifier"),
+    ...
+)
+```
+
+The construct ID (the first string after `self`) is CDK's logical ID; the `bucket_name`/`function_name` is the actual AWS resource name. Both exist on purpose — CDK needs the logical ID for its dependency graph, AWS needs the name for the API.
+
+### Pattern 3 — The Mandatory Tags Aspect
+
+CDK has a concept called **Aspects** — passes that visit every node in the construct tree. The Mandatory Tags Aspect is the project's most important one. Full file (44 lines):
+
+```python
+# cdk/laboraid_cdk/aspects/mandatory_tags.py
+@jsii.implements(IAspect)
+class MandatoryTagsAspect:
+    """Stamp the mandatory tag set on every taggable `CfnResource` in the tree."""
+
+    def __init__(self, tags: dict[str, str]) -> None:
+        self._tags = dict(tags)
+
+    def visit(self, node: IConstruct) -> None:
+        # Tag L1 CloudFormation resources that actually expose a TagManager via a
+        # `.tags` attribute. We check the attribute directly rather than trusting
+        # `TagManager.is_taggable`, which can report True for raw `CfnResource`s of
+        # non-standard types (e.g. AWS::BedrockAgentCore::Runtime) that have no
+        # `.tags` — accessing it then raises. Skip L2 wrappers + logical nodes.
+        if not isinstance(node, CfnResource):
+            return
+        tag_manager = getattr(node, "tags", None)
+        if isinstance(tag_manager, TagManager):
+            for key, value in self._tags.items():
+                # Lower priority so per-resource overrides (Layer/DataClass) win.
+                tag_manager.set_tag(key, value, 100)
+```
+
+Applied in `app.py` after every stack is constructed:
+
+```python
+cdk.Aspects.of(app).add(MandatoryTagsAspect(config.mandatory_tags))
+```
+
+#### What happens at synth time
+
+CDK visits every node in the construct tree (the app, each stack, each construct, each L1 CfnResource). For each L1 `CfnResource` with a `.tags` `TagManager`, the aspect stamps the 13 tags. Result: **every taggable AWS resource in the CloudFormation template carries the 13 tags. Zero per-stack code.**
+
+If you remove this one line from `app.py`, you violate the SOW (Spec/09 §2 says all resources must carry the 13 tags). It's that load-bearing.
+
+#### Why L1 CfnResources, not L2 constructs
+
+The L2 vs L1 distinction is a CDK thing:
+
+- **L2 constructs** are `s3.Bucket`, `lambda_.Function` — high-level Python wrappers
+- **L1 resources** are `CfnBucket`, `CfnFunction` — the raw CloudFormation underneath each L2
+
+The comment in the code explains the design choice: tagging the L2 wrapper triggers CDK's internal **tag-propagation** aspect, which then keeps mutating the tree on each subsequent aspect pass, and aspect stabilization eventually trips the infinite-loop guard. Tagging the L1 `CfnResource.tags` `TagManager` directly converges in a single pass.
+
+This is one of those scars from production — the original implementation tagged L2 and `cdk synth` started failing on a sufficiently complex app with "Aspect stabilization did not stabilize." Switching to L1-only fixed it. The comment exists so you don't undo the fix.
+
+#### Tag priority (the override pattern)
+
+The line `tag_manager.set_tag(key, value, 100)` passes a priority of 100. Per-resource tag overrides use the default priority (more specific, wins). So in `TaggedBucket`:
+
+```python
+Tags.of(self).add("Layer", layer)                       # default priority
+Tags.of(self).add("DataClassification", data_classification)
+```
+
+These override the app-level `Layer: "shared"` and `DataClassification: "internal"` from `Config.mandatory_tags`. The inputs bucket ends up tagged `Layer: "l3"`, `DataClassification: "customer-input"`. The mechanism is "more specific scope wins" — exactly what you want.
+
+### Pattern 4 — Tagged construct wrappers (secure defaults baked in)
+
+The repo has four wrapper constructs under `cdk/laboraid_cdk/constructs/`. Each wraps a CDK L2 with **project-default settings** so every stack stays consistent and short.
+
+#### `TaggedBucket` (39 lines)
+
+```python
+class TaggedBucket(s3.Bucket):
+    """An s3.Bucket pre-wired with the project's security defaults + tags."""
+
+    def __init__(self, scope, construct_id, *,
+                 encryption_key: kms.IKey,
+                 layer: str = "l3",
+                 data_classification: str = "customer-input",
+                 **kwargs):
+        kwargs.setdefault("encryption", s3.BucketEncryption.KMS)
+        kwargs.setdefault("block_public_access", s3.BlockPublicAccess.BLOCK_ALL)
+        kwargs.setdefault("versioned", True)
+        kwargs.setdefault("enforce_ssl", True)    # TLS-only — deny non-SecureTransport
+        super().__init__(scope, construct_id, encryption_key=encryption_key, **kwargs)
+
+        Tags.of(self).add("Layer", layer)
+        Tags.of(self).add("DataClassification", data_classification)
+```
+
+Read the `setdefault` calls — they're the **security baseline:**
+
+- KMS encryption (caller supplies the key)
+- Block all public access — no accidentally public buckets
+- Versioning enabled — recover from overwrites/deletes
+- `enforce_ssl=True` — adds a bucket policy denying non-TLS connections (the audit explicitly verifies every bucket has this)
+
+A stack calls `TaggedBucket(self, "InputsBucket", encryption_key=master_key, bucket_name=name(...))` and gets all of that "for free." If the caller wants to override (e.g., `versioned=False`), they can — `setdefault` only sets when not already provided.
+
+#### `TaggedLambda` (71 lines)
+
+```python
+def lambda_defaults(env: str) -> dict[str, Any]:
+    return dict(
+        runtime=lambda_.Runtime.PYTHON_3_12,
+        architecture=lambda_.Architecture.ARM_64,        # Graviton
+        memory_size=512,
+        timeout=Duration.seconds(30),
+        tracing=lambda_.Tracing.ACTIVE,                  # X-Ray
+        environment={
+            "LOG_LEVEL": "INFO" if env == "prod" else "DEBUG",
+            "POWERTOOLS_SERVICE_NAME": "laboraid-api",
+            "ENV": env,
+        },
+    )
+
+
+class TaggedLambda(lambda_.Function):
+    def __init__(self, scope, construct_id, *, env: str, layer: str = "l2", **kwargs):
+        defaults = lambda_defaults(env)
+
+        # Merge environment dicts so callers can add vars without dropping defaults.
+        merged_env = {**defaults.pop("environment"), **kwargs.pop("environment", {})}
+
+        # Explicit one-month log group (avoids the deprecated log_retention CR).
+        if "log_group" not in kwargs:
+            fn_name = kwargs.get("function_name")
+            kwargs["log_group"] = logs.LogGroup(scope, f"{construct_id}LogGroup",
+                log_group_name=f"/aws/lambda/{fn_name}" if fn_name else None,
+                retention=logs.RetentionDays.ONE_MONTH,
+                removal_policy=RemovalPolicy.DESTROY,
+            )
+
+        merged = {**defaults, **kwargs, "environment": merged_env}
+        super().__init__(scope, construct_id, **merged)
+        Tags.of(self).add("Layer", layer)
+```
+
+The defaults baked in:
+
+- **Python 3.12 + ARM64** = the SOW commitment + Graviton cost/perf savings
+- **512 MB / 30s timeout** = sensible POC defaults
+- **X-Ray tracing on** = observability stack consumes the traces
+- **Powertools env vars** = every handler gets `LOG_LEVEL`, `POWERTOOLS_SERVICE_NAME`, `ENV` automatically
+- **Explicit log group with 1-month retention** = the comment explains why — the deprecated `log_retention` prop creates a singleton Custom Resource that interacts badly with Aspects at scale
+
+The `merged_env` line is subtle: callers add env vars via `environment={"AURORA_CLUSTER_ARN": ...}` and those merge with the defaults, not replace them. So every Lambda has Powertools vars **and** its caller-specific vars.
+
+#### `SnsTopicWithSubs` (50 lines, briefly)
+
+Wraps `sns.Topic` with email + Lambda subscribers wired up at construction. Used for the three project SNS topics: `failures`, `successes`, `review-needed`.
+
+#### `StrandsAgentRuntime` (156 lines)
+
+The most complex construct. Wraps the AgentCore Runtime via `AwsCustomResource` (since CDK has no native `AWS::BedrockAgentCore::Runtime` L2 yet). Audit fix B5 — this is what landed in commit `a070e87`. You saw this code in Lesson 2's context.
+
+### Pattern 5 — The app entry point (`cdk/app.py`)
+
+The file is 160 lines and assembles the 9 stacks. The shape:
+
+```python
+app = cdk.App()
+
+env_name = str(app.node.try_get_context("env") or "dev")
+config = get_config(env_name)
+
+# Optional custom-domain override (audit B8 / decision D-B8).
+domain_override = app.node.try_get_context("domain_name")
+if domain_override:
+    config = replace(config, domain_name=str(domain_override))
+
+# ... instantiate 9 stacks with explicit add_dependency calls ...
+
+cdk.Aspects.of(app).add(MandatoryTagsAspect(config.mandatory_tags))
+
+app.synth()
+```
+
+#### How environment is selected
+
+```bash
+cdk synth                                  # defaults to dev
+cdk synth -c env=prod                      # prod
+cdk deploy -c domain_name=admin.laboraid.app   # override domain
+```
+
+CDK Context (`-c key=value`) is the mechanism. The app reads it via `app.node.try_get_context(...)`. This is why no `.env` files exist for switching environments — context is the CDK-native way and works across local synth, CI, and deploy.
+
+#### Stack dependency order (the most important part)
+
+```python
+ui = UiStack(...)                             # 1. UI first (its app_url feeds Cognito callbacks)
+security = SecurityStack(..., app_url=ui.app_url)
+security.add_dependency(ui)
+storage = StorageStack(..., master_key=security.master_key)
+storage.add_dependency(security)
+ai = AiStack(..., master_key=security.master_key)
+ai.add_dependency(security)
+processing = ProcessingStack(...)
+processing.add_dependency(storage)
+processing.add_dependency(ai)
+validation = ValidationStack(...)
+validation.add_dependency(storage)
+api = ApiStack(...)
+api.add_dependency(security)
+api.add_dependency(storage)
+api.add_dependency(validation)
+orchestration = OrchestrationStack(...)
+orchestration.add_dependency(processing)
+orchestration.add_dependency(validation)
+orchestration.add_dependency(storage)
+observability = ObservabilityStack(...)
+observability.add_dependency(validation)
+observability.add_dependency(api)
+```
+
+Read this top to bottom: each stack lists what it depends on. CDK can infer most dependencies from cross-stack references (e.g., `master_key=security.master_key` creates an implicit dep), but `add_dependency()` makes it explicit — useful when reading the graph.
+
+**Deploy order (CDK figures it out):**
+
+```
+1. UI                      (no dependencies beyond CDK itself)
+2. Security                (depends on UI for app_url)
+3. Storage, AI             (parallel — both depend only on Security)
+4. Processing              (depends on Storage + AI)
+5. Validation              (depends on Storage)
+6. API                     (depends on Security + Storage + Validation)
+7. Orchestration           (depends on Processing + Validation + Storage)
+8. Observability           (depends on Validation + API)
+```
+
+You can `cdk deploy <StackName>` to deploy one stack without the rest, as long as its dependencies exist. That's why the order is explicit — it makes incremental deploys possible.
+
+#### The aspect line at the bottom
+
+```python
+cdk.Aspects.of(app).add(MandatoryTagsAspect(config.mandatory_tags))
+```
+
+This is what makes Pattern 3 actually run. The Aspect is attached at the app level, so the visitor will walk every node in every stack. One line, 13 tags on every resource, no per-stack code.
+
+#### `app.synth()`
+
+The final call writes out the CloudFormation templates to `cdk.out/`. After running `cdk synth`, you can `ls cdk.out/` and see one `.template.json` per stack — those are the CloudFormation templates `cdk deploy` will ship to AWS.
+
+### Bringing it together — how a hypothetical 10th stack would look
+
+If you needed to add a new stack tomorrow (say, an "AnalyticsStack" for QuickSight dashboards on the rate-period data), here's the recipe:
+
+1. **Read the Config** — your constructor takes `config: Config` like everyone else. No env vars, no hardcoded account.
+2. **Use the naming helper** — `name(config.env, "l8", "quicksight", "dashboards")`. (You'd need to extend `_LAYERS` to include `l8` if you really wanted a new layer; the convention is fixed at l1-l7 in `naming.py`.)
+3. **Use TaggedBucket / TaggedLambda** for any new bucket or Lambda — secure defaults baked in.
+4. **Attach to the app** — add it to `cdk/app.py` with explicit `add_dependency(storage)` if it reads Aurora.
+5. **Let the Aspect tag it** — no per-resource tag code needed. The `MandatoryTagsAspect` at the bottom of `app.py` will handle it.
+
+The 9 existing stacks all follow this recipe. Once you see it, you can read any stack file as a thin layer over these five patterns.
+
+### What you should be able to answer after Lesson 5
+
+- *Where do the 13 mandatory tags come from?* — `Config.mandatory_tags` (one property), stamped on every resource by `MandatoryTagsAspect` (one line in `app.py`).
+- *Why does `cdk synth` work without AWS credentials?* — `Config.account` defaults to `"000000000000"`. Stacks reference `config.account`/`config.region` but don't read any real AWS API at synth time. Only deploy needs real creds.
+- *What does the `name()` helper enforce?* — `laboraid-{env}-{layer}-{type}-{purpose}`, all kebab-case, `env in {dev,prod}`, `layer in {l1..l7}`. Validates at synth, not deploy.
+- *Why is `MandatoryTagsAspect` applied to L1 `CfnResource`, not L2 wrappers?* — L2 tagging triggers CDK's internal tag-propagation aspect, which doesn't stabilize on large apps. L1 converges in one pass.
+- *What's the deploy order for a fresh account?* — UI → Security → Storage + AI (parallel) → Processing → Validation → API → Orchestration → Observability. CDK figures it out from the explicit `add_dependency()` calls.
+- *Where would I look to change a Lambda's default memory size?* — `cdk/laboraid_cdk/constructs/tagged_lambda.py`, the `lambda_defaults()` function. One change, every Lambda picks it up.
+
+**Question to lock it in:** if you renamed every reference to `laboraid-` to `rateengine-`, how many files would you actually need to edit? Trace it.
+
+*Answer: exactly one — `cdk/laboraid_cdk/util/naming.py`. Every resource name in the repo goes through `name()`. Change the literal `"laboraid-"` in that one function and every stack's resource names update on next `cdk synth`. (You'd also want to rename `Config.mandatory_tags["Repository"]` and the Python package directory itself, but the resource-name story is one file.)*
+
+---
+
 Next lesson candidates (ask when ready):
-- The CDK foundation (`cdk/app.py` + naming + tags + tagged constructs) — the patterns every stack uses
-- One stack end-to-end (Storage stack — 6 buckets + 7 DDB tables + Aurora cluster with schema-init)
+- One stack end-to-end (Storage stack — 6 buckets + 7 DDB tables + Aurora cluster with schema-init custom resource)
 - The React UI (start with `routes.tsx` + `RouteGuard.tsx` + the two-shell layout split)
 - The tests (what's tested, how, and why some bugs slip past green tests — the audit story)
