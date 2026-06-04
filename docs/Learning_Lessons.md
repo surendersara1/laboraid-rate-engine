@@ -2281,6 +2281,597 @@ That's why this is the canonical "one stack" lesson — it exercises every patte
 
 ---
 
+---
+
+## Lesson 7 — The React UI: two personas, one build
+
+### Q7.1 — Walk through the React UI
+
+> *"Next lesson."*
+
+### Answer
+
+The UI is the **only TypeScript area in the repo** (~30 files under `ui/`). The whole app is ~1,500 lines of TS/TSX. Once you see the five patterns it uses, every page reads the same way. The hard part — the Lambdas, the agent, the Aurora schema — you already understand from Lessons 1-6. The UI is the thin glass on top.
+
+The five patterns:
+
+1. **Bootstrap** — `main.tsx` mounts React; `App.tsx` does auth-once + decides which shell
+2. **Routes + RouteGuard** — declarative route tree, Cognito group gates per route
+3. **Shared libs** — `auth.ts` (Amplify wrappers) + `api.ts` (fetch with JWT) + `store.ts` (Zustand) + `usePolling.ts` (5s loop)
+4. **A typical admin page** — Jobs.tsx: load-on-mount + polling + table
+5. **The complex business page** — RateSheetReview.tsx: 3-panel layout + ApproveRejectBar that maps directly to Lesson 4's Lambdas
+
+### Pattern 1 — Bootstrap (`main.tsx` + `App.tsx`)
+
+#### `ui/src/main.tsx` (7 lines)
+
+```tsx
+import { StrictMode } from "react";
+import { createRoot } from "react-dom/client";
+import { App } from "./App";
+import "./index.css";
+
+createRoot(document.getElementById("root")!).render(
+  <StrictMode>
+    <App />
+  </StrictMode>,
+);
+```
+
+Standard React 18 entry. The `index.html` (in `ui/`) has a `<div id="root"></div>`. Vite builds this whole tree and outputs `ui/dist/index.html` + JS bundles. **That `ui/dist/` is what the CDK UiStack uploads to the S3 bucket behind CloudFront** — Lesson 6 connection.
+
+#### `ui/src/App.tsx` (the auth-once + persona decision)
+
+```tsx
+import { useEffect, useState } from "react";
+import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
+import { PersonaChooser } from "./components/PersonaChooser";
+import { getGroups, personaForGroups } from "./lib/auth";
+import { useUserStore } from "./lib/store";
+import { AppRoutes } from "./routes";
+
+export function App(): JSX.Element {
+  const [ready, setReady] = useState(false);
+  const setUser = useUserStore((s) => s.setUser);
+  const persona = useUserStore((s) => s.persona);
+
+  useEffect(() => {
+    getGroups().then((groups) => {
+      setUser(groups, personaForGroups(groups));
+      setReady(true);
+    });
+  }, [setUser]);
+
+  if (!ready) return <div className="p-8">Loading…</div>;
+
+  const landing = persona === "business" ? "/business/inbox" : "/admin/dashboard";
+
+  return (
+    <BrowserRouter>
+      <Routes>
+        <Route path="/"
+               element={persona === "both"
+                 ? <PersonaChooser />
+                 : <Navigate to={landing} replace />} />
+        <Route path="/*" element={<AppRoutes />} />
+      </Routes>
+    </BrowserRouter>
+  );
+}
+```
+
+Read this top to bottom:
+
+1. **Auth-once on mount.** `useEffect` calls `getGroups()` (Cognito JWT → `cognito:groups` claim) — exactly once when the app loads. Stores the groups + computed persona in Zustand.
+2. **`<div>Loading…</div>` until ready.** No flashing of unauthorized content. The app is invisible until we know who the user is.
+3. **Landing decision based on persona.** Business user → `/business/inbox`. Admin/Operations → `/admin/dashboard`. Both → `<PersonaChooser>` (the page with two big buttons).
+4. **`/*` catch-all → `<AppRoutes>`**. Everything else flows through the route tree in `routes.tsx`.
+
+**Why auth-once at app level, not per-page:** every page reads `useUserStore(...)` to know the user's groups. If each page did its own `getGroups()` call, you'd burn a Cognito API call per navigation. Auth-once at boot + Zustand cache = exactly one call per session.
+
+### Pattern 2 — Routes + RouteGuard
+
+#### `ui/src/routes.tsx` (the whole route tree)
+
+```tsx
+import { Navigate, Route, Routes } from "react-router-dom";
+import { RouteGuard } from "./components/RouteGuard";
+import { AdminLayout } from "./layouts/AdminLayout";
+import { BusinessLayout } from "./layouts/BusinessLayout";
+// ... imports for every page ...
+
+const ADMIN = ["Admins", "Operations"];
+const ADMINS_ONLY = ["Admins"];
+const BUSINESS = ["Business"];
+
+export function AppRoutes(): JSX.Element {
+  return (
+    <Routes>
+      <Route path="/admin"
+             element={<RouteGuard groups={ADMIN}><AdminLayout /></RouteGuard>}>
+        <Route index element={<Navigate to="dashboard" replace />} />
+        <Route path="dashboard" element={<Dashboard />} />
+        <Route path="uploads"   element={<Uploads />} />
+        <Route path="jobs"      element={<Jobs />} />
+        <Route path="jobs/:id"  element={<JobDetail />} />
+        <Route path="agents"    element={<Agents />} />
+        <Route path="profiles"  element={<Profiles />} />
+        <Route path="audit"     element={<Audit />} />
+        <Route path="costs"     element={<RouteGuard groups={ADMINS_ONLY}>
+                                          <Costs />
+                                        </RouteGuard>} />
+      </Route>
+
+      <Route path="/business"
+             element={<RouteGuard groups={BUSINESS}><BusinessLayout /></RouteGuard>}>
+        <Route index element={<Navigate to="inbox" replace />} />
+        <Route path="inbox"                          element={<Inbox />} />
+        <Route path="rate-sheets/:union/:period"     element={<RateSheetReview />} />
+        <Route path="by-union/:union"                element={<ByUnion />} />
+        <Route path="approved"                       element={<Approved />} />
+        <Route path="rejected"                       element={<Rejected />} />
+        <Route path="queue"                          element={<ReviewQueue />} />
+        <Route path="me"                             element={<Me />} />
+      </Route>
+    </Routes>
+  );
+}
+```
+
+Read this as a **tree:**
+
+- `/admin/*` — every route inside is wrapped in `<RouteGuard groups={ADMIN}>` + uses `<AdminLayout>` (the ops sidebar)
+- `/business/*` — same shape, gated on `BUSINESS`, uses `<BusinessLayout>`
+- **Nested guard** on `/admin/costs` — gated on `ADMINS_ONLY`. So Operations users can hit `/admin/dashboard` but get **403 on `/admin/costs`**. The Lambda from Lesson 5 §1.4 has the same `ALLOWED_GROUPS = ["Admins"]`. Defense in depth: UI hides it, API rejects it.
+
+The route group arrays — `ADMIN`, `ADMINS_ONLY`, `BUSINESS` — **match the Lambda `ALLOWED_GROUPS` from Lesson 4**. Same source-of-truth strings.
+
+#### `ui/src/components/RouteGuard.tsx` (the 403 enforcement)
+
+```tsx
+export function RouteGuard({ groups, children }: {
+  groups: string[]; children: ReactNode;
+}): JSX.Element {
+  const userGroups = useUserStore((s) => s.groups);
+  const allowed = groups.some((g) => userGroups.includes(g));
+  if (!allowed) {
+    return <Forbidden403 />;
+  }
+  return <>{children}</>;
+}
+```
+
+11 lines of logic. Reads the cached `groups` from Zustand. If the user is in none of the allowed groups → render `<Forbidden403>` (an explicit 403 page). Otherwise render the wrapped children.
+
+**Audit fix D4** — the original implementation silently redirected denied users to the landing page. The audit caught this: a Business user typing `/admin/jobs` got bounced to `/business/inbox` with no explanation. The fix is the explicit 403 page (`components/Forbidden403.tsx`).
+
+#### `ui/src/components/Forbidden403.tsx` (6 lines)
+
+```tsx
+export function Forbidden403(): JSX.Element {
+  return (
+    <div className="flex min-h-[60vh] flex-col items-center justify-center gap-2 p-8 text-center">
+      <h1 className="text-3xl font-semibold text-red-600">403 — Forbidden</h1>
+      <p className="text-gray-600">
+        Your account does not have access to this area.
+      </p>
+    </div>
+  );
+}
+```
+
+Clear messaging. The user knows exactly what happened. Same UX as the Lambda's HTTP 403 — consistent semantics across UI and API.
+
+#### `ui/src/components/PersonaChooser.tsx` (for users in both groups)
+
+```tsx
+export function PersonaChooser(): JSX.Element {
+  const navigate = useNavigate();
+  const setActive = useUserStore((s) => s.setActivePersona);
+
+  const pick = (p: "admin" | "business") => {
+    setActive(p);
+    navigate(p === "admin" ? "/admin/dashboard" : "/business/inbox");
+  };
+
+  return (
+    <div className="flex min-h-screen items-center justify-center gap-6">
+      <button onClick={() => pick("admin")}>Admin / Operations</button>
+      <button onClick={() => pick("business")}>Business Review</button>
+    </div>
+  );
+}
+```
+
+Shown only when `personaForGroups(groups) === "both"`. Two big buttons. Pick one → store the active persona → navigate. Most users see this exactly never (they're in one group or the other).
+
+### Pattern 3 — Shared libs
+
+These four files are imported by every page. They centralize the cross-cutting concerns.
+
+#### `lib/auth.ts` (Cognito via Amplify v6)
+
+```tsx
+import { fetchAuthSession, getCurrentUser, signInWithRedirect, signOut } from "aws-amplify/auth";
+
+export type Persona = "admin" | "business" | "both" | "none";
+
+export async function getGroups(): Promise<string[]> {
+  try {
+    const session = await fetchAuthSession();
+    const claims = session.tokens?.idToken?.payload ?? {};
+    const groups = claims["cognito:groups"];
+    return Array.isArray(groups) ? (groups as string[]) : [];
+  } catch {
+    return [];
+  }
+}
+
+export async function getJwt(): Promise<string | null> {
+  const session = await fetchAuthSession();
+  return session.tokens?.idToken?.toString() ?? null;
+}
+
+export function personaForGroups(groups: string[]): Persona {
+  const admin = groups.includes("Admins") || groups.includes("Operations");
+  const business = groups.includes("Business");
+  if (admin && business) return "both";
+  if (admin) return "admin";
+  if (business) return "business";
+  return "none";
+}
+```
+
+Three responsibilities:
+
+- **`getGroups()`** — Cognito ID token → `cognito:groups` claim → string[]. Used by `App.tsx` at boot.
+- **`getJwt()`** — Cognito ID token as raw string. Used by `api.ts` to inject the `Authorization: Bearer` header.
+- **`personaForGroups()`** — pure function mapping groups to persona. Unit-tested (`auth.test.ts`).
+
+**`personaForGroups` is the persona truth table** — the same one as Lesson 4's `ALLOWED_GROUPS` per Lambda but written in TS for the UI side.
+
+#### `lib/api.ts` (fetch with JWT)
+
+```tsx
+import { getJwt } from "./auth";
+
+const BASE = import.meta.env.VITE_API_BASE_URL ?? "";
+
+async function request<T>(method: string, path: string, body?: unknown): Promise<T> {
+  const jwt = await getJwt();
+  const res = await fetch(`${BASE}${path}`, {
+    method,
+    headers: {
+      "Content-Type": "application/json",
+      ...(jwt ? { Authorization: `Bearer ${jwt}` } : {}),
+    },
+    body: body === undefined ? undefined : JSON.stringify(body),
+  });
+  if (!res.ok) {
+    throw new ApiError(res.status, await res.text());
+  }
+  return (await res.json()) as T;
+}
+
+export class ApiError extends Error { /* ... */ }
+
+export const api = {
+  get:   <T>(path: string)               => request<T>("GET",   path),
+  post:  <T>(path: string, body?: unknown) => request<T>("POST",  path, body),
+  put:   <T>(path: string, body?: unknown) => request<T>("PUT",   path, body),
+  patch: <T>(path: string, body?: unknown) => request<T>("PATCH", path, body),
+};
+```
+
+Three responsibilities:
+
+- **Inject the JWT.** Every API call automatically gets `Authorization: Bearer <jwt>`. This is what `API Gateway's Cognito JWT authorizer` reads at the other end (Lesson 4).
+- **Type-safe.** `request<T>` returns the parsed JSON cast to `T`. Pages do `api.get<{ jobs: Job[] }>("/v1/jobs")` and get full type inference downstream.
+- **Throw on error.** Non-2xx → `throw new ApiError(status, body)`. Pages catch this and surface the message. The 403 from `enforce_groups()` in Lesson 4 lands here as `e.status === 403`.
+
+The `BASE` URL comes from `import.meta.env.VITE_API_BASE_URL` — set at build time via Vite env vars. In CI, the CDK build step injects the API Gateway URL.
+
+#### `lib/store.ts` (Zustand stores)
+
+```tsx
+import { create } from "zustand";
+
+interface UserState {
+  groups: string[];
+  persona: Persona;
+  activePersona: "admin" | "business" | null;
+  setUser: (groups: string[], persona: Persona) => void;
+  setActivePersona: (p: "admin" | "business") => void;
+}
+
+export const useUserStore = create<UserState>((set) => ({
+  groups: [],
+  persona: "none",
+  activePersona: null,
+  setUser: (groups, persona) => set({
+    groups, persona,
+    activePersona: persona === "admin" ? "admin"
+                 : persona === "business" ? "business"
+                 : null,
+  }),
+  setActivePersona: (activePersona) => set({ activePersona }),
+}));
+
+interface OverrideDraft {
+  cellId: string | null;
+  value: string;
+  open: (cellId: string) => void;
+  close: () => void;
+  setValue: (v: string) => void;
+}
+
+export const useOverrideStore = create<OverrideDraft>((set) => ({
+  cellId: null,
+  value: "",
+  open: (cellId) => set({ cellId, value: "" }),
+  close: () => set({ cellId: null, value: "" }),
+  setValue: (value) => set({ value }),
+}));
+```
+
+Zustand is "Redux but tiny." Each `create<State>(...)` returns a hook (`useUserStore`). Inside a component:
+
+```tsx
+const groups = useUserStore((s) => s.groups);       // re-renders only when groups change
+const setUser = useUserStore((s) => s.setUser);     // stable reference
+```
+
+The repo has two stores:
+
+- **`useUserStore`** — auth state (set once at boot, read by every guard and persona chooser)
+- **`useOverrideStore`** — draft cell-override state (open modal → user edits value → save or close)
+
+No Redux Provider, no boilerplate, no actions/reducers. The selector pattern (`useUserStore((s) => s.groups)`) is the only thing to learn.
+
+#### `lib/usePolling.ts` (5s polling hook)
+
+```tsx
+import { useEffect } from "react";
+
+// Poll `fn` every `intervalMs` while `active` is true (Spec/09 §4 L1 — 5s
+// polling on Jobs/Agents while any job is in_progress).
+export function usePolling(fn: () => void, active: boolean, intervalMs = 5000): void {
+  useEffect(() => {
+    if (!active) return;
+    const id = setInterval(fn, intervalMs);
+    return () => clearInterval(id);
+  }, [fn, active, intervalMs]);
+}
+```
+
+Custom hook. Used by Jobs + JobDetail + Agents pages to refresh data while jobs are running. The `active` flag gates it — when no jobs are in progress, polling stops (no wasted API calls).
+
+### Pattern 4 — A typical admin page (`Jobs.tsx`)
+
+This is the CRUD pattern. Most admin pages look like this.
+
+```tsx
+export function Jobs(): JSX.Element {
+  const [jobs, setJobs] = useState<Job[]>([]);
+  const [error, setError] = useState("");
+
+  const load = useCallback(() => {
+    api.get<{ jobs: Job[] }>("/v1/jobs")
+       .then((r) => setJobs(r.jobs))
+       .catch((e) => setError(String(e)));
+  }, []);
+
+  useEffect(load, [load]);
+  const anyInProgress = jobs.some((j) => j.status === "in_progress");
+  usePolling(load, anyInProgress);
+
+  if (error) return <p className="text-red-600">{error}</p>;
+  if (jobs.length === 0) return <p className="text-slate-500">No jobs yet.</p>;
+  return (
+    <div>
+      <h2 className="mb-4 text-xl font-semibold">Jobs</h2>
+      <table className="w-full text-sm">
+        <thead className="bg-slate-100">
+          <tr><th>Job</th><th>Status</th></tr>
+        </thead>
+        <tbody>
+          {jobs.map((j) => (
+            <tr key={j.job_id} className="border-b">
+              <td>{j.job_id}</td>
+              <td>{j.status}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+```
+
+The shape:
+
+1. **State** — `useState` for the data and any error.
+2. **`load()`** — memoized fetcher; calls `api.get` (which injects JWT); on success → setState, on failure → setError.
+3. **`useEffect(load, [load])`** — load once on mount.
+4. **Polling** — only when `anyInProgress` is true. When all jobs finish, polling stops.
+5. **Render** — error state, empty state, then the table.
+
+Every admin page (Dashboard, Uploads, Jobs, JobDetail, Agents, Profiles, Audit, Costs) follows this shape. Slight variations:
+
+- `JobDetail` adds `useParams()` to read `:id` and calls `/v1/jobs/:id`
+- `Agents` adds a `<AgentToggle>` component per row that calls `PATCH /v1/agents/:name`
+- `Uploads` swaps the table for a file input + drag-drop zone
+
+Once you see the pattern, the eight admin pages are mostly cosmetic differences.
+
+### Pattern 5 — The complex business page (`RateSheetReview.tsx`)
+
+This is the most complex page in the repo: three-panel layout, four child components, drives the Lesson 4 approve/reject Lambdas.
+
+```tsx
+export function RateSheetReview(): JSX.Element {
+  const { union = "", period = "" } = useParams();
+  const [selected, setSelected] = useState<RateCell | null>(null);
+  const [state, setState] = useState("pending_review");
+  const cells: RateCell[] = [];
+  const reviewQueueEmpty = true;
+
+  return (
+    <div className="flex h-full flex-col">
+      <ApproveRejectBar
+        union={union}
+        period={period}
+        approvalState={state}
+        reviewQueueEmpty={reviewQueueEmpty}
+        onChanged={setState}
+      />
+      <div className="grid flex-1 grid-cols-3 gap-2 p-2">
+        <PdfViewer url="" />
+        <div className="overflow-auto border bg-white">
+          <RateCellTable cells={cells} onSelect={setSelected} />
+        </div>
+        <div className="border bg-white">
+          <ProvenancePanel cell={selected} />
+        </div>
+      </div>
+      <CellOverrideModal />
+    </div>
+  );
+}
+```
+
+The layout:
+
+```
+┌───────────────────────────────────────────────────────────────────┐
+│ ApproveRejectBar  [State: pending_review] [Approve] [Reject ...] │
+├──────────────┬─────────────────────────────┬──────────────────────┤
+│              │                             │                      │
+│  PdfViewer   │       RateCellTable         │   ProvenancePanel    │
+│              │  (click a cell → onSelect)  │ (selected cell info) │
+│              │                             │                      │
+└──────────────┴─────────────────────────────┴──────────────────────┘
+                                                  CellOverrideModal
+                                                  (opens when cell clicked)
+```
+
+Two pieces of local state:
+
+- **`selected`** — the cell the user clicked (drives ProvenancePanel)
+- **`state`** — current approval_state (drives ApproveRejectBar button enable/disable)
+
+The data — `cells: RateCell[]` and `reviewQueueEmpty` — would be loaded from the API in production. The skeleton has them as placeholders; the API integration is one `useEffect + api.get` away.
+
+#### `components/ApproveRejectBar.tsx` (the business action bar)
+
+```tsx
+export function ApproveRejectBar({
+  union, period, approvalState, reviewQueueEmpty, onChanged,
+}: {
+  union: string; period: string;
+  approvalState: string; reviewQueueEmpty: boolean;
+  onChanged: (state: string) => void;
+}): JSX.Element {
+  const [reason, setReason] = useState("");
+  const [busy, setBusy] = useState(false);
+  const base = `/v1/unions/${union}/rate-sheets/${period}`;
+
+  const approve = async () => {
+    setBusy(true);
+    try {
+      await api.post(`${base}/approve`, {
+        approval_state: approvalState,
+        review_queue_empty: reviewQueueEmpty,
+      });
+      onChanged("approved");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const reject = async () => {
+    if (!reason.trim()) return;
+    setBusy(true);
+    try {
+      await api.post(`${base}/reject`, { approval_state: approvalState, reason });
+      onChanged("rejected");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="flex items-center gap-3 border-b bg-white px-4 py-2">
+      <span>State: {approvalState}</span>
+      <button
+        disabled={!reviewQueueEmpty || busy}
+        onClick={approve}
+        title={reviewQueueEmpty ? "" : "Clear the review queue first"}
+      >Approve</button>
+
+      <input
+        placeholder="Rejection reason (required to reject)"
+        value={reason} onChange={(e) => setReason(e.target.value)}
+      />
+      <button disabled={!reason.trim() || busy} onClick={reject}>Reject</button>
+    </div>
+  );
+}
+```
+
+This is the **UI client for Lesson 4's approve/reject Lambdas**, line by line:
+
+1. **Approve button** — `disabled` until `reviewQueueEmpty === true`. Same constraint as the Lambda's `approve_transition()`. Server-side returns 422 if not empty; UI doesn't even let you click. Defense in depth.
+2. **Approve action** — POST to `/v1/unions/{union}/rate-sheets/{period}/approve` with `{ approval_state, review_queue_empty }`. **Exactly the body Lesson 4's `ratesheet-approve` Lambda expects.**
+3. **Reject button** — `disabled` until `reason.trim()` is non-empty. Same constraint as the Lambda's `reject_transition()`. Server returns 422 on empty reason; UI doesn't allow clicking.
+4. **Reject action** — POST to `/v1/unions/{union}/rate-sheets/{period}/reject` with `{ approval_state, reason }`. Lesson 4 Lambda's expected body.
+5. **`onChanged(...)`** — local callback that updates the parent's `state`. After a successful approve, the parent's State badge updates to "approved", the bar disables further actions.
+
+This component is the **end-to-end story made visible**: the UI button → JWT injected by `api.ts` → API Gateway Cognito authorizer → Lambda `authz.enforce_groups(["Business"])` → `approve_transition()` → Aurora UPDATE → EventBridge → response → UI updates.
+
+#### The other components (briefly)
+
+- **`PdfViewer`** — renders the source PDF (uses `react-pdf`). Takes a URL.
+- **`RateCellTable`** — shows the extracted RateCells; `onSelect(cell)` callback fires when a row is clicked.
+- **`ProvenancePanel`** — shows the selected cell's `source_doc` + `source_locator` + `confidence` (the canonical model fields from Lesson 1).
+- **`CellOverrideModal`** — reads `useOverrideStore`; opens when a cell is clicked for override; calls `api.post(/v1/cells/:id/override)`. The Lesson 4 cell-override Lambda is what it hits.
+
+All four are skeletons in the POC (the heavy lifting will come during UAT iteration). The contracts are wired; the visuals are clean placeholders.
+
+### How the UI maps back to the Lambdas
+
+This is the punchline. **Every button click in the UI maps to one Lambda you already understand:**
+
+| UI action | API call | Lambda (Lesson 4) |
+|---|---|---|
+| Admin clicks Publish on `/business/...` (release manager view) | `POST /v1/unions/:local/rate-sheets/:period/publish` | `ratesheet-publish` (the 409 gate) |
+| Business clicks Approve in `<ApproveRejectBar>` | `POST .../approve` | `ratesheet-approve` (Aurora write + EventBridge) |
+| Business clicks Reject (with reason) | `POST .../reject` | `ratesheet-reject` |
+| Business cancels their own approval | `POST .../unapprove` | `ratesheet-unapprove` (24h, original approver) |
+| Business clicks Override on a cell | `POST /v1/cells/:id/override` | `cell-override` |
+| Business comments on a cell | `POST /v1/cells/:id/comment` | `cell-comment` |
+| Admin toggles an agent in `/admin/agents` | `PATCH /v1/agents/:name` | `agent-toggle` (Admins-only) |
+| Admin retries a failed job | `POST /v1/jobs/:id/retry` | `job-retry` |
+| Admin polls jobs on `/admin/jobs` | `GET /v1/jobs` | `job-list` |
+| ... and so on for the other 11 endpoints | | |
+
+The UI is the rendered version of the API. There's no special UI logic that doesn't map to a Lambda. That's why the audit fixes worked: fix the Lambda, the UI just calls it and gets the right result.
+
+### What you should be able to answer after Lesson 7
+
+- *Where does the Cognito JWT come from?* — Amplify `fetchAuthSession()` in `lib/auth.ts`. Injected into every fetch by `lib/api.ts`.
+- *Why does the app show "Loading…" briefly on first paint?* — `App.tsx` runs `getGroups()` once on mount; the UI is hidden until persona is known. Prevents flashing unauthorized content.
+- *How does the UI know which sidebar to show?* — `routes.tsx` wraps `/admin/*` in `<AdminLayout>` and `/business/*` in `<BusinessLayout>`. The persona-based landing in `App.tsx` routes the user to the right tree.
+- *What stops a Business user from typing `/admin/jobs` into the URL bar?* — The `<RouteGuard groups={ADMIN}>` wrapping the `/admin` parent route. User's groups don't intersect `ADMIN` → renders `<Forbidden403>`. Lambda would also return 403 if they bypassed the UI.
+- *Why doesn't the Approve button work when the review queue isn't empty?* — `<ApproveRejectBar>` has `disabled={!reviewQueueEmpty || busy}`. Server-side, `ratesheet-approve` returns 422 with the same constraint. Belt and suspenders.
+- *Why are the polling pages (Jobs, Agents) cheap when nothing's happening?* — `usePolling(load, anyInProgress)` only starts the interval when at least one job is `in_progress`. When everything's idle, the hook is a no-op.
+- *How does the UI get deployed?* — `pnpm build` produces `ui/dist/`. CDK `UiStack.SpaDeployment` (Lesson 6 via app.py) uploads it to the private S3 bucket; CloudFront serves it with OAC.
+
+**Question to lock it in:** if a Business user clicks Approve and the rate sheet's review queue is not actually empty (server has stale UI data), what happens end-to-end?
+
+*Answer: UI button is enabled because the local `reviewQueueEmpty` boolean is stale. The fetch fires → `api.post(...)` injects JWT → API Gateway auth passes → `ratesheet-approve` Lambda runs `authz.enforce_groups(["Business"])` (passes) → `approve_transition(state, review_queue_empty=false)` → returns `(422, {"error": "review_queue_not_empty"})`. The Lambda's response is non-2xx, so `api.post` throws `ApiError(422, ...)`. The component's `try/finally` resets `busy`, and the catch (if added) surfaces the error. The Lambda's defense-in-depth saved us from a stale UI.*
+
+---
+
 Next lesson candidates (ask when ready):
-- The React UI (start with `routes.tsx` + `RouteGuard.tsx` + the two-shell layout split)
 - The tests (what's tested, how, and why some bugs slip past green tests — the audit story)
