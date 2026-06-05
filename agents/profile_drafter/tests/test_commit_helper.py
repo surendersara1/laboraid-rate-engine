@@ -54,14 +54,9 @@ def test_pr_body_has_reviewer_checklist() -> None:
 
 
 def test_extract_pr_url_pulls_github_link() -> None:
-    out = (
-        "Some preamble\n"
-        "https://github.com/Acme/laboraid-rate-engine/pull/42\n"
-        "trailing\n"
-    )
+    out = "Some preamble\n" "https://github.com/Acme/laboraid-rate-engine/pull/42\n" "trailing\n"
     assert (
-        commit_helper._extract_pr_url(out)
-        == "https://github.com/Acme/laboraid-rate-engine/pull/42"
+        commit_helper._extract_pr_url(out) == "https://github.com/Acme/laboraid-rate-engine/pull/42"
     )
 
 

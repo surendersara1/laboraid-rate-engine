@@ -15,14 +15,17 @@ if str(_AGENT_DIR) not in sys.path:
 
 from analyze import analyze_groundtruth  # noqa: E402
 
-
 # ---------------------------------------------------------------------------
 # Real-file test — kernel/data/sprinkler_fitters_704/ratesheet/2026.01.01.704 Rate Sheet.csv
 # ---------------------------------------------------------------------------
 
 REPO_ROOT = _AGENT_DIR.parent.parent
 REAL_RATESHEET = (
-    REPO_ROOT / "kernel" / "data" / "sprinkler_fitters_704" / "ratesheet"
+    REPO_ROOT
+    / "kernel"
+    / "data"
+    / "sprinkler_fitters_704"
+    / "ratesheet"
     / "2026.01.01.704 Rate Sheet.csv"
 )
 

@@ -115,7 +115,7 @@ def schema_check(candidate_yaml: str) -> dict[str, Any]:
                         if isinstance(val, int):
                             warnings.append(
                                 f"constants['{c_key}'] is int ({val}); reference "
-                                "profiles use a quoted string like \"704\""
+                                'profiles use a quoted string like "704"'
                             )
                         else:
                             errors.append(
@@ -135,9 +135,7 @@ def schema_check(candidate_yaml: str) -> dict[str, Any]:
     key_columns = data.get("key_columns")
     if key_columns is not None:
         if not isinstance(key_columns, list):
-            errors.append(
-                f"'key_columns' must be a list, got {type(key_columns).__name__}"
-            )
+            errors.append(f"'key_columns' must be a list, got {type(key_columns).__name__}")
         else:
             if [c for c in key_columns] != list(EXPECTED_KEY_COLUMNS):
                 errors.append(
@@ -177,9 +175,7 @@ def _check_columns(columns: list[Any], warnings: list[str]) -> list[str]:
                 f"echo), got {type(actual).__name__}: {actual!r}"
             )
         elif actual != expected:
-            errors.append(
-                f"columns[{idx}] must be {expected!r}, got {actual!r}"
-            )
+            errors.append(f"columns[{idx}] must be {expected!r}, got {actual!r}")
 
     # Remaining entries: dict {name, kind, optional multiplier_of+factor}.
     seen_names: set[str] = set()
@@ -227,8 +223,7 @@ def _check_columns(columns: list[Any], warnings: list[str]) -> list[str]:
                 )
             if not isinstance(factor, (int, float)):
                 errors.append(
-                    f"columns[{idx}] ({name!r}).factor must be numeric, "
-                    f"got {factor!r}"
+                    f"columns[{idx}] ({name!r}).factor must be numeric, " f"got {factor!r}"
                 )
 
     return errors

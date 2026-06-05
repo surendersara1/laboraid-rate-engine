@@ -11,7 +11,6 @@ if str(_AGENT_DIR) not in sys.path:
 
 from schema_check import schema_check  # noqa: E402
 
-
 # ---------------------------------------------------------------------------
 # Valid YAML — must pass.
 # ---------------------------------------------------------------------------

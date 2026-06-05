@@ -11,7 +11,6 @@ if str(_AGENT_DIR) not in sys.path:
 
 from codegen_check import codegen_check  # noqa: E402
 
-
 VALID_EXTRACTOR = '''\
 """extract_120 — minimal happy-path extractor stub."""
 from __future__ import annotations

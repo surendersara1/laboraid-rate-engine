@@ -78,9 +78,7 @@ def codegen_check(
     ]
     extract_fns = [fn for fn in fn_defs if fn.name.startswith("extract_")]
     if not extract_fns:
-        errors.append(
-            "no top-level function whose name starts with 'extract_' was found"
-        )
+        errors.append("no top-level function whose name starts with 'extract_' was found")
         return result
 
     if len(extract_fns) > 1:
@@ -126,9 +124,7 @@ def codegen_check(
 
 def _run_py_compile(source: str) -> tuple[bool, str]:
     """Compile the source via py_compile; return (ok, error_message)."""
-    with tempfile.NamedTemporaryFile(
-        mode="w", suffix=".py", delete=False, encoding="utf-8"
-    ) as tmp:
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".py", delete=False, encoding="utf-8") as tmp:
         tmp.write(source)
         tmp_path = Path(tmp.name)
     try:
@@ -166,8 +162,7 @@ def _check_signature(fn: ast.FunctionDef) -> list[str]:
     arg_name = positional[0].arg
     if arg_name != "union_dir":
         errors.append(
-            f"{fn.name}: the sole positional arg must be named 'union_dir', "
-            f"got {arg_name!r}"
+            f"{fn.name}: the sole positional arg must be named 'union_dir', " f"got {arg_name!r}"
         )
     return errors
 
@@ -194,9 +189,7 @@ def _function_returns_2tuple(fn: ast.FunctionDef) -> bool:
                 self.generic_visit(node)
                 self.depth -= 1
 
-        def visit_AsyncFunctionDef(
-            self, node: ast.AsyncFunctionDef
-        ) -> None:  # noqa: N802
+        def visit_AsyncFunctionDef(self, node: ast.AsyncFunctionDef) -> None:  # noqa: N802
             if self.depth == 0:
                 self.depth += 1
                 self.generic_visit(node)

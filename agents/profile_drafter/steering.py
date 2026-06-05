@@ -22,7 +22,6 @@ from strands.vended_plugins.steering import (  # type: ignore[import-not-found]
     SteeringHandler,
 )
 
-
 # Default accuracy threshold (percent). Orchestrator can override on the agent
 # via `agent.accuracy_threshold = <float>` before invocation.
 DEFAULT_ACCURACY_THRESHOLD: float = 70.0
@@ -31,9 +30,7 @@ DEFAULT_ACCURACY_THRESHOLD: float = 70.0
 class DrafterSteering(SteeringHandler):  # type: ignore[misc]
     """Block premature completion; force schema+codegen+accuracy discipline."""
 
-    async def steer_before_tool(
-        self, *, agent: Any, tool_use: ToolUse, **kwargs: Any
-    ) -> Any:
+    async def steer_before_tool(self, *, agent: Any, tool_use: ToolUse, **kwargs: Any) -> Any:
         if tool_use["name"] != "return_drafting_complete":
             return Proceed(reason="OK.")
 
@@ -52,9 +49,7 @@ class DrafterSteering(SteeringHandler):  # type: ignore[misc]
         if not last_validation.get("schema_pass", False):
             failures.append("schema_pass=False — fix the profile YAML structure")
         if not last_validation.get("codegen_pass", False):
-            failures.append(
-                "codegen_pass=False — fix the extractor Python (syntax / signature)"
-            )
+            failures.append("codegen_pass=False — fix the extractor Python (syntax / signature)")
         accuracy = float(last_validation.get("accuracy_pct", 0.0))
         if accuracy < threshold:
             failures.append(

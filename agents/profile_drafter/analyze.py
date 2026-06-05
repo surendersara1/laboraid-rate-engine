@@ -26,7 +26,6 @@ from typing import Any
 
 import yaml  # type: ignore[import-untyped]
 
-
 # Typical key-column names across the reference profiles.
 _KEY_COLUMN_NAMES: frozenset[str] = frozenset(
     {
@@ -80,9 +79,7 @@ def analyze_groundtruth(ratesheet_path: str) -> dict[str, Any]:
     elif suffix == ".xlsx":
         header, sample_rows = _read_xlsx(path)
     else:
-        raise ValueError(
-            f"unsupported ratesheet extension {suffix!r}; expected .csv or .xlsx"
-        )
+        raise ValueError(f"unsupported ratesheet extension {suffix!r}; expected .csv or .xlsx")
 
     canonical_lookup = _build_canonical_lookup()
 

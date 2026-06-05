@@ -91,9 +91,7 @@ def orchestrate(
     extractor_path.write_text(extractor_py, encoding="utf-8")
 
     iterations = 1
-    validation = validate_generated(
-        str(profile_path), str(extractor_path), cba_dir, ratesheet_path
-    )
+    validation = validate_generated(str(profile_path), str(extractor_path), cba_dir, ratesheet_path)
     action = iterate_or_finalize(
         union_key,
         iterations,
@@ -109,9 +107,7 @@ def orchestrate(
             break
 
         if action == "regenerate_profile":
-            profile_yaml = draft_profile_yaml(
-                union_key, analysis, cba_summary=cba_summary
-            )
+            profile_yaml = draft_profile_yaml(union_key, analysis, cba_summary=cba_summary)
             profile_path.write_text(profile_yaml, encoding="utf-8")
         else:  # regenerate_extractor
             extractor_py = draft_extractor_python(
@@ -157,17 +153,13 @@ def _find_rate_notice(cba_dir: str) -> str:
     p = Path(cba_dir) / "cba"
     if not p.exists():
         return ""
-    candidates = sorted(
-        pdf for pdf in p.rglob("*.pdf") if _looks_like_notice(pdf.name)
-    )
+    candidates = sorted(pdf for pdf in p.rglob("*.pdf") if _looks_like_notice(pdf.name))
     return str(candidates[-1]) if candidates else ""
 
 
 def _looks_like_notice(name: str) -> bool:
     n = name.lower()
-    return any(
-        kw in n for kw in ("rate notice", "wage notice", "wage rate notice", "wage sheet")
-    )
+    return any(kw in n for kw in ("rate notice", "wage notice", "wage rate notice", "wage sheet"))
 
 
 def _local(union_key: str) -> str:

@@ -38,7 +38,6 @@ from schema_check import schema_check
 from steering import DrafterSteering
 from validate import validate_generated as _validate_impl
 
-
 ENV = os.environ.get("ENV", "dev")
 INPUTS_BUCKET = os.environ.get("INPUTS_BUCKET", "")
 OUTPUTS_BUCKET = os.environ.get("OUTPUTS_BUCKET", "")

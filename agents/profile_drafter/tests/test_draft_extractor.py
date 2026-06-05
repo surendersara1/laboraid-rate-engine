@@ -45,9 +45,7 @@ def test_no_creds_raises_clear_error(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr("os.path.exists", lambda _p: False)
 
     with pytest.raises(RuntimeError, match="No LLM creds"):
-        draft_extractor.draft_extractor_python(
-            "sprinkler_fitters_120", "union: x\n", ""
-        )
+        draft_extractor.draft_extractor_python("sprinkler_fitters_120", "union: x\n", "")
 
 
 def test_anthropic_path_taken_when_api_key_set(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -60,17 +58,13 @@ def test_anthropic_path_taken_when_api_key_set(monkeypatch: pytest.MonkeyPatch) 
         return "def extract_120(union_dir):\n    return [], []\n"
 
     monkeypatch.setattr(draft_extractor, "_call_anthropic_direct", fake_direct)
-    out = draft_extractor.draft_extractor_python(
-        "sprinkler_fitters_120", "union: x\n", ""
-    )
+    out = draft_extractor.draft_extractor_python("sprinkler_fitters_120", "union: x\n", "")
     assert out.strip().startswith("def extract_120")
     assert "Local number: 120" in str(captured["user_text"])
     assert captured["pdf_bytes"] is None
 
 
-def test_pdf_attached_when_path_exists(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-) -> None:
+def test_pdf_attached_when_path_exists(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-fake")
     pdf = tmp_path / "notice.pdf"
     pdf.write_bytes(b"%PDF-1.4 fake")
@@ -82,7 +76,5 @@ def test_pdf_attached_when_path_exists(
         return "def extract_120(union_dir):\n    return [], []\n"
 
     monkeypatch.setattr(draft_extractor, "_call_anthropic_direct", fake_direct)
-    draft_extractor.draft_extractor_python(
-        "sprinkler_fitters_120", "union: x\n", str(pdf)
-    )
+    draft_extractor.draft_extractor_python("sprinkler_fitters_120", "union: x\n", str(pdf))
     assert captured["pdf_bytes"] == b"%PDF-1.4 fake"

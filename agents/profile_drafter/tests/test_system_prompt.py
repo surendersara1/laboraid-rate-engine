@@ -50,5 +50,13 @@ def test_dockerfile_uses_arm64_python_312() -> None:
 
 def test_pyproject_lists_required_dependencies() -> None:
     text = (_AGENT_DIR / "pyproject.toml").read_text(encoding="utf-8")
-    for dep in ("strands-agents", "bedrock-agentcore", "boto3", "anthropic", "openpyxl", "pyyaml", "jsii"):
+    for dep in (
+        "strands-agents",
+        "bedrock-agentcore",
+        "boto3",
+        "anthropic",
+        "openpyxl",
+        "pyyaml",
+        "jsii",
+    ):
         assert dep in text, f"pyproject.toml must declare {dep!r}"

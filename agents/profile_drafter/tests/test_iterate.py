@@ -52,17 +52,13 @@ def test_max_iterations_triggers_escalate() -> None:
 
 def test_custom_threshold_respected() -> None:
     # accuracy 75 with custom threshold 80 → still regenerate
-    out = iterate_or_finalize(
-        "u", 1, _vr(True, True, 75.0), accuracy_threshold=80.0
-    )
+    out = iterate_or_finalize("u", 1, _vr(True, True, 75.0), accuracy_threshold=80.0)
     assert out == "regenerate_extractor"
 
 
 def test_custom_max_iterations_respected() -> None:
     # With max_iterations=2, drafts_so_far=2 triggers escalate.
-    out = iterate_or_finalize(
-        "u", 2, _vr(True, True, 50.0), max_iterations=2
-    )
+    out = iterate_or_finalize("u", 2, _vr(True, True, 50.0), max_iterations=2)
     assert out == "escalate"
 
 

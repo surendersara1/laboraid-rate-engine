@@ -27,7 +27,6 @@ import draft_profile  # noqa: E402
 import orchestrate  # noqa: E402
 import validate  # noqa: E402
 
-
 CANNED_PROFILE = """\
 union: sprinkler_fitters_120
 constants:
@@ -50,9 +49,7 @@ columns:
 """
 
 CANNED_EXTRACTOR = (
-    "def extract_120(union_dir):\n"
-    "    rows, gaps = [], []\n"
-    "    return rows, gaps\n"
+    "def extract_120(union_dir):\n" "    rows, gaps = [], []\n" "    return rows, gaps\n"
 )
 
 
@@ -100,19 +97,23 @@ def test_orchestrate_finalizes_on_first_pass(
     (cba_dir / "cba" / "2026.01.01.120 Rate Notice.pdf").write_bytes(b"%PDF-1.4 fake")
 
     monkeypatch.setattr(
-        draft_profile, "draft_profile_yaml",
+        draft_profile,
+        "draft_profile_yaml",
         lambda *a, **kw: CANNED_PROFILE,
     )
     monkeypatch.setattr(
-        draft_extractor, "draft_extractor_python",
+        draft_extractor,
+        "draft_extractor_python",
         lambda *a, **kw: CANNED_EXTRACTOR,
     )
     monkeypatch.setattr(
-        orchestrate, "draft_profile_yaml",
+        orchestrate,
+        "draft_profile_yaml",
         lambda *a, **kw: CANNED_PROFILE,
     )
     monkeypatch.setattr(
-        orchestrate, "draft_extractor_python",
+        orchestrate,
+        "draft_extractor_python",
         lambda *a, **kw: CANNED_EXTRACTOR,
     )
 
@@ -149,16 +150,19 @@ def test_orchestrate_escalates_after_max_iterations(
     (cba_dir / "cba").mkdir(parents=True)
 
     monkeypatch.setattr(
-        orchestrate, "draft_profile_yaml",
+        orchestrate,
+        "draft_profile_yaml",
         lambda *a, **kw: CANNED_PROFILE,
     )
     monkeypatch.setattr(
-        orchestrate, "draft_extractor_python",
+        orchestrate,
+        "draft_extractor_python",
         lambda *a, **kw: CANNED_EXTRACTOR,
     )
 
     monkeypatch.setattr(
-        validate, "_run_evaluator",
+        validate,
+        "_run_evaluator",
         lambda *args, **kwargs: (
             "=== OVERALL CELL ACCURACY: 10/100 = 10.0%  (blanks 50, wrong 40) ===",
             "",

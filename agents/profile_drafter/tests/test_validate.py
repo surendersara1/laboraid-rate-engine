@@ -13,7 +13,6 @@ if str(_AGENT_DIR) not in sys.path:
 
 import validate  # noqa: E402
 
-
 VALID_PROFILE = """\
 union: sprinkler_fitters_120
 constants:
@@ -78,9 +77,7 @@ def test_infer_union_key_from_yaml() -> None:
 
 
 def test_infer_union_key_fallback_to_dirname() -> None:
-    assert validate._infer_union_key("", "/data/sprinkler_fitters_120") == (
-        "sprinkler_fitters_120"
-    )
+    assert validate._infer_union_key("", "/data/sprinkler_fitters_120") == ("sprinkler_fitters_120")
 
 
 def test_accuracy_regex_parses_evaluator_line() -> None:

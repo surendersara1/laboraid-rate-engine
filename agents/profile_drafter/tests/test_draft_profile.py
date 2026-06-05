@@ -13,7 +13,6 @@ if str(_AGENT_DIR) not in sys.path:
 
 import draft_profile  # noqa: E402
 
-
 # ---------------------------------------------------------------------------
 # Static source contract
 # ---------------------------------------------------------------------------
@@ -101,8 +100,6 @@ def test_bedrock_path_taken_when_only_aws_creds(monkeypatch: pytest.MonkeyPatch)
         return "union: bedrock\n"
 
     monkeypatch.setattr(draft_profile, "_call_bedrock", fake_bedrock)
-    out = draft_profile.draft_profile_yaml(
-        "sprinkler_fitters_120", {"columns": []}
-    )
+    out = draft_profile.draft_profile_yaml("sprinkler_fitters_120", {"columns": []})
     assert out.strip() == "union: bedrock"
     assert "user_text" in captured

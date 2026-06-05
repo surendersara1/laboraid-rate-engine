@@ -41,7 +41,6 @@ from typing import Any
 from codegen_check import codegen_check
 from schema_check import schema_check
 
-
 # Accuracy line printed by kernel.pipeline.evaluate.evaluate:
 #   "=== OVERALL CELL ACCURACY: 123/456 = 27.0%  (blanks 12, wrong 34) ==="
 _ACC_RE = re.compile(
@@ -138,9 +137,7 @@ def validate_generated(
         blank = int(match.group(4))
         out["mismatch_count"] = wrong + blank
     else:
-        errors.append(
-            "evaluator output did not contain a parseable accuracy line"
-        )
+        errors.append("evaluator output did not contain a parseable accuracy line")
 
     return out
 
@@ -176,9 +173,7 @@ def _run_evaluator(
         groundtruth_path=os.path.abspath(groundtruth_path),
     )
 
-    with tempfile.NamedTemporaryFile(
-        mode="w", suffix=".py", delete=False, encoding="utf-8"
-    ) as tmp:
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".py", delete=False, encoding="utf-8") as tmp:
         tmp.write(runner_src)
         runner_path = tmp.name
 
@@ -202,9 +197,7 @@ def _run_evaluator(
             )
         except subprocess.TimeoutExpired:
             return "", "evaluator subprocess timed out after 180s"
-        out = (proc.stdout or "") + (
-            f"\n--- STDERR ---\n{proc.stderr}" if proc.stderr else ""
-        )
+        out = (proc.stdout or "") + (f"\n--- STDERR ---\n{proc.stderr}" if proc.stderr else "")
         if proc.returncode != 0:
             return out, f"evaluator exited {proc.returncode}"
         return out, ""

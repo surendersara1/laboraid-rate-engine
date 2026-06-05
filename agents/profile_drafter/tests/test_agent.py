@@ -31,12 +31,8 @@ def test_agent_source_decorates_with_tool() -> None:
     src = (_AGENT_DIR / "agent.py").read_text(encoding="utf-8")
     # 5 @tool decorators at column 0, one per wrapper (filter out commentary
     # mentions like '# The Strands @tool functions...').
-    decorator_count = sum(
-        1 for ln in src.splitlines() if ln.strip().startswith("@tool")
-    )
-    assert decorator_count == 5, (
-        f"expected exactly 5 @tool decorators, got {decorator_count}"
-    )
+    decorator_count = sum(1 for ln in src.splitlines() if ln.strip().startswith("@tool"))
+    assert decorator_count == 5, f"expected exactly 5 @tool decorators, got {decorator_count}"
 
 
 def test_agent_source_registers_drafter_steering_plugin() -> None:
