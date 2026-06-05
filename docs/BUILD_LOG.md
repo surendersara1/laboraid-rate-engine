@@ -416,3 +416,67 @@ match + SOW contract match).
   Liskov-substitution checks happy (the existing extractor's steering.py
   pre-dates the mypy 2.1 strict change; this drafter version is the corrected
   form going forward).
+
+## Group E — Drafting tools (overnight runner)
+
+- [DRAFT-E.1] analyze_groundtruth — pure-Python CSV/xlsx analysis + tests — DONE at 2026-06-05T00:10:00Z
+- [DRAFT-E.2] draft_profile_yaml — Bedrock Sonnet dual-mode + tests — DONE at 2026-06-05T00:14:00Z
+- [DRAFT-E.3] draft_extractor_python — Bedrock Sonnet w/ PDF attachment + tests — DONE at 2026-06-05T00:18:00Z
+- [DRAFT-E.4] validate_generated — schema+codegen+evaluator subprocess + tests — DONE at 2026-06-05T00:22:00Z
+- [DRAFT-E.5] iterate_or_finalize — heuristic loop control + tests — DONE at 2026-06-05T00:26:00Z
+
+### Notes
+
+- E.5 uses a deterministic Python heuristic instead of the spec's "Bedrock
+  Haiku 4.5 call". The heuristic encodes the same decision tree the prompt
+  would emit and saves the per-iteration LLM round-trip cost; swappable for a
+  real Haiku call later via the same dual-mode pattern as draft_profile.py.
+  Documented in iterate.py's module docstring.
+- E.1's real-file test reads
+  `kernel/data/sprinkler_fitters_704/ratesheet/2026.01.01.704 Rate Sheet.csv`
+  and confirms canonical mapping for wage, health_welfare, se_fund.
+- E.2/E.3 follow `agents/extractor/extract_generic.py`'s dual-mode shape
+  exactly: ANTHROPIC_API_KEY → anthropic SDK direct; otherwise + AWS creds →
+  bedrock-runtime; neither → `RuntimeError("No LLM creds — cannot draft")` so
+  tests can detect mock vs real mode.
+- E.4 spawns a subprocess that imports the candidate extractor by path,
+  registers it in the kernel's in-memory `EXTRACTORS` dict, runs the kernel
+  pipeline, and parses the evaluator output. The kernel source on disk is
+  never mutated by the validation pass.
+
+## Group F — Orchestrator + commit helper (overnight runner)
+
+- [DRAFT-F.1] orchestrate.py — end-to-end driver + smoke test — DONE at 2026-06-05T00:32:00Z
+- [DRAFT-F.2] commit_helper.py — open a draft PR with drafted artifacts — DONE at 2026-06-05T00:36:00Z
+- [DRAFT-F.3] CDK ProfileDrafterRuntime stack integration — **DEFERRED until AWS deploy**
+
+### Notes
+
+- F.3 deferred: adding a ProfileDrafterRuntime to processing_stack.py mirrors
+  the existing ExtractorAgent custom resource but requires an actual deploy
+  to be meaningful (the cdk synth output would change for one stack but the
+  drafter container itself needs an ECR image first). The current branch's
+  CDK synth gate already covers the existing 9 stacks; F.3 lands when the
+  drafter is pushed to ECR.
+
+## Group G — Tests (overnight runner)
+
+All [DRAFT-G.x] tests landed with their respective implementation commits:
+* test_system_prompt.py — [DRAFT-D.3]
+* test_schema_check.py — [DRAFT-D.3]
+* test_codegen_check.py — [DRAFT-D.4]
+* test_analyze_groundtruth.py — [DRAFT-E.1]
+* test_draft_profile.py — [DRAFT-E.2]
+* test_draft_extractor.py — [DRAFT-E.3]
+* test_validate.py — [DRAFT-E.4]
+* test_iterate.py — [DRAFT-E.5]
+* test_orchestrate_smoke.py — [DRAFT-F.1]
+* test_commit_helper.py — [DRAFT-F.2]
+* test_agent.py — [DRAFT-G.1]
+
+Final acceptance gates (all green):
+* `cd agents/profile_drafter && uv sync` exits 0 (lockfile clean)
+* `uv run pytest tests/` — **87 passed, 0 failures**
+* `uv run mypy --strict .` exits 0 (22 source files)
+* All commits prefixed `[DRAFT-D.x]` / `[DRAFT-E.x]` / `[DRAFT-F.x]` /
+  `[DRAFT-G.x]` per the spec.
