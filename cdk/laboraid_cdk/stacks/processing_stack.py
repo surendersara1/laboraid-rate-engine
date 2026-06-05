@@ -16,7 +16,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from aws_cdk import CfnOutput, Duration, RemovalPolicy, Stack
+from aws_cdk import CfnOutput, Duration, Stack
 from aws_cdk import aws_dynamodb as ddb
 from aws_cdk import aws_ecr as ecr
 from aws_cdk import aws_iam as iam
@@ -51,7 +51,6 @@ class ProcessingStack(Stack):
     ) -> None:
         super().__init__(scope, construct_id, **kwargs)
         env = config.env
-        retain = RemovalPolicy.RETAIN if config.is_prod else RemovalPolicy.DESTROY
 
         bedrock_models = f"arn:aws:bedrock:{config.region}::foundation-model/anthropic.claude-*"
 
@@ -77,15 +76,16 @@ class ProcessingStack(Stack):
         )
 
         # --- ECR repo for the ExtractorAgent image (§5.1) ---------------------
-        self.extractor_repo = ecr.Repository(
+        # IMPORTED by name (not created here). scripts/deploy.sh creates the repo
+        # and pushes the :latest image BEFORE this stack deploys. This breaks the
+        # chicken-and-egg: the AgentCore runtime below references {repo}:latest at
+        # deploy time, so the image must already exist -- which is impossible if
+        # the same stack also creates the repo. (deploy.sh owns the repo's
+        # scan-on-push/encryption settings.)
+        self.extractor_repo = ecr.Repository.from_repository_name(
             self,
             "ExtractorRepo",
-            repository_name=name(env, "l5", "ecr", "agent-extractor"),
-            image_scan_on_push=True,
-            encryption=ecr.RepositoryEncryption.KMS,
-            encryption_key=master_key,
-            removal_policy=retain,
-            empty_on_delete=not config.is_prod,
+            name(env, "l5", "ecr", "agent-extractor"),
         )
 
         # --- ExtractorAgent execution role (§5.1, §7.2) -----------------------
