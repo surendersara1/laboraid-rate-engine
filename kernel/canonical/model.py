@@ -59,10 +59,20 @@ class RateCell:
 
 @dataclass
 class ClassificationRow:
-    """All canonical cells for one (zone, classification) row."""
+    """All canonical cells for one (zone, classification) row.
+
+    indenture_before / indenture_after hold the optional indenture-cohort dates
+    that locals like 281 and 821 carry as `Indentured Date is Before/After`
+    columns (blank for journeymen/foremen). emit_order, when set, lets the pivot
+    preserve the extractor's row order instead of sorting by zone/class_order
+    (needed when cohorts must stay grouped rather than ordered purely by pay).
+    """
     zone: str
     classification: str
     class_order: int
+    indenture_before: str = ""
+    indenture_after: str = ""
+    emit_order: int = 0
     cells: dict = field(default_factory=dict)  # canonical_field -> RateCell
 
     def add(self, cell: RateCell):

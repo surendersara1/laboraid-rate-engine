@@ -56,6 +56,10 @@ def resolve_row(profile, classrow):
                 out[col] = profile["start_date"]
             elif col == "End Date":
                 out[col] = profile["end_date"]
+            elif col == "Indentured Date is Before":
+                out[col] = classrow.indenture_before
+            elif col == "Indentured Date is After":
+                out[col] = classrow.indenture_after
             else:
                 out[col] = ""
             continue

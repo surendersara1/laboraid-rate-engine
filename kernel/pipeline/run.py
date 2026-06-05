@@ -23,13 +23,17 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 # union -> (groundtruth path [read-only header], output csv base name)
 TARGETS = {
+    "sprinkler_fitters_281": "2026.01.01.281 Rate Sheet",
     "sprinkler_fitters_483": "2026.01.01.483 Rate Sheet",
     "sprinkler_fitters_704": "2026.01.01.704 Rate Sheet",
+    "sprinkler_fitters_821": "2026.01.01.821 Rate Sheet",
     "pipe_fitters_537": "2026.03.01.537 Rate Sheet",
 }
 GT_EXT = {
+    "sprinkler_fitters_281": ".csv",
     "sprinkler_fitters_483": ".csv",
     "sprinkler_fitters_704": ".csv",
+    "sprinkler_fitters_821": ".csv",
     "pipe_fitters_537": ".xlsx",
 }
 

@@ -9,7 +9,12 @@ from __future__ import annotations
 import csv
 import os
 
-KEYS = ["Zone", "Package", "Start Date", "End Date"]
+# Row-identity key. Indenture-date columns are included so the two apprentice
+# cohorts that locals like 281/821 carry (same Zone/Package/dates, different
+# "Indentured Date is After") do not collide onto one key. Columns absent from a
+# union's sheet contribute "" and are harmless.
+KEYS = ["Zone", "Indentured Date is Before", "Indentured Date is After",
+        "Package", "Start Date", "End Date"]
 TOL = 0.01
 
 
@@ -100,7 +105,7 @@ def evaluate(gt_path, ai_path, verbose=True):
         out = []
         for k in KEYS:
             v = r.get(k, "")
-            out.append(_norm_date(v) if k in ("Start Date", "End Date") else norm(v))
+            out.append(_norm_date(v) if "Date" in k else norm(v))
         return tuple(out)
 
     gkey = {keyfn(r): r for r in gt}
