@@ -181,6 +181,30 @@ cd ../ui && corepack pnpm exec vitest run
 
 ---
 
+## Step 11 — Path C + ProfileDrafterAgent (1-2 hours) — NEW 2026-06-05
+
+The original POC shipped with one Strands agent (`ExtractorAgent`) and one extraction path (deterministic kernel only for the 5 known unions). On 2026-06-05 the system grew to **two agents and three extraction paths**. Read these to understand the additions — the underlying architecture from Steps 1-10 didn't change.
+
+**Path C — generic Claude extractor:**
+
+1. [`../agents/extractor/extract_generic.py`](../agents/extractor/extract_generic.py) — the new ~285-line module. Dual-mode (Bedrock production / Anthropic local dev), enforces never-fabricate rule, returns canonical `ClassificationRow` objects.
+2. [`../agents/extractor/agent.py`](../agents/extractor/agent.py) — see the new 7th `@tool` `extract_via_claude_only` and the updated `Agent(tools=[...])` list.
+3. [`../agents/extractor/system-prompt.md`](../agents/extractor/system-prompt.md) — the updated SOP showing Path A / B / C decision logic.
+4. [`../agents/extractor/tests/test_extract_generic.py`](../agents/extractor/tests/test_extract_generic.py) — 13 tests.
+
+**ProfileDrafterAgent — auto-author profile + extractor:**
+
+5. [`../agents/profile_drafter/`](../agents/profile_drafter/) — the entire new agent directory. Same shape as `agents/extractor/` (Dockerfile, pyproject, system-prompt, agent.py, steering, tests).
+6. [`../agents/profile_drafter/agent.py`](../agents/profile_drafter/agent.py) — 5 `@tool` functions: `analyze_groundtruth`, `draft_profile_yaml`, `draft_extractor_python`, `validate_generated`, `iterate_or_finalize`.
+7. [`../agents/profile_drafter/orchestrate.py`](../agents/profile_drafter/orchestrate.py) — end-to-end driver function (not a Strands @tool; the testable Python entry point).
+8. [`../agents/profile_drafter/commit_helper.py`](../agents/profile_drafter/commit_helper.py) — opens a draft PR via `gh` CLI per drafted union.
+9. [`Overnight_Delivery_Report.md`](Overnight_Delivery_Report.md) + [`Overnight_Audit_Report.md`](Overnight_Audit_Report.md) — what shipped + 31/31 self-audit verification.
+10. [`Learning_Lessons.md`](Learning_Lessons.md) **Lesson 8** — full Q&A walkthrough of why both pieces exist, how they compose, and what's still gated on credentials.
+
+**Question:** *the customer has 14 sprinkler unions with no kernel extractor today. Walk through what happens on the first PDF upload for one of those unions, then what happens after ProfileDrafterAgent runs on it.*
+
+---
+
 ## After you've finished
 
 You should be able to answer all of these:
@@ -191,5 +215,7 @@ You should be able to answer all of these:
 - Where is the approval workflow enforced — in the UI, in the API, in the database, or all three?
 - If a customer reports "my rate sheet got published without business approval" — which file would you open first to investigate?
 - What's in scope for the POC vs deferred to v1.1+? (See [`09_Technical_Implementation_Spec.md`](09_Technical_Implementation_Spec.md) §15.)
+- **What are the 3 extraction paths and when does each fire?**
+- **What does ProfileDrafterAgent do, and why is it a SEPARATE agent from ExtractorAgent (not just another `@tool` on Extractor)?**
 
 If yes to all — you understand the codebase. From here, [`BUILD_LOG.md`](BUILD_LOG.md) gives you the chronological story of how it was built, and [`AUDIT_REPORT.md`](AUDIT_REPORT.md) + [`AUDIT_VERIFICATION.md`](AUDIT_VERIFICATION.md) show you what was checked and confirmed before merge.

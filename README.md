@@ -2,13 +2,22 @@
 
 AWS POC that converts union Collective Bargaining Agreement (CBA) PDFs into
 structured rate sheets — with per-cell provenance, a deterministic extraction
-kernel wrapped by one Strands `ExtractorAgent` on Bedrock AgentCore Runtime, and a
-two-persona React review UI with a business approval gate.
+kernel wrapped by **two Strands agents** on Bedrock AgentCore Runtime
+(`ExtractorAgent` for runtime extraction, `ProfileDrafterAgent` for auto-authoring
+new union extractors), three extraction paths (deterministic / per-cell LLM
+fallback / full-sheet LLM), and a two-persona React review UI with a business
+approval gate.
 
-**Status:** POC build complete for Groups A–F + H (CDK infra, agent, Lambdas,
-two-persona SPA, orchestration, observability, CI, smoke). Kernel extractors for
-unions 281 + 821 (Group G) run through the kernel's own harness — see
-[`docs/BUILD_LOG.md`](docs/BUILD_LOG.md).
+**Status:**
+
+- POC build complete for Groups A–F + H (CDK infra, ExtractorAgent, Lambdas,
+  two-persona SPA, orchestration, observability, CI, smoke).
+- Kernel extractors for unions 281 + 821 (Group G) run through the kernel's
+  own harness — see [`docs/BUILD_LOG.md`](docs/BUILD_LOG.md).
+- **Path C** (generic Claude extractor for unmapped unions) + **ProfileDrafterAgent**
+  (auto-authors profile YAML + extractor for any new union) shipped overnight on
+  `feat/path-c-and-drafter` — 87 tests passing, self-audit 31/31 PASS.
+  See [`docs/Overnight_Delivery_Report.md`](docs/Overnight_Delivery_Report.md).
 
 ## Documentation
 

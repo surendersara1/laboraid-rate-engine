@@ -2873,5 +2873,163 @@ The UI is the rendered version of the API. There's no special UI logic that does
 
 ---
 
+---
+
+## Lesson 8 — Path C + ProfileDrafterAgent: the scaling answer
+
+### Q8.1 — Now scale this to 16 (or 1,000) unions
+
+> *"The customer has 16 sprinkler unions; we have extractors for 2. How do we get the other 14 working — and the next 100 after that — without writing 3–5 days of Python per union?"*
+
+### Answer
+
+Two pieces of work shipped overnight on `feat/path-c-and-drafter` answer this directly. They're complementary, not competitive.
+
+```
+                        BEFORE (POC delivery)             AFTER (this lesson)
+                        ─────────────────────             ───────────────────
+KNOWN UNION (704/483)   Path A only (99.6%/83%)           Path A only (unchanged)
+NEW UNION (120/183/...) Hand-code 3-5 days → Path A       Path C runtime (75-90%)
+                                                          → ProfileDrafter builds
+                                                            a Path A extractor in
+                                                            ~20 min → upgrades to
+                                                            Path A (95%+)
+```
+
+This lesson covers both new pieces. The architecture you already learned in Lessons 1-7 stays exactly the same — these are additions, not rewrites.
+
+### Part 1 — Path C (the runtime fallback)
+
+**Where it fits:** a 7th `@tool` on the existing `ExtractorAgent`. The agent's system prompt now picks one of three paths based on whether the union has a deterministic kernel extractor:
+
+```
+Path A: union in EXTRACTORS  → run_kernel_extractor    (deterministic, $0/run, 99%+)
+Path B: kernel reports gaps  → escalate_to_claude_multimodal (per-cell LLM fallback)
+Path C: no kernel extractor  → extract_via_claude_only (NEW, full-sheet LLM)
+```
+
+**The 7th tool** (`agents/extractor/agent.py`):
+
+```python
+@tool
+def extract_via_claude_only(union: str, union_dir: str) -> dict:
+    """Path C — generic LLM extractor for unions without a kernel extractor.
+
+    Sends the union's Rate Notice PDF + the column shape from the customer's
+    existing groundtruth ratesheet to Claude Sonnet 4.6 and returns canonical
+    ClassificationRow objects + gaps. Use this when union not in EXTRACTORS.
+    """
+    rows, gaps = extract_via_claude(union_dir, union)
+    return {"rows": [_serialize(r) for r in rows], "gaps": gaps, "gap_count": len(gaps)}
+```
+
+The work happens in [`agents/extractor/extract_generic.py`](../agents/extractor/extract_generic.py) (285 lines). Reads the customer's groundtruth CSV/xlsx for the column shape, sends the Rate Notice PDF as a Bedrock document attachment, parses Claude's JSON response back into canonical `ClassificationRow` objects — same data shape that the kernel produces, so `compute.py` / `pivot.py` / `evaluate.py` downstream work unchanged.
+
+**Dual-mode invocation** (same pattern as the existing `escalate_to_claude_multimodal`):
+
+- Production (AgentCore Runtime on AWS): `boto3.client("bedrock-runtime").invoke_model(...)`
+- Local dev (no AWS yet): direct Anthropic SDK with `ANTHROPIC_API_KEY` env var
+
+**Never-fabricate rule enforced in the system prompt:** Claude is explicitly told that any cell not visible in the PDF must be returned as `null` with a `source_locator` explaining why. The parser turns nulls into entries in the `gaps` list — same blanking semantics as the deterministic kernel.
+
+**Updated SOP** (`agents/extractor/system-prompt.md`) — the `Procedure (RFC-2119)` block now has step 2 with explicit Path A vs Path C decision logic, and step 3 says "skip `compute_derived_columns` on Path C unions because no Profile YAML exists yet" (since Path C asks Claude for fully-derived values directly).
+
+### Part 2 — ProfileDrafterAgent (the build-time accuracy upgrade)
+
+**Where it fits:** a brand-new **second** Strands agent at `agents/profile_drafter/`. Mirrors the directory shape of `agents/extractor/`. Runs at build time (not on every PDF upload) to author the artifacts that promote a Path-C union to Path A.
+
+**The story:**
+
+1. Customer adds a new union — say `sprinkler_fitters_120`
+2. First few rate notices for this union flow through Path C — Claude reads each PDF, ~80% accuracy
+3. Once the customer has been satisfied for a few periods, an operator triggers ProfileDrafterAgent on that union
+4. The drafter reads the customer's existing rate sheet + the latest Rate Notice + the CBA, then:
+   - Generates `kernel/profiles/sprinkler_fitters_120.yaml`
+   - Generates a `def extract_120(union_dir)` function in a new Python file
+   - Runs the kernel evaluator against the customer's groundtruth — iterates up to 3 times to meet the accuracy threshold (default 70%)
+   - Opens a draft PR with both files + the validation report
+5. Human reviews the PR. Merge → next time that union processes, Path A is used (faster, cheaper, deterministic, citable).
+
+**The 5 `@tool` functions** (`agents/profile_drafter/agent.py`):
+
+| Tool | Role | LLM call? |
+|---|---|---|
+| `analyze_groundtruth(ratesheet_path) -> dict` | Read the customer's existing CSV/xlsx — header, sample rows, column types, key columns. Match against `canonical/fields.yaml`. | No — pure Python |
+| `draft_profile_yaml(union, analysis, cba_summary) -> str` | Send analysis + reference `704.yaml` to Claude Sonnet, get YAML back. | Yes — Sonnet 4.6 |
+| `draft_extractor_python(union, profile, rate_notice_pdf) -> str` | Send profile + reference `extract_704` Python + Rate Notice as document attachment to Claude. Returns Python source. | Yes — Sonnet 4.6 |
+| `validate_generated(profile, extractor, union_dir, groundtruth) -> dict` | Run `schema_check` + `codegen_check` + `mypy --strict` + kernel evaluator. Return verdict. | No — pure orchestration |
+| `iterate_or_finalize(union, drafts, validation) -> action` | Decide: regenerate profile, regenerate extractor, finalize, or escalate to human. | No — deterministic heuristic (decision noted in `docs/BUILD_LOG.md`) |
+
+**The SteeringHandler** (`agents/profile_drafter/steering.py`) blocks the agent from declaring "done" until `validate_generated` reports `schema_pass + codegen_pass + accuracy >= threshold` — same defense-in-depth pattern as the ExtractorAgent's `ExtractorSteering` (Lesson 2 §steering).
+
+**Quality gates:**
+
+- 87 pytest cases passing (`uv run pytest agents/profile_drafter/tests/`)
+- `mypy --strict` clean across all 22 source files
+- `ruff` + `black` clean
+- Schema validator catches malformed YAML; codegen validator catches Python that doesn't define `extract_<local>(union_dir)`
+- All commits prefixed `[DRAFT-D.x]` / `[DRAFT-E.x]` / `[DRAFT-F.x]` / `[DRAFT-G.x]` for audit traceability
+
+**Cost estimate per drafted union:** ~165K tokens × 3 iterations = ~$0.50 of Bedrock spend. For 14 unmapped unions: ~$7 total. Compare to ~70 dev-days of hand-coding without the drafter.
+
+### Three-path architecture, end-to-end
+
+```mermaid
+flowchart LR
+    Union[New union upload]
+    HasExt{union in<br/>EXTRACTORS?}
+    PathA[Path A:<br/>kernel deterministic<br/>99%+ accuracy<br/>$0]
+    PathB[Path B:<br/>per-cell Bedrock<br/>fallback for kernel gaps]
+    PathC[Path C:<br/>full-sheet Claude<br/>75-90% accuracy<br/>~$0.06/run]
+    Drafter[ProfileDrafterAgent<br/>(build time, async)]
+    PR[Draft PR with<br/>profile.yaml +<br/>extract_*.py]
+    Human{Human<br/>review}
+    Merge[Merge → union<br/>moves to Path A]
+
+    Union --> HasExt
+    HasExt -->|yes| PathA
+    PathA -->|gaps reported| PathB
+    HasExt -->|no| PathC
+    PathC -.->|after N periods| Drafter
+    Drafter --> PR
+    PR --> Human
+    Human -->|approve| Merge
+    Merge --> PathA
+```
+
+### Self-audit + delivery report
+
+The overnight work landed with two artifacts that prove discipline (not just "trust me, it works"):
+
+- [`Overnight_Delivery_Report.md`](Overnight_Delivery_Report.md) — CTO-readable status: what shipped, accuracy numbers, what's still gated on customer credentials
+- [`Overnight_Audit_Report.md`](Overnight_Audit_Report.md) — 31 independent checks, ALL PASS, run via `E:\NBS_LaborAid\self_audit_drafter.py`
+
+The audit verifies file presence (15), source contracts (5), quality gates (5: uv sync / pytest / mypy / ruff / black), and hard-rule compliance (4: branch state, `[DRAFT-*]` commits, kernel untouched, no static creds). Same pattern as the original POC's `AUDIT_REPORT.md` + `AUDIT_VERIFICATION.md`.
+
+### What can be exercised today vs blocked
+
+| Capability | Local (no creds) | With Anthropic key | With AWS creds | Notes |
+|---|---|---|---|---|
+| Path A on 704 + 483 | ✅ runs now | ✅ | ✅ | Real numbers in `customer_run_report.md` |
+| Path C on 14 unmapped unions | ❌ | ✅ via Anthropic-direct | ✅ via Bedrock | Either credential type works |
+| ProfileDrafterAgent live run | ❌ | ✅ Anthropic-direct | ✅ Bedrock | Iterates against kernel evaluator |
+| AWS deploy | ❌ | ❌ | ✅ required | `cdk bootstrap` + `cdk deploy --all` |
+| Open auto-PR per drafted union | ❌ | ✅ | ✅ | Uses `gh` CLI |
+
+### What you should be able to answer after Lesson 8
+
+- *Why two agents instead of one?* ExtractorAgent runs on every PDF upload (runtime). ProfileDrafterAgent runs on-demand when a new union is being onboarded (build time). Different cadences, different cost profiles, different access patterns. Separating them avoids a 30-minute drafter run blocking a 10-second extraction.
+- *What's the new third extraction path?* Path C — full-sheet Claude extraction for unions that have no hand-coded kernel extractor. Sends the Rate Notice PDF + the customer's groundtruth column shape, gets back ClassificationRow objects. Same canonical data flow as the kernel; just done by Claude instead of Python.
+- *Why does ProfileDrafter open PRs instead of writing directly to the kernel?* Because the kernel is a `git subtree` from Bitbucket (hard rule #1) and because generated code should be reviewed before it lives in production. The drafter is a robot that does the boring 3-day extractor work, but a human still gets the final yes/no.
+- *What's the accuracy expectation per path?* Path A: 99.6% on 704, 83.2% on 483 (with 0 wrong — the gap is 74 never-fabricate blanks). Path C: 75-90% per union depending on PDF quality. Path A via drafter-generated extractor: target 95%+ after iteration.
+- *What's still deferred from the original 9-agent design?* 7 of 9 (ExtractorAgent + ProfileDrafterAgent now shipped). Remaining: Orchestrator, agent-Classifier, CBAMiner, agent-Validator, Citation, Concierge, ReviewAssist.
+
+**Question to lock it in:** if the customer adds a 17th sprinkler union tomorrow and you have no creds, what does the system do? Walk through Path C → drafter → Path A end-to-end.
+
+*Answer: with no creds, nothing — Path C needs an LLM. With credentials, the union's first PDF flows through Path C (Claude reads the Rate Notice, returns a rate sheet with provenance, ~80% accuracy). The Business UI surfaces the result with low-confidence cells in the review queue. After enough periods to establish what the union's Rate Notice format looks like, an operator triggers ProfileDrafterAgent on that union. The drafter authors a profile YAML + Python extractor, validates against the customer's groundtruth, opens a draft PR. A human reviews and merges. Next time that union processes, Path A is used — 99%+ accuracy, $0 per run, deterministic.*
+
+---
+
 Next lesson candidates (ask when ready):
 - The tests (what's tested, how, and why some bugs slip past green tests — the audit story)
+- AWS-side end-to-end smoke trace (after first deploy)

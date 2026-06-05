@@ -98,8 +98,10 @@ Two-persona UI under one React build:
 
 | Item | Detail |
 |---|---|
-| Agent count (POC) | **1** — `ExtractorAgent`. The other 8 agents from our 9-agent design are explicitly v1.1+ roadmap. |
-| Agent tools | 6 `@tool` functions wrapping kernel: `stage_inputs_from_s3`, `run_kernel_extractor`, `compute_derived_columns`, `pivot_to_ratesheet_csv`, `escalate_to_claude_multimodal`, `validate_total_package_checksum` |
+| Agent count (POC) | **2** — `ExtractorAgent` (runtime extraction) + `ProfileDrafterAgent` (build-time auto-authoring of profile YAML + Python extractor for new unions). 7 of 9 original-design agents remain v1.1+ roadmap. |
+| ExtractorAgent tools | **7** `@tool` functions: `stage_inputs_from_s3`, `run_kernel_extractor`, **`extract_via_claude_only`** (Path C, new), `compute_derived_columns`, `pivot_to_ratesheet_csv`, `escalate_to_claude_multimodal`, `validate_total_package_checksum` |
+| ProfileDrafterAgent tools | **5** `@tool` functions: `analyze_groundtruth`, `draft_profile_yaml`, `draft_extractor_python`, `validate_generated`, `iterate_or_finalize` |
+| Extraction paths | **3 paths**: A — deterministic kernel (Path A, 99.6%/100% Building on 704/483) · B — per-cell Bedrock fallback for kernel gaps · C — full-sheet Claude extractor for unions without a kernel extractor (NEW) |
 | Steering | `ExtractorSteering(SteeringHandler)` — blocks `return_extraction_complete` until checksum validates; forces Bedrock fallback when kernel reports unresolved gaps |
 | Models | Sonnet 4.6 (extraction) + Haiku 4.5 (classification); Bedrock PII Guardrail applied to all invocations |
 | Deployment | ECR container (ARM64 Python 3.12) + AgentCore Runtime CustomResource; observability via OpenTelemetry → CloudWatch |
@@ -162,7 +164,7 @@ Audit + verification artifacts: [`docs/AUDIT_REPORT.md`](AUDIT_REPORT.md) (initi
 
 Per signed SOW + Spec §15. None of these are blockers for POC sign-off:
 
-- 8 of 9 agents (Orchestrator, agent-Classifier, CBAMiner, agent-Validator, Citation, Concierge, ReviewAssist, ProfileDrafter)
+- 7 of 9 agents remain deferred (Orchestrator, agent-Classifier, CBAMiner, agent-Validator, Citation, Concierge, ReviewAssist) — **ProfileDrafterAgent moved from deferred → shipped** on `feat/path-c-and-drafter` (87 tests passing, self-audit 31/31 PASS — see [`Overnight_Delivery_Report.md`](Overnight_Delivery_Report.md))
 - AgentCore Memory, Gateway, Identity, Policy (Cedar), Registry, Evaluations (kept Runtime + Observability only)
 - Bedrock Knowledge Base + S3 Vectors (advanced RAG; SOW Page 7 exclusion ambiguity)
 - Year-over-year delta validation + Article-20 awareness
