@@ -12,7 +12,7 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from canonical.model import r2
+from canonical.model import rmul
 
 import yaml
 
@@ -76,7 +76,9 @@ def resolve_row(profile, classrow):
             continue
         base = out.get(col["multiplier_of"])
         if isinstance(base, (int, float)):
-            out[col["name"]] = r2(base * col["factor"])
+            # Decimal-multiply (NOT r2(base * factor)) so the .x5 boundary rounds
+            # correctly: 50.55 x 1.5 -> 75.83, not 75.82. See canonical.model.rmul.
+            out[col["name"]] = rmul(base, col["factor"])
         else:
             out[col["name"]] = None
     return out

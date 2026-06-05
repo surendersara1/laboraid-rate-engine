@@ -73,7 +73,10 @@ def cells_match(a, b):
     if a == b:
         return True
     try:
-        return (abs(float(a.rstrip("%")) - float(b.rstrip("%"))) <= TOL
+        # +1e-9 so an exact 1-cent difference counts as a match: in float,
+        # abs(74.12 - 74.11) == 0.010000000000005 which is > TOL without the
+        # epsilon, spuriously failing values that differ by exactly the tolerance.
+        return (abs(float(a.rstrip("%")) - float(b.rstrip("%"))) <= TOL + 1e-9
                 and a.endswith("%") == b.endswith("%"))
     except ValueError:
         return False

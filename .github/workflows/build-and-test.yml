@@ -63,7 +63,7 @@ jobs:
         run: pnpm build
 
   kernel:
-    name: Kernel evaluator (regression)
+    name: Kernel regression gate
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -73,13 +73,14 @@ jobs:
       - uses: astral-sh/setup-uv@v3
         with:
           enable-cache: true
-      - name: Sync kernel deps
-        run: uv sync
-      - name: Reproduce measured accuracy (704 / 483 / 537)
-        run: |
-          for u in sprinkler_fitters_704 sprinkler_fitters_483 pipe_fitters_537; do
-            uv run python pipeline/run.py --union "$u"
-          done
+      - name: Sync kernel deps (incl. dev)
+        run: uv sync --group dev
+      - name: Unit + regression tests (rounding, per-union accuracy gate)
+        run: uv run pytest -q
+      - name: Accuracy gate (fail if any union < 99% on sourced cells)
+        # Belt-and-suspenders with readable per-union accuracy logs; exits 1 on
+        # header mismatch or sourced accuracy below the threshold.
+        run: uv run python pipeline/run.py --all --min-accuracy 99.0
 
   # deploy:
   #   name: CDK deploy (manual / main only)

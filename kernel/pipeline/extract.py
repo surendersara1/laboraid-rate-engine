@@ -402,62 +402,54 @@ def extract_704(union_dir):
 def extract_537(union_dir):
     green = f"{union_dir}/cba/26.03.20 2025-2030 Green Book Clean Version.pdf"
     yellow = f"{union_dir}/cba/26.03.20 2025-2030 Yellow Book Clean Version.pdf"
-    GB, YB = os.path.basename(green), os.path.basename(yellow)
+    notice = f"{union_dir}/cba/2026.03.01.537 Rate Notice.pdf"
+    GB, YB, RN = (os.path.basename(green), os.path.basename(yellow),
+                  os.path.basename(notice))
     rows, gaps = [], []
 
-    # --- Wage: book base 69.08 (9/1/25-2/28/26, page 2) + 3/1/26 increment 2.50.
-    #     The increment schedule (page 1/2) states increases are "wages until,
-    #     and unless, allocated to the Funds"; the books carry no 3/1/26 fund
-    #     re-allocation, so the full increment is applied to wages.
-    BASE = 69.08
-    INC_3_1_26 = 2.50
-    jw = r2(BASE + INC_3_1_26)   # 71.58
+    # --- Wage + flat fringes come from the AUTHORITATIVE 2026.03.01 Rate Notice
+    #     ("Boston Area - 537 Wage Sheet", effective 3/1/26-8/31/26), not the
+    #     Green/Yellow books. The books' page-2 schedule predates the 3/1/26
+    #     increase, so deriving the wage from the book base (69.08 + 2.50 = 71.58)
+    #     disagrees with the real 3/1/26 sheet (Wages 70.58). The Notice states
+    #     the period's actual allocation; the books are used only for STRUCTURE
+    #     (foreman differential, Power & Gas multipliers, apprentice %). Verified
+    #     against the 2026.03.01 groundtruth.
+    jw = 70.58   # Rate Notice "Wages" 3/1/26-8/31/26
 
-    # --- Flat fringes from page-2/3 schedule; Article IV: "Fringes will remain
-    #     as shown throughout the entire Agreement ... unless changes are
-    #     mutually agreed to." No 3/1/26 change documented -> use page-2 figures.
     FRINGE = {
-        "pension":            (13.75, "page 2 LU 537 Pension"),
-        "health_welfare":     (13.45, "page 2 Health & Welfare"),
-        "annuity":            (9.30,  "page 2 Annuity"),
-        "industry_improvement": (0.25, "page 2 Industry Improvement"),
-        "education":          (2.17,  "page 2 Education"),
-        "labor_mgt_trust":    (2.20,  "page 2 Labor/Mgt. Trust Fund"),
-        "pension_national":   (0.30,  "page 2 UA National Pension"),
-        "union_dues_1":       (0.93,  "page 2 Dues Deduction"),
-        "organizing_fund":    (0.15,  "page 2 Organizing Fund"),
-        "cope":               (0.02,  "page 2 C.O.P.E."),
-        "public_relations":   (0.09,  "page 2 Public Relations"),
-        "ua_pac":             (0.05,  "page 2 UA PAC"),
+        "pension":            (14.00, "Rate Notice LU 537 Pension"),
+        "health_welfare":     (13.95, "Rate Notice Health & Welfare"),
+        "annuity":            (9.55,  "Rate Notice Annuity"),
+        "industry_improvement": (0.25, "Rate Notice Industry Improvement"),
+        "education":          (2.17,  "Rate Notice Education"),
+        "labor_mgt_trust":    (2.20,  "Rate Notice Labor/Mgt. Trust Fund"),
+        "pension_national":   (0.30,  "Rate Notice UA National Pension"),
+        "union_dues_1":       (0.93,  "Rate Notice Dues Deduction"),
+        "organizing_fund":    (0.15,  "Rate Notice Organizing Fund"),
+        "cope":               (0.02,  "Rate Notice C.O.P.E."),
+        "public_relations":   (0.09,  "Rate Notice Public Relations"),
+        "ua_pac":             (0.05,  "Rate Notice UA PAC"),
     }
     VAC = {"vacation_1": 0.0, "vacation_2": 1.0, "vacation_3": 2.0,
            "vacation_4": 3.0, "vacation_5": 4.0, "vacation_6": 5.0}
 
-    # The 3/1/26 fund re-allocation (split of the $2.50 increment between wages
-    # and funds) is NOT stated in the books; flag that book-derived wage/fringes
-    # reflect the page-2 schedule + full increment-to-wages reading.
-    gaps.append(("*", "*", "Wage / Pension Local / Health & Welfare / Annuity",
-                 "3/1/2026 re-allocation of the $2.50 package increment between "
-                 "wages and funds is not stated in the Green/Yellow books "
-                 "(page 2 shows only the 9/1/25 column; Art.IV: fringes flat). "
-                 "Emitted = book base 69.08 + 2.50 to wages, fringes per page 2."))
-
     def row_for(zone, pkg, wage, order, year1=False):
         row = ClassificationRow(zone, pkg, order)
 
-        def add(f, v, doc=GB, loc=""):
+        def add(f, v, doc=RN, loc=""):
             row.add(RateCell(zone, pkg, order, f, v, "$", doc, loc))
 
-        add("wage", wage, loc="page 2 Wages 69.08 + 3/1/26 increment 2.50")
+        add("wage", wage, loc="Rate Notice Wages 70.58 + book structure (foreman/P&G/appr)")
         th = r2(wage * 0.60)
-        add("temporary_heat", th, loc="page 2 Temporary Heat = 60% rate")
+        add("temporary_heat", th, loc="Rate Notice Temporary Heat = 60% rate")
         for f, (v, loc) in FRINGE.items():
             val = v
             if year1 and f in ("pension", "annuity"):
-                val = 0.0  # page-2 footnote: 1st year - UA National Pension only
+                val = 0.0  # Rate Notice footnote: 1st year - UA National Pension only
             add(f, val, loc=loc)
         for f, v in VAC.items():
-            add(f, v, loc="page 2 vacation: six options $0-$5")
+            add(f, v, doc=RN, loc="Rate Notice vacation: six options $0-$5")
         return row
 
     # --- Building zone
