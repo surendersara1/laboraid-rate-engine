@@ -394,3 +394,25 @@ above has the verified-ready runbook). It does not block the §4.1 / §4.2 gates
 match + SOW contract match).
 
 - [FIX-B5b] Correct CreateAgentRuntime API shape per AWS docs reference (`agentRuntimeArtifact.containerConfiguration` union + required `networkConfiguration`, `bedrock-agentcore-control` service, lifecycle keyed on `agentRuntimeId`, name normalised to `[a-zA-Z][a-zA-Z0-9_]{0,47}`, `iam:PassRole` scoped to the exec role) — DONE at 2026-06-03T00:00:00Z. Gates: cdk synth ✅ (9 stacks); ruff/black/mypy --strict ✅; cdk pytest ✅ (25, incl. 7 new test_strands_agent).
+
+## Group D — ProfileDrafterAgent foundation (overnight runner)
+
+- [DRAFT-D.1] ProfileDrafterAgent container scaffold + system prompt — DONE at 2026-06-04T23:55:00Z
+- [DRAFT-D.2] agent.py with 5 @tool stubs + DrafterSteering plugin — DONE at 2026-06-04T23:56:00Z
+- [DRAFT-D.3] schema_check + static SOP/Dockerfile/pyproject tests — DONE at 2026-06-04T23:57:00Z
+- [DRAFT-D.4] codegen_check + tests for candidate extractor Python — DONE at 2026-06-04T23:58:00Z
+
+### Notes
+
+- All Group-D code passes `uv run mypy --strict .` (12 source files clean) and
+  the 33 pytest cases (system_prompt 6 + schema_check 14 + codegen_check 13).
+- Agent.py imports the 5 tool modules; commits D.2's modules ship as `raise
+  NotImplementedError` stubs that real implementations replace in [DRAFT-E.x].
+- `pyproject.toml` adds `disable_error_code = ["unused-ignore"]` so the strict
+  pass doesn't trip on the inline `# type: ignore` boundary comments once the
+  Strands SDK is actually installed locally (the same comments are required
+  when the SDK is absent in the container build context).
+- Steering signature uses the real `strands.types.tools.ToolUse` type to keep
+  Liskov-substitution checks happy (the existing extractor's steering.py
+  pre-dates the mypy 2.1 strict change; this drafter version is the corrected
+  form going forward).
