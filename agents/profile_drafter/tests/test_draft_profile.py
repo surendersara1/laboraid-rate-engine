@@ -65,7 +65,7 @@ def test_no_creds_raises_clear_error(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.delenv("AWS_CONTAINER_CREDENTIALS_RELATIVE_URI", raising=False)
     monkeypatch.delenv("AWS_WEB_IDENTITY_TOKEN_FILE", raising=False)
     # Pretend no ~/.aws/credentials file exists so _has_aws_creds returns False.
-    monkeypatch.setattr(draft_profile.os.path, "exists", lambda _p: False)
+    monkeypatch.setattr("os.path.exists", lambda _p: False)
 
     with pytest.raises(RuntimeError, match="No LLM creds"):
         draft_profile.draft_profile_yaml("sprinkler_fitters_120", {"columns": []})
