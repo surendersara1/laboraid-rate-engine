@@ -17,7 +17,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import yaml
 
-from pipeline import extract, pivot, evaluate
+from pipeline import extract, pivot, evaluate, critic
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
@@ -64,7 +64,7 @@ def write_gaps(union_dir, union, gaps):
     return path
 
 
-def run_union(union, do_eval=True, min_accuracy=None):
+def run_union(union, do_eval=True, min_accuracy=None, do_critic=True):
     """Run the pipeline for one union. Returns the evaluate() result dict (or None
     when do_eval is False). When min_accuracy is set, the returned dict's `gate_ok`
     flag records whether header matched AND accuracy met the threshold."""
@@ -80,6 +80,12 @@ def run_union(union, do_eval=True, min_accuracy=None):
     print(f"\n########## {union} ##########")
     print(f"wrote {out_csv}  ({n} rows)")
     print(f"wrote {gaps_path}  ({len(gaps)} gap entries)")
+
+    if do_critic:
+        try:
+            critic.report(union_dir, union, out_csv)
+        except Exception as e:  # advisory only; never break the run
+            print(f"(coverage critic skipped: {e})")
 
     if not do_eval:
         return None
@@ -110,6 +116,8 @@ def main():
     ap.add_argument("--union", choices=list(TARGETS))
     ap.add_argument("--all", action="store_true")
     ap.add_argument("--no-eval", action="store_true")
+    ap.add_argument("--no-critic", action="store_true",
+                    help="skip the advisory completeness-coverage critic")
     ap.add_argument("--min-accuracy", type=float, default=None,
                     help="fail (exit 1) if any union's cell accuracy is below this "
                          "percent or its header does not match the groundtruth")
@@ -120,7 +128,8 @@ def main():
 
     failures = []
     for u in unions:
-        result = run_union(u, do_eval=not args.no_eval, min_accuracy=args.min_accuracy)
+        result = run_union(u, do_eval=not args.no_eval, min_accuracy=args.min_accuracy,
+                           do_critic=not args.no_critic)
         if args.min_accuracy is not None and result is not None and not result.get("gate_ok"):
             failures.append((u, result["accuracy"], result["header_ok"]))
 
