@@ -9,6 +9,8 @@
 
 The engine is a **6-stage pipeline** running on **AWS serverless infrastructure** with an **AI-native middle layer powered by Amazon Bedrock**. Inputs are PDFs (CBAs and Rate Notices); outputs are canonical JSON, rendered xlsx/CSV rate sheets, and a per-cell provenance manifest. Each stage is an independently scaling component with a strict input/output schema contract. The AI layer handles the messy parts that deterministic code can't: free-text rule extraction, scanned-image table parsing, semantic citation lookup, and confidence scoring.
 
+> **Status update (2026-06-05) — see [`STATUS.md`](STATUS.md).** The deterministic kernel that backs this pipeline now runs **all 5 POC unions** (537/704/821/483/281) through a CI accuracy gate (≥99% sourced). A **completeness-coverage critic** (`kernel/pipeline/critic.py`) was added as an advisory final stage — it scans the CBA for classifications/zones/funds missing from the output, catching the *missing-breadth* failure mode that value-accuracy can't. Indenture cohorts (281/821) and a Decimal-multiply rounding fix landed in the kernel.
+
 > **⭐ Updated agentic implementation in [doc 07](07_Strands_AgentCore_Agentic_Design.md):** The "AI middle layer" referenced in this doc is concretely implemented as **9 Strands Agents deployed on AWS Bedrock AgentCore Runtime**. Where this doc says "a Bedrock Agent does X", doc 07 names the specific Strands agent (e.g., `ExtractorAgent`, `CBAMinerAgent`), its tools, hooks, **steering** (the `SteeringHandler` pattern that gets Strands to 100% accuracy in their benchmark), and AgentCore service usage (Memory, Gateway, Identity, Policy, Evaluations, Registry). **Read doc 07 for the canonical agent architecture.**
 
 ---

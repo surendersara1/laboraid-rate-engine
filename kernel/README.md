@@ -49,10 +49,10 @@ uv sync        # create .venv and install pinned dependencies
 
 ## Quick start
 
-Run the whole prototype (all three unions) and print the evaluation:
+Run the whole prototype (all five unions) and print the evaluation + gate:
 
 ```bash
-uv run python pipeline/run.py --all
+uv run python pipeline/run.py --all --min-accuracy 99.0
 ```
 
 Run a single union:
@@ -70,9 +70,11 @@ uv run python pipeline/run.py --union sprinkler_fitters_704
 
 | Flag | Effect |
 |---|---|
-| `--union <name>` | Run one union. Valid: `sprinkler_fitters_483`, `sprinkler_fitters_704`, `pipe_fitters_537`. |
-| `--all` | Run every configured union. |
+| `--union <name>` | Run one union. Valid: `sprinkler_fitters_281`, `sprinkler_fitters_483`, `sprinkler_fitters_704`, `sprinkler_fitters_821`, `pipe_fitters_537`. |
+| `--all` | Run every configured union (all 5). |
 | `--no-eval` | Generate the ratesheet but skip the groundtruth comparison. |
+| `--no-critic` | Skip the advisory completeness-coverage critic (Stage 6). |
+| `--min-accuracy <pct>` | Gate: exit non-zero if any union's **sourced** accuracy (excl. flagged-gap blanks) is below `<pct>`, or its header doesn't match. CI runs `--all --min-accuracy 99.0`. |
 
 ### Outputs (written per union under `data/<union>/ai_output/`)
 
@@ -80,9 +82,11 @@ uv run python pipeline/run.py --union sprinkler_fitters_704
   groundtruth's exact header).
 - `<union>.gaps.md` — every blank/divergent cell with its row key, column, and
   reason.
+- `<union>.coverage.md` — the completeness critic's advisory list of CBA-mentioned
+  classifications/zones/funds not found in the output (unless `--no-critic`).
 
 Evaluation (header diff, per-column and per-zone accuracy, mismatch list) prints
-to the console unless `--no-eval` is passed.
+to the console unless `--no-eval` is passed; with `--min-accuracy` it also gates.
 
 ---
 
@@ -119,6 +123,7 @@ calls.
 | **`compute.py`** | Applies the profile's **derived-column rules** — e.g., `Wage 1.5x = Wage × 1.5`, P&G multipliers, apprentice scales — using `Decimal.ROUND_HALF_UP` via the kernel's `r2()` helper. | Called by the extractors after raw values are read, before returning rows |
 | **`pivot.py`** | Takes the tidy canonical rows + the profile's `output_schema` and writes a **wide CSV** matching the groundtruth's exact column order and names. | Called once per union: `pivot.write_csv(profile, rows, out_csv)` |
 | **`evaluate.py`** | Post-hoc comparison: header diff, key-based row alignment, per-cell accuracy (±$0.01), per-column + per-zone breakdown, mismatch list. **Never used at production runtime** — only for development against a groundtruth. | Called by `run.py` unless you pass `--no-eval` |
+| **critic.py** | Stage 6 — advisory completeness check. Scans the union's CBA/notice text for the *vocabulary* of a ratesheet (classifications, zones, fund names) and flags any missing from the output. Writes `<union>.coverage.md`. Never gates; catches *missing breadth* (the failure mode value-accuracy can't see). | Called by `run.py` unless you pass `--no-critic` |
 | **`__init__.py`** | Marks `pipeline/` as a Python package. | Implicit on every import |
 
 ### The data flow (one chart)
@@ -234,11 +239,13 @@ the kernel:
 - Interpolate or guess a value because "it's probably reasonable"
 - Copy a value from another union or another period
 
-That's why 537 sits at 67.4% rather than 100% — the 3/1/2026 fund reallocation
-isn't stated in the books the kernel has access to. A human SME could put a
-value there from external knowledge; the kernel refuses to, and surfaces the
-absence in the gaps report instead. The AWS-side **Business UI's review queue**
-is where humans see those gaps and fill them.
+When a value genuinely isn't in any provided document (e.g. 483's residential
+apprentice scale), the kernel blanks it and lists it in the gaps report rather
+than guessing — a human SME fills it from external knowledge via the AWS-side
+**Business UI review queue**. (537 used to sit at 67.4% under this rule because the
+wage was derived from the Green/Yellow books; it now reproduces at 100% by reading
+the period's authoritative Rate Notice instead — the right fix was a better source,
+not a fabricated value.)
 
 ---
 
@@ -261,11 +268,12 @@ profiles/
 pipeline/
   ingest.py    # locate + read source PDFs
   ocr.py       # self-contained OCR (rapidocr-onnxruntime + pypdfium2)
-  extract.py   # per-union extraction -> canonical rows (+ provenance)
-  compute.py   # deterministic derived columns (multipliers, splits, rounding)
-  pivot.py     # canonical rows -> union ratesheet CSV
-  evaluate.py  # compare output vs groundtruth (cell accuracy ±0.01)
-  run.py       # entrypoint (--union / --all / --no-eval)
+  extract.py   # per-union extraction -> canonical rows (+ provenance); 5 unions
+  compute.py   # deterministic derived columns (rmul Decimal multiply, splits)
+  pivot.py     # canonical rows -> union ratesheet CSV (order: preserve for cohorts)
+  evaluate.py  # compare output vs groundtruth (cell accuracy ±0.01, indenture-aware key)
+  critic.py    # Stage 6 advisory completeness/coverage critic
+  run.py       # entrypoint (--union / --all / --no-eval / --no-critic / --min-accuracy)
 
 extract/
   build_483.py    # original proven 483 extractor (reference)
@@ -288,25 +296,41 @@ DESIGN.md          # architecture
    `pipeline/extract.py` (`EXTRACTORS[<new_union>]`).
 4. Run `--union <new_union>` and iterate against the printed evaluation.
 
+If the local has **apprentice indenture cohorts** (281, 821) — the same
+classification repeated for different indenture dates — set the row's
+`indenture_before` / `indenture_after`, list the `Indentured Date is Before/After`
+columns in the profile, and add `order: preserve` so the cohorts stay grouped
+(see `profiles/sprinkler_fitters_281.yaml` and `extract_281`). Derived multiplier
+columns use `canonical.model.rmul` (Decimal multiply, half-up) — never
+`r2(base * factor)`, which rounds the `.x5` boundary the wrong way.
+
 ---
 
-## Current results (3-union prototype)
+## Current results (5-union coverage)
 
-| Union | Cell accuracy | Notes |
+Measured by `--all --min-accuracy 99.0` on **sourced** cells (intentional
+flagged-gap blanks excluded):
+
+| Union | Sourced accuracy | Notes |
 |---|---|---|
-| `sprinkler_fitters_704` | **99.6%** | Image-only notice recovered via OCR. |
-| `sprinkler_fitters_483` | Building **100%**, overall 83.2% | Residential apprentice scale + 1/1/26 reallocation absent from docs. |
-| `pipe_fitters_537` | 67.4% | Structure fully handled; the 3/1/26 fund reallocation is not stated in the books. |
+| `pipe_fitters_537` | **100%** (270/270) | Wage + fringes now sourced from the 2026.03.01 Rate Notice (was a wrong book derivation). |
+| `sprinkler_fitters_281` | **100%** (240/240) | Two apprentice indenture cohorts. |
+| `sprinkler_fitters_704` | **99.6%** (259/260) | Image-only notice via OCR; 1 documented doc-vs-GT divergence. |
+| `sprinkler_fitters_821` | **99.7%** (1068/1071) | 4 zones, 2 cohorts, Foreman variants, Production/Trainee/Residential. 3 diffs = a flagged GT anomaly (Industrial pre-2017 pension), not replicated. |
+| `sprinkler_fitters_483` | **100% on sourced cells** | 74 intentional blanks (residential scale absent from docs). |
 
-Sub-100% cells are **confirmed-absent source data** (listed in each `gaps.md`),
-not pipeline errors — every produced value is document-sourced and verified.
+Sub-100% cells are **confirmed-absent source data or documented GT divergences**
+(listed in each `gaps.md`), not pipeline errors — every produced value is
+document-sourced and verified. The earlier "537 = 67.4%" figure is obsolete: it
+came from deriving the wage from the Green/Yellow books; reading the Rate Notice
+(which states the period's actual allocation) makes 537 reproduce exactly.
 
 ### Known data limitations (need a document, not a code change)
-- **537** — the 3/1/2026 fund allocation isn't in the Green/Yellow books (they
-  defer increases to "wages until allocated"). Supply the 3/1/2026 allocation
-  notice to close it.
 - **483 residential** — the residential apprentice wage/fund schedule and the
-  1/1/2026 reallocation aren't in the provided docs.
+  1/1/2026 reallocation aren't in the provided docs (left blank, flagged).
+- **821** — only the Industrial pre-2017 apprentice cohort shows pension in years
+  1-3 in the groundtruth, contrary to the CBA and to the other zones; emitted
+  CBA-correct 0.00 and flagged as a GT anomaly rather than replicated.
 
 ---
 

@@ -7,6 +7,8 @@ Visual companion to [`Learning_Lessons.md`](Learning_Lessons.md). One master end
 > - **Browser SPA** ([`Architecture_Flow.html`](Architecture_Flow.html)) — open locally for the same diagrams with sticky nav + color-coded sections + sequence chart
 
 > **Updated 2026-06-05** — added §9 covering Path C (generic Claude extractor) + ProfileDrafterAgent. Lesson 8 in [`Learning_Lessons.md`](Learning_Lessons.md#lesson-8--path-c--profiledrafteragent-the-scaling-answer) is the prose walkthrough.
+>
+> **Also 2026-06-05 (kernel)** — all 5 POC unions now run through the kernel with a CI accuracy gate; 281 & 821 (indenture cohorts, 4 zones) wired; a **Stage 6 completeness-coverage critic** added; multiplier rounding (Decimal-multiply) and the 537 wage source fixed; agent model calls guarded + prompt-cached. Current state: [`STATUS.md`](STATUS.md); the prose walkthrough is "Lesson N" in [`Learning_Lessons.md`](Learning_Lessons.md).
 
 Sections: [§0 Master](#0--the-whole-system-in-one-diagram) · [§1 Canonical (L1)](#1--lesson-1-zoom-in-the-canonical-layer) · [§2 Strands Agent (L2)](#2--lesson-2-zoom-in-the-strands-agent-on-agentcore) · [§3 Step Functions (L3)](#3--lesson-3-zoom-in-the-step-functions-orchestration) · [§4 Approval Gate (L4)](#4--lesson-4-zoom-in-the-human-approval-gate) · [§5 CDK Foundation (L5)](#5--lesson-5-zoom-in-the-cdk-foundation) · [§6 Storage Stack (L6)](#6--lesson-6-zoom-in-the-storage-stack) · [§7 React UI (L7)](#7--lesson-7-zoom-in-the-react-ui) · [§8 Full Sequence](#8--the-full-wire-end-to-end-sequence-diagram) · [**§9 Path C + Drafter (L8 NEW)**](#9--lesson-8-zoom-in-path-c--profiledrafteragent) · [Cheat sheet](#per-lesson-mapping-cheat-sheet)
 

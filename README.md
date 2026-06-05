@@ -8,21 +8,30 @@ new union extractors), three extraction paths (deterministic / per-cell LLM
 fallback / full-sheet LLM), and a two-persona React review UI with a business
 approval gate.
 
-**Status:**
+**Status:** see [`docs/STATUS.md`](docs/STATUS.md) for the current state of the
+world (single source of truth).
 
+- **All 5 POC unions** (537, 704, 821, 483, 281) now run end-to-end through the one
+  kernel pipeline and pass a real regression gate (≥99% sourced accuracy). 281 &
+  821 are fully wired (indenture cohorts, 4 zones).
+- Pipeline **validated blind** against 4 customer rate sheets; correctness bugs
+  found there (multiplier rounding, 537 wage source, evaluator tolerance) are
+  fixed, plus a CI accuracy gate, kernel tests, agent hardening, and a
+  completeness-coverage critic. See [`docs/STATUS.md`](docs/STATUS.md).
 - POC build complete for Groups A–F + H (CDK infra, ExtractorAgent, Lambdas,
   two-persona SPA, orchestration, observability, CI, smoke).
-- Kernel extractors for unions 281 + 821 (Group G) run through the kernel's
-  own harness — see [`docs/BUILD_LOG.md`](docs/BUILD_LOG.md).
 - **Path C** (generic Claude extractor for unmapped unions) + **ProfileDrafterAgent**
-  (auto-authors profile YAML + extractor for any new union) shipped overnight on
+  (auto-authors profile YAML + extractor for any new union) on
   `feat/path-c-and-drafter` — 87 tests passing, self-audit 31/31 PASS.
   See [`docs/Overnight_Delivery_Report.md`](docs/Overnight_Delivery_Report.md).
+- **Before deploy:** `cd ui && pnpm build` (SPA bundle) + push the extractor ECR
+  image. Details in [`docs/STATUS.md`](docs/STATUS.md).
 
 ## Documentation
 
 | Audience / purpose | File |
 |---|---|
+| **Current state of the world** — coverage, accuracy, what changed, what's left | [`docs/STATUS.md`](docs/STATUS.md) |
 | **CTO / management** — layer-by-layer summary, SOW match, risks, cost | [`docs/CTO_SUMMARY.md`](docs/CTO_SUMMARY.md) |
 | **New developer** — clone-and-go setup | [`docs/ONBOARDING.md`](docs/ONBOARDING.md) |
 | **Architects** — system design + decisions | [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) |
@@ -98,11 +107,13 @@ bash tests/e2e/smoke-test.sh
 
 ## Measured accuracy (kernel regression guard)
 
-`kernel/pipeline/run.py --all` reproduces: **704 = 99.6%**, **483 = 100% on the
-Building zone (83.2% overall including 74 sourced blanks)**, **537 = 67.4%**
-(sub-100% are confirmed-absent source values, left blank per the never-fabricate
-rule — the 483 overall figure counts a 74-cell apprentice/maintenance block the
-kernel leaves blank). CI re-runs these on every PR.
+`kernel/pipeline/run.py --all --min-accuracy 99.0` reproduces, on **sourced** cells
+(intentional flagged-gap blanks excluded): **537 = 100%**, **281 = 100%**,
+**704 = 99.6%**, **821 = 99.7%**, **483 = 100%** (74 sourced blanks where the
+residential scale is absent from the docs — flagged, never fabricated). All five
+pass the ≥99% gate. CI runs `pytest` (13 kernel tests) + the gate on every PR.
+See [`docs/STATUS.md`](docs/STATUS.md) for the full table and the few remaining
+sub-cent diffs (all documented doc-vs-groundtruth divergences).
 
 ## Troubleshooting
 

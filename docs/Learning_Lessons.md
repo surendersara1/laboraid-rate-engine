@@ -3033,3 +3033,37 @@ The audit verifies file presence (15), source contracts (5), quality gates (5: u
 Next lesson candidates (ask when ready):
 - The tests (what's tested, how, and why some bugs slip past green tests — the audit story)
 - AWS-side end-to-end smoke trace (after first deploy)
+
+---
+
+---
+
+## Lesson N — Blind validation, the pre-deploy audit, and the fixes (2026-06-05)
+
+> *Captured after validating the pipeline against four real customer rate sheets and auditing the code before the first `cdk deploy`. Current-state summary lives in [`STATUS.md`](STATUS.md).*
+
+### What we did
+
+We ran the engine **blind** on four locals — produced each rate sheet from the source PDFs only, then revealed the customer's real Excel and scored it: **281** (built to 330/330), **417** (~97% within $0.01, 0 extraction errors — a test-only local), **821** (notice + deep CBA), **537** (notice + Green/Yellow books, 248/250 within $0.01). Then we audited the kernel + agents + CDK before deploying.
+
+### The five things that broke (and the lesson each taught)
+
+1. **Multiplier rounding was subtly wrong.** `compute.py` did `r2(base * factor)` — it multiplied in **float first**, so `50.55 * 1.5` became `75.82499999…` and rounded to `75.82`; the sheets carry `75.83`. Fix: `canonical.model.rmul()` multiplies in `Decimal` then rounds half-up. *Lesson: with money, do the multiply in Decimal, not just the final round.* The kicker — the evaluator's `±0.01` tolerance **hid** this, so green tests shipped a wrong cell.
+
+2. **537's wage was derived from the wrong document.** `extract_537` computed the journeyman wage from the Green/Yellow book base (`69.08 + 2.50 = 71.58`); the real sheet (and the Rate Notice) say **70.58**. The books predate the period's allocation. Fix: read the **Rate Notice** — the authoritative per-period source. *Lesson: prefer the period's notice over deriving from the agreement; a better source beats cleverer math.*
+
+3. **The evaluator's tolerance was float-fragile.** `abs(74.12 - 74.11)` is `0.01000…5 > 0.01` in float, so exact 1-cent diffs *failed* the ±0.01 check. Fix: compare with `+1e-9`. *Lesson: floating-point boundary comparisons need an epsilon.*
+
+4. **CI ran the pipeline but checked nothing.** It executed `run.py` and never asserted output == groundtruth; `evaluate.py` only printed. A regression would ship green. Fix: `run.py --min-accuracy` gates on **sourced** accuracy (excludes intentional flagged-gap blanks), plus real `kernel/tests/`. *Lesson: "the build is green" is meaningless unless the green asserts the number you care about.*
+
+5. **The hardest local (821) failed on breadth, not math.** Every value we produced was right, but the sheet was **incomplete** — the Rate Notice showed ~40%; the CBA hid a Trainee class, a Residential/Helper zone, a second indenture cohort, and Market-Recovery/UA-Organizing funds. *Lesson: value-accuracy can't see a missing row.* Fix: a **completeness-coverage critic** (`pipeline/critic.py`) that scans the CBA for the vocabulary of a ratesheet and flags anything absent from the output.
+
+### Two truths worth remembering
+
+- **Groundtruth is an imperfect oracle.** 821's Industrial pre-2017 apprentice cohort shows pension in years 1-3, contradicting the CBA ("no pension first 3 years") and the other zones. We emitted the **CBA-correct 0.00 and flagged it** rather than replicate a likely data-entry error into every future period. 704 has the same flavor (S&E .17 vs GT .20). When the document and the groundtruth disagree, trust the document and surface the divergence.
+
+- **Customers round inconsistently.** 537's Excel rounds `.x15` *down* (74.11); 281/417 round *up* (75.83). No single policy byte-matches all of them. We standardized on mathematically-correct **half-up** (and the ±0.01 tolerance absorbs the rest); a per-union "match-Excel-float" mode is available if byte-exact output is ever required.
+
+### What this produced
+
+All 5 POC unions now reproduce groundtruth at ≥99% sourced and pass a CI gate; the agent model calls are guarded + cached; and the critic guards against the missing-breadth failure mode. The engine's accuracy was never really the question — **document coverage and rounding discipline were**, and both now have guards. See [`STATUS.md`](STATUS.md).

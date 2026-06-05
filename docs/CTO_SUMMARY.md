@@ -5,6 +5,15 @@
 **Repository:** `github.com/surendersara1/laboraid-rate-engine` · Branch `feat/aws-strands-integration` (PR-ready)
 **Status as of audit:** **Build complete. All 8 audit blockers fixed. All quality gates green. Ready for PR, merge, and first deploy.**
 
+> **Update (2026-06-05) — see [`STATUS.md`](STATUS.md).** Since the build audit: the
+> kernel now covers **all 5 POC unions** at ≥99% sourced accuracy (537/281/483 at
+> 100%, 704 99.6%, 821 99.7%) through a CI regression gate, after a pre-deploy code
+> audit and a **blind validation against 4 customer rate sheets**. Fixed: a
+> multiplier rounding bug, the 537 wage source, evaluator tolerance; added kernel
+> tests, agent-call hardening (guards + prompt caching), and a completeness-coverage
+> critic. **Remaining before deploy:** build the UI bundle (`pnpm build`) and push
+> the extractor ECR image — both infra steps, no code blockers.
+
 ---
 
 ## 1. What the POC does
