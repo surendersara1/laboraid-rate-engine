@@ -62,6 +62,29 @@ def _load_profile(union: str) -> dict[str, Any]:
     return data
 
 
+def _cached_system(prompt: str) -> list[dict[str, Any]]:
+    """Wrap the static system prompt in a cache_control block for prompt caching."""
+    return [{"type": "text", "text": prompt, "cache_control": {"type": "ephemeral"}}]
+
+
+# Canonical fields that are EMPLOYER benefit contributions and therefore count
+# toward the printed "Total Package" (= wage + these). Driven by the canonical
+# field model (canonical/fields.yaml), not a hardcoded 5-prefix guess, so custom
+# fund columns (resa, annuity, education, labor_mgt_trust, hra, sub, se_fund, ...)
+# are no longer silently skipped. Member DEDUCTIONS (union dues, PAC, organizing,
+# COPE, market recovery, union protection, vacation withholding, credit union) are
+# excluded -- they are not part of the package total.
+_PACKAGE_FRINGE_FIELDS = frozenset({
+    "health_welfare", "health_welfare_metal", "resa", "pension", "pension_national",
+    "pension_metal", "annuity", "sis", "supplemental_pension",
+    "ua_international_training", "apprenticeship_training",
+    "industry_promotion_national", "industry_promotion_local",
+    "industry_promotion_local_use", "industry_improvement", "education",
+    "labor_mgt_trust", "hra", "ncfpcg", "sub", "se_fund", "craft_fund",
+    "retiree_holiday", "ip_fund",
+})
+
+
 def _serialize(row: ClassificationRow) -> dict[str, Any]:
     # ClassificationRow is a dataclass; fall back to __dict__ for the wire form.
     return getattr(row, "__dict__", {"value": row})
@@ -136,7 +159,11 @@ def escalate_to_claude_multimodal(
     s3_key: str, profile_aliases: dict[str, Any], missing_fields: list[str]
 ) -> dict[str, Any]:
     """Path C: ask Bedrock Claude Sonnet for ONLY the kernel's missing fields."""
-    pdf_bytes = s3.get_object(Bucket=INPUTS_BUCKET, Key=s3_key)["Body"].read()
+    try:
+        pdf_bytes = s3.get_object(Bucket=INPUTS_BUCKET, Key=s3_key)["Body"].read()
+    except Exception as e:
+        return {"fields": {}, "requested": missing_fields,
+                "error": f"could not read s3://{INPUTS_BUCKET}/{s3_key}: {e}"}
     prompt = (
         "Read ONLY the following fields from the attached Rate Notice and return "
         f"them as JSON. Do not guess; omit any you cannot read. Fields: {missing_fields}. "
@@ -145,7 +172,7 @@ def escalate_to_claude_multimodal(
     body: dict[str, Any] = {
         "anthropic_version": "bedrock-2023-05-31",
         "max_tokens": 4000,
-        "system": EXTRACTOR_SYSTEM_PROMPT,
+        "system": _cached_system(EXTRACTOR_SYSTEM_PROMPT),
         "messages": [
             {
                 "role": "user",
@@ -170,8 +197,12 @@ def escalate_to_claude_multimodal(
     if BEDROCK_GUARDRAIL_ID:
         kwargs["guardrailIdentifier"] = BEDROCK_GUARDRAIL_ID
         kwargs["guardrailVersion"] = "DRAFT"
-    response = bedrock.invoke_model(**kwargs)
-    payload = json.loads(response["body"].read())
+    try:
+        response = bedrock.invoke_model(**kwargs)
+        payload = json.loads(response["body"].read())
+    except Exception as e:  # Bedrock error/throttle or malformed body -> escalate as gap
+        return {"fields": {}, "requested": missing_fields,
+                "error": f"Bedrock invoke/parse failed: {e}"}
     return {"fields": payload, "requested": missing_fields}
 
 
@@ -182,11 +213,10 @@ def validate_total_package_checksum(union: str, rows: list[dict[str, Any]]) -> d
     if journeyman is None:
         return {"passed": None, "reason": "no Journeyman row found"}
     cells = journeyman.get("cells", {})
-    fringe_prefixes = ("health_welfare", "pension", "sis", "annuity", "industry")
     computed = cells.get("wage", {}).get("value", 0.0) + sum(
-        c["value"]
+        c.get("value", 0.0)
         for c in cells.values()
-        if str(c.get("canonical_field", "")).startswith(fringe_prefixes)
+        if str(c.get("canonical_field", "")) in _PACKAGE_FRINGE_FIELDS
     )
     expected = journeyman.get("notice_total")
     if expected is None:

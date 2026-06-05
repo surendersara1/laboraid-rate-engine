@@ -159,6 +159,11 @@ def _build_user_prompt(union: str, profile_yaml: str) -> str:
     )
 
 
+def _cached_system(prompt: str) -> list[dict[str, Any]]:
+    """Wrap the static system prompt in a cache_control block for prompt caching."""
+    return [{"type": "text", "text": prompt, "cache_control": {"type": "ephemeral"}}]
+
+
 def _call_bedrock(user_text: str, pdf_bytes: bytes | None) -> str:
     """Production path — Bedrock Runtime InvokeModel with optional PDF document."""
     import boto3  # type: ignore[import-untyped]
@@ -182,7 +187,7 @@ def _call_bedrock(user_text: str, pdf_bytes: bytes | None) -> str:
     body: dict[str, Any] = {
         "anthropic_version": "bedrock-2023-05-31",
         "max_tokens": 8000,
-        "system": _SYSTEM_PROMPT,
+        "system": _cached_system(_SYSTEM_PROMPT),
         "messages": [{"role": "user", "content": content}],
     }
     kwargs: dict[str, Any] = {"modelId": _MODEL_ID, "body": json.dumps(body)}
@@ -190,8 +195,11 @@ def _call_bedrock(user_text: str, pdf_bytes: bytes | None) -> str:
     if guardrail_id:
         kwargs["guardrailIdentifier"] = guardrail_id
         kwargs["guardrailVersion"] = "DRAFT"
-    response = client.invoke_model(**kwargs)
-    payload = json.loads(response["body"].read())
+    try:
+        response = client.invoke_model(**kwargs)
+        payload = json.loads(response["body"].read())
+    except Exception as e:
+        raise RuntimeError(f"Bedrock extractor-draft invoke/parse failed ({_MODEL_ID}): {e}") from e
     parts = payload.get("content", [{}])
     if parts and isinstance(parts, list):
         first = parts[0]
@@ -220,12 +228,15 @@ def _call_anthropic_direct(user_text: str, pdf_bytes: bytes | None) -> str:
         )
     content.append({"type": "text", "text": user_text})
 
-    response = client.messages.create(
-        model=_ANTHROPIC_MODEL,
-        max_tokens=8000,
-        system=_SYSTEM_PROMPT,
-        messages=[{"role": "user", "content": content}],  # type: ignore[typeddict-item]
-    )
+    try:
+        response = client.messages.create(
+            model=_ANTHROPIC_MODEL,
+            max_tokens=8000,
+            system=_cached_system(_SYSTEM_PROMPT),
+            messages=[{"role": "user", "content": content}],  # type: ignore[typeddict-item]
+        )
+    except Exception as e:
+        raise RuntimeError(f"Anthropic extractor-draft create failed ({_ANTHROPIC_MODEL}): {e}") from e
     if not response.content:
         return ""
     first = response.content[0]

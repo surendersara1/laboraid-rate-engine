@@ -35,6 +35,12 @@ from canonical.model import ClassificationRow, RateCell  # type: ignore[import-n
 _MODEL_ID = "us.anthropic.claude-sonnet-4-6"  # cross-region inference profile (verified via aws bedrock list-inference-profiles in us-east-2)
 _ANTHROPIC_MODEL = "claude-sonnet-4-6-20250930"  # direct Anthropic API name
 
+
+def _cached_system(prompt: str) -> list[dict[str, Any]]:
+    """Wrap the (large, static) system prompt in a cache_control block so repeated
+    extractions reuse the cached prefix (Bedrock + Anthropic both honour this)."""
+    return [{"type": "text", "text": prompt, "cache_control": {"type": "ephemeral"}}]
+
 _SYSTEM_PROMPT = """You are extracting a union construction trade ratesheet from a Rate Notice PDF.
 
 PRIME DIRECTIVE — NEVER FABRICATE:
@@ -218,7 +224,7 @@ def _call_bedrock(pdf_bytes: bytes, user_text: str) -> dict[str, Any]:
     body: dict[str, Any] = {
         "anthropic_version": "bedrock-2023-05-31",
         "max_tokens": 8000,
-        "system": _SYSTEM_PROMPT,
+        "system": _cached_system(_SYSTEM_PROMPT),
         "messages": [
             {
                 "role": "user",
@@ -241,8 +247,11 @@ def _call_bedrock(pdf_bytes: bytes, user_text: str) -> dict[str, Any]:
     if guardrail_id:
         kwargs["guardrailIdentifier"] = guardrail_id
         kwargs["guardrailVersion"] = "DRAFT"
-    response = client.invoke_model(**kwargs)
-    payload = json.loads(response["body"].read())
+    try:
+        response = client.invoke_model(**kwargs)
+        payload = json.loads(response["body"].read())
+    except Exception as e:  # Bedrock error, throttle, or malformed body
+        raise RuntimeError(f"Bedrock invoke/parse failed ({_MODEL_ID}): {e}") from e
     text = payload.get("content", [{}])[0].get("text", "")
     return _extract_json_object(text)
 
@@ -252,27 +261,30 @@ def _call_anthropic_direct(pdf_bytes: bytes, user_text: str) -> dict[str, Any]:
     import anthropic  # type: ignore[import-untyped]
 
     client = anthropic.Anthropic()  # picks up ANTHROPIC_API_KEY from env
-    response = client.messages.create(
-        model=_ANTHROPIC_MODEL,
-        max_tokens=8000,
-        system=_SYSTEM_PROMPT,
-        messages=[
-            {
-                "role": "user",
-                "content": [
-                    {
-                        "type": "document",
-                        "source": {
-                            "type": "base64",
-                            "media_type": "application/pdf",
-                            "data": base64.b64encode(pdf_bytes).decode(),
+    try:
+        response = client.messages.create(
+            model=_ANTHROPIC_MODEL,
+            max_tokens=8000,
+            system=_cached_system(_SYSTEM_PROMPT),
+            messages=[
+                {
+                    "role": "user",
+                    "content": [
+                        {
+                            "type": "document",
+                            "source": {
+                                "type": "base64",
+                                "media_type": "application/pdf",
+                                "data": base64.b64encode(pdf_bytes).decode(),
+                            },
                         },
-                    },
-                    {"type": "text", "text": user_text},
-                ],
-            }
-        ],
-    )
+                        {"type": "text", "text": user_text},
+                    ],
+                }
+            ],
+        )
+    except Exception as e:
+        raise RuntimeError(f"Anthropic messages.create failed ({_ANTHROPIC_MODEL}): {e}") from e
     text = response.content[0].text if response.content else ""
     return _extract_json_object(text)
 

@@ -142,6 +142,11 @@ def _build_user_prompt(
     return "\n".join(parts)
 
 
+def _cached_system(prompt: str) -> list[dict[str, Any]]:
+    """Wrap the static system prompt in a cache_control block for prompt caching."""
+    return [{"type": "text", "text": prompt, "cache_control": {"type": "ephemeral"}}]
+
+
 def _call_bedrock(user_text: str) -> str:
     """Production path — Bedrock Runtime InvokeModel (Sonnet 4.6)."""
     import boto3  # type: ignore[import-untyped]
@@ -150,7 +155,7 @@ def _call_bedrock(user_text: str) -> str:
     body: dict[str, Any] = {
         "anthropic_version": "bedrock-2023-05-31",
         "max_tokens": 4000,
-        "system": _SYSTEM_PROMPT,
+        "system": _cached_system(_SYSTEM_PROMPT),
         "messages": [
             {
                 "role": "user",
@@ -163,8 +168,11 @@ def _call_bedrock(user_text: str) -> str:
     if guardrail_id:
         kwargs["guardrailIdentifier"] = guardrail_id
         kwargs["guardrailVersion"] = "DRAFT"
-    response = client.invoke_model(**kwargs)
-    payload = json.loads(response["body"].read())
+    try:
+        response = client.invoke_model(**kwargs)
+        payload = json.loads(response["body"].read())
+    except Exception as e:
+        raise RuntimeError(f"Bedrock profile-draft invoke/parse failed ({_MODEL_ID}): {e}") from e
     content = payload.get("content", [{}])
     if content and isinstance(content, list):
         first = content[0]
@@ -178,17 +186,20 @@ def _call_anthropic_direct(user_text: str) -> str:
     import anthropic  # type: ignore[import-untyped]
 
     client = anthropic.Anthropic()
-    response = client.messages.create(
-        model=_ANTHROPIC_MODEL,
-        max_tokens=4000,
-        system=_SYSTEM_PROMPT,
-        messages=[
-            {
-                "role": "user",
-                "content": [{"type": "text", "text": user_text}],
-            }
-        ],
-    )
+    try:
+        response = client.messages.create(
+            model=_ANTHROPIC_MODEL,
+            max_tokens=4000,
+            system=_cached_system(_SYSTEM_PROMPT),
+            messages=[
+                {
+                    "role": "user",
+                    "content": [{"type": "text", "text": user_text}],
+                }
+            ],
+        )
+    except Exception as e:
+        raise RuntimeError(f"Anthropic profile-draft create failed ({_ANTHROPIC_MODEL}): {e}") from e
     if not response.content:
         return ""
     first = response.content[0]
