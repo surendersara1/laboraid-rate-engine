@@ -164,7 +164,7 @@ def escalate_to_claude_multimodal(
         ],
     }
     kwargs: dict[str, Any] = {
-        "modelId": "us.anthropic.claude-sonnet-4-6-v1:0",
+        "modelId": "us.anthropic.claude-sonnet-4-6",
         "body": json.dumps(body),
     }
     if BEDROCK_GUARDRAIL_ID:

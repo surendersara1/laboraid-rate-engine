@@ -19,7 +19,7 @@ import re
 from pathlib import Path
 from typing import Any
 
-_MODEL_ID = "us.anthropic.claude-sonnet-4-6-v1:0"
+_MODEL_ID = "us.anthropic.claude-sonnet-4-6"  # cross-region inference profile
 _ANTHROPIC_MODEL = "claude-sonnet-4-6-20250930"
 
 

@@ -32,7 +32,7 @@ from typing import Any
 from canonical.model import ClassificationRow, RateCell  # type: ignore[import-not-found]
 
 
-_MODEL_ID = "us.anthropic.claude-sonnet-4-6-v1:0"
+_MODEL_ID = "us.anthropic.claude-sonnet-4-6"  # cross-region inference profile (verified via aws bedrock list-inference-profiles in us-east-2)
 _ANTHROPIC_MODEL = "claude-sonnet-4-6-20250930"  # direct Anthropic API name
 
 _SYSTEM_PROMPT = """You are extracting a union construction trade ratesheet from a Rate Notice PDF.
