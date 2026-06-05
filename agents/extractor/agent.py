@@ -30,6 +30,7 @@ from pipeline import compute as k_compute  # type: ignore[import-not-found]
 from pipeline import extract as k_extract  # type: ignore[import-not-found]
 from pipeline import pivot as k_pivot  # type: ignore[import-not-found]
 
+from extract_generic import extract_via_claude  # Path C — generic LLM extractor
 from steering import ExtractorSteering
 
 ENV = os.environ.get("ENV", "dev")
@@ -88,6 +89,27 @@ def run_kernel_extractor(union: str, union_dir: str) -> dict[str, Any]:
     extractor_fn = k_extract.EXTRACTORS[union]
     rows, gaps = extractor_fn(union_dir)
     return {"rows": [_serialize(r) for r in rows], "gaps": gaps, "gap_count": len(gaps)}
+
+
+@tool
+def extract_via_claude_only(union: str, union_dir: str) -> dict[str, Any]:
+    """Path C — generic LLM extractor for unions without a kernel extractor.
+
+    Sends the union's Rate Notice PDF + the column shape from the customer's
+    existing groundtruth ratesheet to Claude Sonnet 4.6 and returns canonical
+    ClassificationRow objects + gaps. Use this when ``union not in k_extract.EXTRACTORS``.
+    Never use this for unions that DO have a deterministic kernel extractor —
+    Path A (run_kernel_extractor) is faster, cheaper, and more accurate.
+
+    Returns the same ``{rows, gaps, gap_count}`` shape as run_kernel_extractor
+    so the rest of the agent procedure (compute → checksum → pivot) is unchanged.
+    """
+    rows, gaps = extract_via_claude(union_dir, union)
+    return {
+        "rows": [_serialize(r) for r in rows],
+        "gaps": gaps,
+        "gap_count": len(gaps),
+    }
 
 
 @tool
@@ -185,6 +207,7 @@ def build_agent() -> Agent:
         tools=[
             stage_inputs_from_s3,
             run_kernel_extractor,
+            extract_via_claude_only,
             compute_derived_columns,
             pivot_to_ratesheet_csv,
             escalate_to_claude_multimodal,
