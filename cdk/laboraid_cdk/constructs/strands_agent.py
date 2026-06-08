@@ -123,10 +123,10 @@ class StrandsAgentRuntime(Construct):
                     iam.PolicyStatement(
                         effect=iam.Effect.ALLOW,
                         actions=[
-                            "bedrock-agentcore-control:CreateAgentRuntime",
-                            "bedrock-agentcore-control:UpdateAgentRuntime",
-                            "bedrock-agentcore-control:DeleteAgentRuntime",
-                            "bedrock-agentcore-control:GetAgentRuntime",
+                            "bedrock-agentcore:CreateAgentRuntime",
+                            "bedrock-agentcore:UpdateAgentRuntime",
+                            "bedrock-agentcore:DeleteAgentRuntime",
+                            "bedrock-agentcore:GetAgentRuntime",
                         ],
                         resources=["*"],
                     ),
