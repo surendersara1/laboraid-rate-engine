@@ -62,6 +62,7 @@ export function AppRoutes(): JSX.Element {
         <Route index element={<Navigate to="inbox" replace />} />
         <Route path="inbox" element={<Inbox />} />
         <Route path="rate-sheets/:union/:period" element={<RateSheetReview />} />
+        <Route path="by-union" element={<ByUnion />} />
         <Route path="by-union/:union" element={<ByUnion />} />
         <Route path="approved" element={<Approved />} />
         <Route path="rejected" element={<Rejected />} />

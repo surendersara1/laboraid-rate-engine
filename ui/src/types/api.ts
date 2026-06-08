@@ -26,6 +26,9 @@ export interface RateSheetSummary {
   approval_state: ApprovalState;
   gap_count?: number;
   confidence?: number;
+  trade?: string;
+  local?: number;
+  id?: string;
 }
 
 export interface RateCell {
