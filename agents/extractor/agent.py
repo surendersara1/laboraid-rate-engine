@@ -234,22 +234,27 @@ def kernel_extract_to_csv_s3(
     print(f"[fat-tool] s3 list returned {len(keys)} keys under {s3_prefix!r}", flush=True)
     for key in keys:
         s3.download_file(INPUTS_BUCKET, key, f"{union_dir}/cba/{os.path.basename(key)}")
-    # 2. extract — native Python ClassificationRow + RateCell objects
+    # 2. extract — native Python ClassificationRow + RateCell objects.
+    # Do NOT call k_compute.resolve_row here: it returns a {label -> value} dict
+    # and write_csv expects ClassificationRow objects (it calls resolve_row
+    # internally per-row when serializing). Caught by smoke test 2026-06-08:
+    # AttributeError: 'dict' object has no attribute 'zone' at pivot.py:41.
     extractor_fn = k_extract.EXTRACTORS[union]
     rows, gaps = extractor_fn(union_dir)
     extracted_n = len(rows)
-    # 3. compute derived columns in-process (no JSON round-trip)
-    rows = [k_compute.resolve_row(profile, r) for r in rows]
-    # 4. checksum the Journeyman row (returns None if notice didn't print Total Package)
+    # 3. checksum the Journeyman row (rows are ClassificationRow w/ RateCell cells)
     journeyman = next((r for r in rows if getattr(r, "classification", "") == "Journeyman"), None)
     checksum: dict[str, Any] | None = None
     if journeyman is not None:
         cells = getattr(journeyman, "cells", {}) or {}
-        computed = (cells.get("wage", type("X", (), {"value": 0.0})()).value if hasattr(cells.get("wage", None), "value") else 0.0) + sum(
+        wage_cell = cells.get("wage")
+        wage_value = getattr(wage_cell, "value", 0.0) if wage_cell is not None else 0.0
+        fringes = sum(
             getattr(c, "value", 0.0)
             for c in cells.values()
             if str(getattr(c, "canonical_field", "")) in _PACKAGE_FRINGE_FIELDS
         )
+        computed = wage_value + fringes
         expected = getattr(journeyman, "notice_total", None)
         if expected is not None:
             checksum = {
@@ -258,9 +263,11 @@ def kernel_extract_to_csv_s3(
                 "expected": expected,
                 "diff": r2(computed - expected),
             }
-    # 5. pivot to CSV + upload to S3
+    # 4. pivot to CSV — write_csv applies the derived-column rules per-row, so
+    # we hand it the raw ClassificationRow objects from the extractor.
     local_csv = f"{SCRATCH}/{union}/output.csv"
     n_rows = k_pivot.write_csv(profile, rows, local_csv)
+    # 5. upload to S3
     s3.upload_file(local_csv, OUTPUTS_BUCKET, out_s3_key)
     return {
         "s3_key": out_s3_key,
