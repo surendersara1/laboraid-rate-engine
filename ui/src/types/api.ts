@@ -26,6 +26,10 @@ export interface JobTimelineStep {
   status: "ok" | "failed" | "running";
   error?: string;
   cause?: string;
+  input?: string;
+  output?: string;
+  resource?: string;
+  log_group?: string;
 }
 
 export interface JobArtifact {

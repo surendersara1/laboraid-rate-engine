@@ -10,7 +10,7 @@ import {
   YAxis,
 } from "recharts";
 import { api } from "../lib/api";
-import type { JobDetail as JobDetailT } from "../types/api";
+import type { JobDetail as JobDetailT, JobTimelineStep } from "../types/api";
 
 const STATUS_PILL: Record<string, string> = {
   SUCCEEDED: "bg-emerald-100 text-emerald-800 ring-emerald-200",
@@ -147,36 +147,11 @@ export function JobDetail(): JSX.Element {
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         <div className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
           <h3 className="mb-4 text-sm font-semibold uppercase tracking-wide text-slate-500">
-            Pipeline timeline
+            Pipeline timeline · click a step for details
           </h3>
-          <ol className="space-y-3">
+          <ol className="space-y-1">
             {job.timeline.map((step, i) => (
-              <li key={step.name} className="flex gap-3">
-                <div className="flex flex-col items-center">
-                  <div
-                    className={`mt-1 h-3 w-3 rounded-full ${
-                      STEP_DOT[step.status] ?? "bg-slate-300"
-                    }`}
-                  />
-                  {i < job.timeline.length - 1 && (
-                    <div className="my-1 w-px flex-1 bg-slate-200" />
-                  )}
-                </div>
-                <div className="flex-1 pb-3">
-                  <div className="flex items-center justify-between">
-                    <span className="font-medium text-slate-900">{step.name}</span>
-                    <span className="font-mono text-xs tabular-nums text-slate-500">
-                      {fmtDuration(step.duration_ms)}
-                    </span>
-                  </div>
-                  {step.error && (
-                    <p className="mt-1 text-xs text-rose-600">
-                      <span className="font-semibold">{step.error}</span>
-                      {step.cause ? ` · ${step.cause}` : ""}
-                    </p>
-                  )}
-                </div>
-              </li>
+              <StepRow key={step.name} step={step} isLast={i === job.timeline.length - 1} />
             ))}
           </ol>
         </div>
@@ -294,4 +269,137 @@ export function JobDetail(): JSX.Element {
       )}
     </div>
   );
+}
+
+/** Single timeline step — click the header to expand input/output + logs link. */
+function StepRow({ step, isLast }: { step: JobTimelineStep; isLast: boolean }): JSX.Element {
+  const [open, setOpen] = useState(false);
+  const cwUrl = step.log_group
+    ? `https://us-east-2.console.aws.amazon.com/cloudwatch/home?region=us-east-2#logsV2:log-groups/log-group/${encodeURIComponent(
+        step.log_group,
+      )}`
+    : undefined;
+
+  return (
+    <li className="flex gap-3">
+      <div className="flex flex-col items-center">
+        <div
+          className={`mt-2 h-3 w-3 rounded-full ${
+            STEP_DOT[step.status] ?? "bg-slate-300"
+          }`}
+        />
+        {!isLast && <div className="my-1 w-px flex-1 bg-slate-200" />}
+      </div>
+      <div className="flex-1 pb-2">
+        <button
+          type="button"
+          onClick={() => setOpen((o) => !o)}
+          className="flex w-full items-center justify-between rounded px-1 py-1 text-left hover:bg-slate-50"
+        >
+          <span className="flex items-center gap-2">
+            <span
+              className={`text-slate-400 transition-transform ${
+                open ? "rotate-90" : ""
+              }`}
+            >
+              ▸
+            </span>
+            <span className="font-medium text-slate-900">{step.name}</span>
+            {step.error && (
+              <span className="rounded bg-rose-100 px-1.5 py-0.5 text-xs text-rose-700">
+                {step.error}
+              </span>
+            )}
+          </span>
+          <span className="font-mono text-xs tabular-nums text-slate-500">
+            {fmtDuration(step.duration_ms)}
+          </span>
+        </button>
+        {open && (
+          <div className="ml-5 mt-2 space-y-3 rounded-md border border-slate-200 bg-slate-50 p-3 text-xs">
+            {step.resource && (
+              <div>
+                <div className="font-medium uppercase tracking-wide text-slate-500">
+                  Resource
+                </div>
+                <div className="mt-0.5 break-all font-mono text-slate-700">
+                  {step.resource}
+                </div>
+              </div>
+            )}
+            {cwUrl && (
+              <div>
+                <a
+                  href={cwUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="font-medium text-brand hover:text-brand-dark"
+                >
+                  Open CloudWatch log group ↗
+                </a>
+                <div className="mt-0.5 break-all font-mono text-slate-500">
+                  {step.log_group}
+                </div>
+              </div>
+            )}
+            {step.error && (
+              <div>
+                <div className="font-medium uppercase tracking-wide text-rose-600">
+                  Error
+                </div>
+                <div className="mt-0.5 text-rose-700">{step.error}</div>
+                {step.cause && (
+                  <pre className="mt-1 max-h-32 overflow-auto rounded bg-rose-50 p-2 font-mono text-xs text-rose-700">
+                    {step.cause}
+                  </pre>
+                )}
+              </div>
+            )}
+            {step.input && (
+              <details>
+                <summary className="cursor-pointer font-medium uppercase tracking-wide text-slate-500">
+                  Input
+                </summary>
+                <pre className="mt-2 max-h-48 overflow-auto rounded bg-slate-900 p-2 font-mono text-slate-100">
+                  {prettify(step.input)}
+                </pre>
+              </details>
+            )}
+            {step.output && (
+              <details>
+                <summary className="cursor-pointer font-medium uppercase tracking-wide text-slate-500">
+                  Output
+                </summary>
+                <pre className="mt-2 max-h-48 overflow-auto rounded bg-slate-900 p-2 font-mono text-slate-100">
+                  {prettify(step.output)}
+                </pre>
+              </details>
+            )}
+            <div className="grid grid-cols-2 gap-3 text-slate-600">
+              <div>
+                <div className="font-medium uppercase tracking-wide text-slate-500">
+                  Entered
+                </div>
+                <div className="mt-0.5">{fmtTime(step.entered_at)}</div>
+              </div>
+              <div>
+                <div className="font-medium uppercase tracking-wide text-slate-500">
+                  Exited
+                </div>
+                <div className="mt-0.5">{fmtTime(step.exited_at)}</div>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    </li>
+  );
+}
+
+function prettify(s: string): string {
+  try {
+    return JSON.stringify(JSON.parse(s), null, 2);
+  } catch {
+    return s;
+  }
 }

@@ -52,9 +52,14 @@ AGENT_RUNTIME_ID = os.environ.get(
 
 
 def _collapse_history(events: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    """Reduce raw SFN history into one row per state with start/end + status."""
+    """Reduce raw SFN history into one row per state with start/end + status,
+    including the Lambda resource ARN, the input the Lambda was invoked with,
+    and the output it returned (or its error cause if it failed). Inputs and
+    outputs are clipped to keep responses fast.
+    """
     rows: dict[str, dict[str, Any]] = {}
     order: list[str] = []
+    last_running: list[str] = []
     for e in events:
         et = e["type"]
         if et.endswith("StateEntered"):
@@ -67,8 +72,13 @@ def _collapse_history(events: list[dict[str, Any]]) -> list[dict[str, Any]]:
                     "duration_ms": None,
                     "status": "running",
                     "error": None,
+                    "cause": None,
+                    "input": (e["stateEnteredEventDetails"].get("input") or "")[:4000],
+                    "output": None,
+                    "resource": None,
                 }
                 order.append(name)
+            last_running.append(name)
         elif et.endswith("StateExited"):
             name = e["stateExitedEventDetails"]["name"]
             r = rows.get(name)
@@ -79,20 +89,46 @@ def _collapse_history(events: list[dict[str, Any]]) -> list[dict[str, Any]]:
                     r["duration_ms"] = int(delta)
                 if r["status"] == "running":
                     r["status"] = "ok"
+                if not r.get("output"):
+                    r["output"] = (
+                        e["stateExitedEventDetails"].get("output") or ""
+                    )[:4000]
+        elif et == "LambdaFunctionScheduled":
+            arn = (e.get("lambdaFunctionScheduledEventDetails") or {}).get("resource")
+            if last_running and arn:
+                rows[last_running[-1]]["resource"] = arn
+        elif et == "TaskScheduled":
+            res = (e.get("taskScheduledEventDetails") or {}).get("resource")
+            if last_running and res:
+                rows[last_running[-1]]["resource"] = res
         elif "Failed" in et:
-            # Try to assign the failure to the most recent running state.
             details_key = next(
                 (k for k in e if k.endswith("FailedEventDetails")),
                 None,
             )
             err = (e.get(details_key) or {}).get("error", "Failed")
-            cause = (e.get(details_key) or {}).get("cause", "")[:300]
+            cause = ((e.get(details_key) or {}).get("cause", "") or "")[:1000]
             for n in reversed(order):
                 if rows[n]["status"] == "running":
                     rows[n]["status"] = "failed"
                     rows[n]["error"] = err
                     rows[n]["cause"] = cause
                     break
+
+    # Compute a CloudWatch Logs link for each step that ran a Lambda or
+    # references the AgentCore runtime, so the UI can deep-link to logs.
+    for name, r in rows.items():
+        res = r.get("resource") or ""
+        # Lambda function ARN → /aws/lambda/<name>
+        if res.startswith("arn:aws:lambda:"):
+            fn = res.split(":function:")[-1].split(":")[0]
+            r["log_group"] = f"/aws/lambda/{fn}"
+        # AgentCore InvokeAgentRuntime — point at the runtime log group
+        elif "InvokeAgentRuntime" in res or name == "ExtractViaAgent":
+            r["log_group"] = (
+                "/aws/bedrock-agentcore/runtimes/"
+                "laboraid_dev_l5_agent_extractor-yYd9gFA7LZ-DEFAULT"
+            )
 
     return [rows[n] for n in order]
 
