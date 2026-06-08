@@ -32,6 +32,11 @@ async function bootstrap(): Promise<void> {
     return;
   }
 
+  // Expose the runtime config on window so lib/api.ts can read the API endpoint
+  // without having to thread it through React context. The same /config.json
+  // serves both Amplify Auth setup and the REST base URL for the API client.
+  window.__LABORAID_CONFIG__ = { apiEndpoint: cfg.apiEndpoint };
+
   const origin = window.location.origin + "/";
   Amplify.configure({
     Auth: {

@@ -1,7 +1,19 @@
 // fetch wrapper that injects the Cognito JWT (Spec/09 §4 L1 §2.5).
 import { getJwt } from "./auth";
 
-const BASE = import.meta.env.VITE_API_BASE_URL ?? "";
+// Resolve API base URL in this priority order:
+//   1. window.__LABORAID_CONFIG__.apiEndpoint (set by main.tsx after /config.json fetch)
+//   2. VITE_API_BASE_URL build-time env var (for local dev)
+//   3. empty string (only for unit tests where requests are stubbed)
+// The runtime-config path lets the same bundle target dev/prod without a rebuild.
+declare global {
+  interface Window {
+    __LABORAID_CONFIG__?: { apiEndpoint?: string };
+  }
+}
+const RUNTIME_API =
+  typeof window !== "undefined" ? window.__LABORAID_CONFIG__?.apiEndpoint : undefined;
+const BASE = (RUNTIME_API || import.meta.env.VITE_API_BASE_URL || "").replace(/\/$/, "");
 
 async function request<T>(
   method: string,

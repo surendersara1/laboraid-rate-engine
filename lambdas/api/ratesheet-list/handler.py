@@ -45,12 +45,32 @@ def _sub(event: dict[str, Any]) -> str:
 @_instrument
 def handler(event: dict[str, Any], _context: Any) -> dict[str, Any]:
     try:
+        path_params = event.get("pathParameters") or {}
         params = event.get("queryStringParameters") or {}
         state = params.get("approval_state")
-        sql = "SELECT id, union_id, start_date, approval_state FROM rate_periods"
+        local = path_params.get("local")
+        # UI uses /v1/unions/all/rate-sheets when listing across all unions.
+        filter_union = local not in (None, "all", "")
+
+        sql = (
+            "SELECT rp.id::text, u.local, u.trade, "
+            "       to_char(rp.start_date,'YYYY-MM-DD') AS period, "
+            "       rp.approval_state, "
+            "       COALESCE((rp.canonical_json->>'gaps')::int, 0) AS gap_count "
+            "  FROM rate_periods rp JOIN unions u ON u.id = rp.union_id"
+        )
+        clauses: list[str] = []
+        params_list: list[dict[str, Any]] = []
         if state:
-            sql += " WHERE approval_state = :state"
-        sql += " ORDER BY start_date DESC LIMIT 200"
+            clauses.append("rp.approval_state = :state")
+            params_list.append({"name": "state", "value": {"stringValue": state}})
+        if filter_union:
+            clauses.append("u.local = :local::int")
+            params_list.append({"name": "local", "value": {"stringValue": str(local)}})
+        if clauses:
+            sql += " WHERE " + " AND ".join(clauses)
+        sql += " ORDER BY rp.start_date DESC LIMIT 200"
+
         import boto3
 
         kwargs: dict[str, Any] = dict(
@@ -59,10 +79,26 @@ def handler(event: dict[str, Any], _context: Any) -> dict[str, Any]:
             database="laboraid",
             sql=sql,
         )
-        if state:
-            kwargs["parameters"] = [{"name": "state", "value": {"stringValue": state}}]
+        if params_list:
+            kwargs["parameters"] = params_list
         resp = boto3.client("rds-data").execute_statement(**kwargs)
-        return _resp({"records": resp.get("records", [])})
+
+        # Re-shape raw rds-data records into the {union, period, approval_state,
+        # gap_count} contract the SPA's RateSheetSummary type expects.
+        records: list[dict[str, Any]] = []
+        for row in resp.get("records", []):
+            local_int = row[1].get("longValue")
+            trade = row[2].get("stringValue") or ""
+            records.append({
+                "id": row[0].get("stringValue"),
+                "union": f"{trade} {local_int}".strip() if local_int else trade,
+                "local": local_int,
+                "trade": trade,
+                "period": row[3].get("stringValue"),
+                "approval_state": row[4].get("stringValue"),
+                "gap_count": row[5].get("longValue", 0),
+            })
+        return _resp({"records": records})
     except Exception:
         logger.exception("ratesheet-list failed")
         raise
