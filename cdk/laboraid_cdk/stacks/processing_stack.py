@@ -113,6 +113,49 @@ class ProcessingStack(Stack):
         master_key.grant_encrypt_decrypt(self.agent_role)
         self.extractor_repo.grant_pull(self.agent_role)
 
+        # CloudWatch Logs + Metrics for the AgentCore Runtime container.
+        # Sourced verbatim from
+        # https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/runtime-permissions.html
+        # — without these, the agent container fails to bootstrap and InvokeAgentRuntime
+        # returns a 500 with no diagnostic log group (smoke test 2026-06-08 caught this).
+        log_group_arn = (
+            f"arn:aws:logs:{config.region}:{Stack.of(self).account}"
+            f":log-group:/aws/bedrock-agentcore/runtimes/*"
+        )
+        self.agent_role.add_to_policy(
+            iam.PolicyStatement(
+                effect=iam.Effect.ALLOW,
+                actions=["logs:DescribeLogStreams", "logs:CreateLogGroup"],
+                resources=[log_group_arn],
+            )
+        )
+        self.agent_role.add_to_policy(
+            iam.PolicyStatement(
+                effect=iam.Effect.ALLOW,
+                actions=["logs:DescribeLogGroups"],
+                resources=[
+                    f"arn:aws:logs:{config.region}:{Stack.of(self).account}:log-group:*"
+                ],
+            )
+        )
+        self.agent_role.add_to_policy(
+            iam.PolicyStatement(
+                effect=iam.Effect.ALLOW,
+                actions=["logs:CreateLogStream", "logs:PutLogEvents"],
+                resources=[f"{log_group_arn}:log-stream:*"],
+            )
+        )
+        self.agent_role.add_to_policy(
+            iam.PolicyStatement(
+                effect=iam.Effect.ALLOW,
+                actions=["cloudwatch:PutMetricData"],
+                resources=["*"],
+                conditions={
+                    "StringEquals": {"cloudwatch:namespace": "bedrock-agentcore"}
+                },
+            )
+        )
+
         # --- AgentCore Runtime (§5.4) -----------------------------------------
         self.extractor_runtime = StrandsAgentRuntime(
             self,
