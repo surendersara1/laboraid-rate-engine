@@ -55,12 +55,17 @@ export function RateSheetReview(): JSX.Element {
       {error && (
         <p className="bg-red-50 px-3 py-1 text-sm text-red-700">{error}</p>
       )}
-      <div className="grid flex-1 grid-cols-3 gap-2 p-2">
-        <PdfViewer url={pdfUrl} />
-        <div className="overflow-auto border bg-white">
+      {/* 12-col grid: PDF takes 4, table takes 6, provenance takes 2 — so the
+          cell table actually has room to breathe without long column names
+          wrapping to 3 lines. */}
+      <div className="grid flex-1 grid-cols-12 gap-3 p-3">
+        <div className="col-span-4 min-h-[600px]">
+          <PdfViewer url={pdfUrl} />
+        </div>
+        <div className="col-span-6 overflow-auto rounded-md border border-slate-200 bg-white shadow-sm">
           <RateCellTable cells={cells} onSelect={setSelected} />
         </div>
-        <div className="border bg-white">
+        <div className="col-span-2 rounded-md border border-slate-200 bg-white p-3 shadow-sm">
           <ProvenancePanel cell={selected} />
         </div>
       </div>

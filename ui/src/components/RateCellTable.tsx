@@ -21,20 +21,18 @@ export function RateCellTable({
 }): JSX.Element {
   const [commentCellId, setCommentCellId] = useState<string | null>(null);
 
+  // Zone is "Building" for every row in the POC data set — drop it from the
+  // visible columns so Package + Column + Value get more room. We still
+  // expose Zone in the ProvenancePanel.
   const columns = [
-    col.accessor("zone", {
-      header: "Zone",
-      cell: (c) => (
-        <span className="text-xs font-medium uppercase tracking-wide text-slate-500">
-          {c.getValue()}
-        </span>
-      ),
-    }),
     col.accessor("package", {
-      header: "Package",
+      header: "Classification",
       cell: (c) => <span className="font-medium text-slate-900">{c.getValue()}</span>,
     }),
-    col.accessor("column_name", { header: "Column" }),
+    col.accessor("column_name", {
+      header: "Field",
+      cell: (c) => <span className="text-slate-700">{c.getValue()}</span>,
+    }),
     col.accessor("value", {
       header: "Value",
       cell: (c) => {
@@ -89,13 +87,27 @@ export function RateCellTable({
     getCoreRowModel: getCoreRowModel(),
   });
 
+  // colgroup keeps Value + Conf columns narrow on the right and lets
+  // Classification + Field share the remaining width without wrapping.
   const tableEl = (
-    <table className="w-full text-sm">
+    <table className="w-full table-fixed text-sm">
+      <colgroup>
+        <col className="w-40" />
+        <col />
+        <col className="w-24" />
+        <col className="w-20" />
+        <col className="w-12" />
+      </colgroup>
       <thead className="sticky top-0 z-10 bg-slate-50 text-left text-xs font-medium uppercase tracking-wide text-slate-500">
         {table.getHeaderGroups().map((hg) => (
           <tr key={hg.id}>
-            {hg.headers.map((h) => (
-              <th key={h.id} className="border-b border-slate-200 px-3 py-2">
+            {hg.headers.map((h, i) => (
+              <th
+                key={h.id}
+                className={`border-b border-slate-200 px-3 py-2 ${
+                  i === 2 || i === 3 ? "text-right" : ""
+                }`}
+              >
                 {flexRender(h.column.columnDef.header, h.getContext())}
               </th>
             ))}
@@ -109,8 +121,13 @@ export function RateCellTable({
             className="cursor-pointer transition hover:bg-amber-50"
             onClick={() => onSelect(row.original)}
           >
-            {row.getVisibleCells().map((c) => (
-              <td key={c.id} className="px-3 py-2 align-middle">
+            {row.getVisibleCells().map((c, i) => (
+              <td
+                key={c.id}
+                className={`px-3 py-2 align-middle ${
+                  i === 2 || i === 3 ? "text-right" : ""
+                } ${i === 1 ? "truncate" : ""}`}
+              >
                 {flexRender(c.column.columnDef.cell, c.getContext())}
               </td>
             ))}
