@@ -15,6 +15,7 @@ from aws_cdk import aws_dynamodb as ddb
 from aws_cdk import aws_events as events
 from aws_cdk import aws_events_targets as targets
 from aws_cdk import aws_iam as iam
+from aws_cdk import aws_kms as kms
 from aws_cdk import aws_lambda as lambda_
 from aws_cdk import aws_logs as logs
 from aws_cdk import aws_s3 as s3
@@ -48,6 +49,7 @@ class OrchestrationStack(Stack):
         articles: lambda_.IFunction,
         agent_config_table: ddb.ITable,
         extractor_runtime_arn: str,
+        master_key: kms.IKey,
         **kwargs: Any,
     ) -> None:
         super().__init__(scope, construct_id, **kwargs)
@@ -120,6 +122,12 @@ class OrchestrationStack(Stack):
             tracing_enabled=True,
             logs=sfn.LogOptions(destination=log_group, level=sfn.LogLevel.ALL),
         )
+
+        # DynamoGetItem on a CMK-encrypted table (agent-config) requires the SFN
+        # execution role to decrypt with the same key. CDK auto-grants the table
+        # actions but not the implicit KMS dependency — smoke test 2026-06-08 hit
+        # AccessDeniedException on kms:Decrypt at the GetAgentConfig step.
+        master_key.grant_decrypt(self.state_machine.role)
 
         # S3 ObjectCreated (via EventBridge) -> start an execution.
         events.Rule(

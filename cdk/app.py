@@ -138,6 +138,7 @@ orchestration = OrchestrationStack(
     articles=validation.articles,
     agent_config_table=storage.agent_config_table,
     extractor_runtime_arn=processing.extractor_runtime.runtime_arn,
+    master_key=security.master_key,
 )
 orchestration.add_dependency(processing)
 orchestration.add_dependency(validation)
