@@ -16,11 +16,16 @@
 #   scripts/deploy.sh [--env dev|prod] [--yes]
 #                     [--skip-ui] [--skip-image] [--skip-bootstrap] [--smoke]
 #
-# Prerequisites (in the target AWS account, us-east-1):
-#   - AWS credentials with admin-ish deploy rights (env vars or a profile).
-#   - Amazon Bedrock model access ENABLED for Claude Sonnet + Haiku.
-#   - Bedrock AgentCore Runtime available in the account/region.
+# Prerequisites (in the target AWS account):
+#   - AWS credentials with deploy rights (env vars or a profile).
+#   - Amazon Bedrock model access ENABLED for Claude Sonnet 4.6 + Haiku 4.5.
+#   - Bedrock AgentCore Runtime available in the chosen region (verified
+#     2026-06-05 for us-east-2 against account 908106425069).
 #   - Tools on PATH: aws, docker (with buildx), node/npx, uv, corepack (pnpm).
+#
+# Region: defaults to us-east-2 (the LaborAid POC account). Override by exporting
+# AWS_DEFAULT_REGION before running. The chosen region MUST have Bedrock Sonnet
+# 4.6 + Haiku 4.5 + AgentCore Runtime enabled.
 #
 # This script is idempotent: re-running re-pushes the image and re-deploys.
 set -euo pipefail
@@ -30,7 +35,8 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 cd "${ROOT}"
 
-REGION="us-east-1"   # hard requirement: Bedrock + AgentCore availability
+# Region: env override (AWS_DEFAULT_REGION) > default (us-east-2 for LaborAid POC).
+REGION="${AWS_DEFAULT_REGION:-us-east-2}"
 ENVIRONMENT="dev"
 ASSUME_YES=0
 SKIP_UI=0; SKIP_IMAGE=0; SKIP_BOOTSTRAP=0; RUN_SMOKE=0
