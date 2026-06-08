@@ -36,8 +36,17 @@ EXTRACTOR_RUNTIME_ARN = os.environ.get("EXTRACTOR_RUNTIME_ARN", "")
 
 def _client() -> Any:
     import boto3
+    from botocore.config import Config
 
-    return boto3.client("bedrock-agentcore")
+    # AgentCore Runtime invocations run synchronously and can take 5-15 minutes
+    # (kernel pipeline + Bedrock Converse calls). Default boto3 read timeout is
+    # 60s — far too short — so the SDK would raise ReadTimeout while the agent
+    # is still working. Match AgentCore's max session of 15 min and disable retries
+    # so a long-running invoke doesn't trigger a duplicate side-by-side invocation.
+    return boto3.client(
+        "bedrock-agentcore",
+        config=Config(read_timeout=900, connect_timeout=10, retries={"max_attempts": 1}),
+    )
 
 
 def _session_id(event: dict[str, Any]) -> str:

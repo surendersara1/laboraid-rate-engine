@@ -57,6 +57,12 @@ class OrchestrationStack(Stack):
 
         # Stage-2 extraction: a thin Lambda invokes the ExtractorAgent on AgentCore
         # Runtime synchronously (no native SFN -> AgentCore integration) — audit B6.
+        # 15-minute timeout matches AgentCore Runtime's max single-invocation
+        # duration. The kernel pipeline (PDF OCR + extract + compute + checksum)
+        # routinely runs 2-5 min per union; the TaggedLambda default 30s would
+        # silently cut the agent mid-run, returning RuntimeClientError to SFN with
+        # no agent-side error trail (smoke test 2026-06-08 — fresh log streams
+        # under the agent log group were created but stayed empty).
         self.extractor_invoker = TaggedLambda(
             self,
             "ExtractorInvoker",
@@ -66,6 +72,7 @@ class OrchestrationStack(Stack):
             handler="handler.handler",
             code=lambda_.Code.from_asset("../lambdas/processing/extractor-invoker"),
             environment={"EXTRACTOR_RUNTIME_ARN": extractor_runtime_arn},
+            timeout=Duration.minutes(15),
         )
         self.extractor_invoker.add_to_role_policy(
             iam.PolicyStatement(
