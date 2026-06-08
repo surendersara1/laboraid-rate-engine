@@ -23,13 +23,20 @@ from aws_cdk import aws_stepfunctions_tasks as tasks
 from constructs import Construct
 
 
-def _invoke(scope: Construct, cid: str, fn: lambda_.IFunction) -> tasks.LambdaInvoke:
+def _invoke(
+    scope: Construct,
+    cid: str,
+    fn: lambda_.IFunction,
+    *,
+    payload: sfn.TaskInput | None = None,
+) -> tasks.LambdaInvoke:
     task = tasks.LambdaInvoke(
         scope,
         cid,
         lambda_function=fn,
         payload_response_only=True,
         result_path=f"$.{cid.lower()}",
+        **({"payload": payload} if payload is not None else {}),
     )
     task.add_retry(
         errors=["Lambda.ServiceException", "Lambda.TooManyRequestsException", "States.TaskFailed"],
@@ -60,7 +67,17 @@ def build_definition(
     ``Pass`` is used (the agent runs out-of-band). FIX-B6 supplies a real
     ``LambdaInvoke`` of the ExtractorInvoker here.
     """
-    classify = _invoke(scope, "Classify", classifier)
+    # Classify is the entry task — the state machine input is the raw S3
+    # EventBridge event (bucket emits "Object Created"). Map detail.object.key
+    # into the {"s3_key": "..."} shape the classifier handler expects.
+    classify = _invoke(
+        scope,
+        "Classify",
+        classifier,
+        payload=sfn.TaskInput.from_object(
+            {"s3_key": sfn.JsonPath.string_at("$.detail.object.key")}
+        ),
+    )
 
     # Stage 1a — read the agent-config row so the pipeline can honour the
     # Admin enable/disable toggle (Spec/09 §3.2 line 580).
