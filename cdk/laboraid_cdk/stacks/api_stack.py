@@ -226,16 +226,12 @@ class ApiStack(Stack):
                 ),
             ],
         )
-        # HTTP API auto-deploys to the "$default" stage.
-        stage_arn = (
-            f"arn:aws:apigateway:{self.region}::/apis/" f"{self.http_api.api_id}/stages/$default"
-        )
-        wafv2.CfnWebACLAssociation(
-            self,
-            "ApiWafAssociation",
-            resource_arn=stage_arn,
-            web_acl_arn=self.web_acl.attr_arn,
-        )
+        # WAFv2 cannot associate directly with API Gateway v2 (HTTP API) — the
+        # supported list is REST API, CloudFront, ALB, AppSync, App Runner, and
+        # Cognito User Pool. Iter 7 confirmed this with a 400 from CFN at the
+        # ApiWafAssociation step. The WebACL is left as a standalone resource so
+        # v1.1 (CloudFront in front of HTTP API) can attach it without rework.
+        # POC security is enforced by the Cognito JWT authorizer above plus IAM.
 
         CfnOutput(self, "ApiEndpoint", value=self.http_api.api_endpoint)
 
