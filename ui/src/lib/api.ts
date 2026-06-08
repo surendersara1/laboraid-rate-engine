@@ -11,9 +11,16 @@ declare global {
     __LABORAID_CONFIG__?: { apiEndpoint?: string };
   }
 }
-const RUNTIME_API =
-  typeof window !== "undefined" ? window.__LABORAID_CONFIG__?.apiEndpoint : undefined;
-const BASE = (RUNTIME_API || import.meta.env.VITE_API_BASE_URL || "").replace(/\/$/, "");
+
+// Resolve lazily inside request() — main.tsx sets window.__LABORAID_CONFIG__
+// AFTER this module has been imported, so reading it at module-init time
+// captures undefined and BASE stays "" forever. Evaluating on every call is
+// cheap and fixes the race where api requests went to the SPA origin.
+function baseUrl(): string {
+  const r =
+    typeof window !== "undefined" ? window.__LABORAID_CONFIG__?.apiEndpoint : undefined;
+  return (r || import.meta.env.VITE_API_BASE_URL || "").replace(/\/$/, "");
+}
 
 async function request<T>(
   method: string,
@@ -21,7 +28,7 @@ async function request<T>(
   body?: unknown,
 ): Promise<T> {
   const jwt = await getJwt();
-  const res = await fetch(`${BASE}${path}`, {
+  const res = await fetch(`${baseUrl()}${path}`, {
     method,
     headers: {
       "Content-Type": "application/json",
