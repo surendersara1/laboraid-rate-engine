@@ -37,6 +37,18 @@ def lambda_defaults(env: str) -> dict[str, Any]:
     )
 
 
+# AWS-managed Powertools v3 layer for Python 3.12 / arm64 (us-east-2). The
+# requirements.txt files in lambdas/**/ all start with aws-lambda-powertools;
+# Code.from_asset never pip-installs, so without this layer each lambda dies
+# with "Runtime.ImportModuleError: No module named 'aws_lambda_powertools'".
+# Smoke test 2026-06-08 caught this on the classifier. Version 25 verified via
+# get-layer-version-by-arn; bump as Powertools releases.
+_POWERTOOLS_LAYER_ARN = (
+    "arn:aws:lambda:us-east-2:017000801446:layer:"
+    "AWSLambdaPowertoolsPythonV3-python312-arm64:25"
+)
+
+
 class TaggedLambda(lambda_.Function):
     """An `lambda_.Function` pre-wired with project defaults + tags."""
 
@@ -64,6 +76,13 @@ class TaggedLambda(lambda_.Function):
                 retention=logs.RetentionDays.ONE_MONTH,
                 removal_policy=RemovalPolicy.DESTROY,
             )
+
+        # Attach the AWS-managed Powertools layer; callers can pass extra layers
+        # via kwargs["layers"] and they get prepended (Lambda merges by order).
+        powertools = lambda_.LayerVersion.from_layer_version_arn(
+            scope, f"{construct_id}PowertoolsLayer", _POWERTOOLS_LAYER_ARN
+        )
+        kwargs["layers"] = [*kwargs.get("layers", []), powertools]
 
         merged: dict[str, Any] = {**defaults, **kwargs, "environment": merged_env}
 
