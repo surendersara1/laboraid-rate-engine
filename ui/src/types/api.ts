@@ -8,9 +8,49 @@ export type ApprovalState =
 
 export interface Job {
   job_id: string;
+  execution_arn?: string;
   status: string;
   union?: string;
   period?: string;
+  started_at?: string;
+  stopped_at?: string;
+  duration_ms?: number | null;
+  source_s3_key?: string;
+}
+
+export interface JobTimelineStep {
+  name: string;
+  entered_at?: string;
+  exited_at?: string;
+  duration_ms?: number | null;
+  status: "ok" | "failed" | "running";
+  error?: string;
+  cause?: string;
+}
+
+export interface JobArtifact {
+  name: string;
+  kind: "input" | "output";
+  bucket: string;
+  key: string;
+  size?: number | null;
+  url?: string | null;
+}
+
+export interface JobDetail {
+  job_id: string;
+  execution_arn: string;
+  status: string;
+  started_at?: string;
+  stopped_at?: string;
+  duration_ms?: number | null;
+  union?: string;
+  period?: string;
+  source_s3_key?: string;
+  output_csv_key?: string;
+  timeline: JobTimelineStep[];
+  artifacts: JobArtifact[];
+  agent_log_group?: string;
 }
 
 export interface AgentConfig {
