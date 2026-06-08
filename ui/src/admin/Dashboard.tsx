@@ -206,7 +206,7 @@ export function Dashboard(): JSX.Element {
                   width={70}
                 />
                 <Tooltip
-                  formatter={(v: number) => fmtDuration(v)}
+                  formatter={(v) => fmtDuration(typeof v === "number" ? v : 0)}
                   contentStyle={{
                     borderRadius: 6,
                     border: "1px solid #e2e8f0",
