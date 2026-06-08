@@ -141,6 +141,20 @@ class StrandsAgentRuntime(Construct):
                             }
                         },
                     ),
+                    # AgentCore's CreateAgentRuntime auto-provisions one or more
+                    # service-linked roles on first use (the exact set is AWS-managed
+                    # and undocumented at the CFN level — observed iter 6 hit
+                    # "Failed creating service linked role" even after we pre-created
+                    # AWSServiceRoleForBedrockAgentCoreGatewayNetwork). Scope the
+                    # permission to the AgentCore SLR path so the lambda can create
+                    # whatever variants AgentCore needs without granting wider IAM.
+                    iam.PolicyStatement(
+                        effect=iam.Effect.ALLOW,
+                        actions=["iam:CreateServiceLinkedRole"],
+                        resources=[
+                            "arn:aws:iam::*:role/aws-service-role/bedrock-agentcore.amazonaws.com/*"
+                        ],
+                    ),
                 ]
             ),
             # bedrock-agentcore is newer than Lambda's bundled AWS SDK, so the
