@@ -121,10 +121,15 @@ class ProcessingStack(Stack):
                     "bedrock:ConverseStream",
                 ],
                 resources=[
+                    # inference profile in the agent's region
                     f"arn:aws:bedrock:{config.region}:{Stack.of(self).account}:inference-profile/*",
-                    "arn:aws:bedrock:us-east-1::foundation-model/anthropic.claude-*",
-                    "arn:aws:bedrock:us-east-2::foundation-model/anthropic.claude-*",
-                    "arn:aws:bedrock:us-west-2::foundation-model/anthropic.claude-*",
+                    # foundation-model ARN uses a WILDCARD region — when an inference
+                    # profile resolves to an underlying model, Bedrock authorizes the
+                    # call against arn:aws:bedrock:::foundation-model/<id> (region is
+                    # an EMPTY segment, not the profile's region). A region-scoped
+                    # pattern like arn:aws:bedrock:us-east-1::... will not match the
+                    # empty-region request. Smoke test 2026-06-08 confirmed this.
+                    "arn:aws:bedrock:*::foundation-model/anthropic.claude-*",
                 ],
             )
         )
