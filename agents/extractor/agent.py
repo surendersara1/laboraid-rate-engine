@@ -176,17 +176,62 @@ def kernel_extract_to_csv_s3(
     Returns: {"s3_key": <output csv key>, "rows": <count>, "gaps": <count>,
               "extracted_rows": <count>, "checksum": <{passed,...} or None>}
     """
+    # DEBUG — surface caller args + container state to the agent log so we can
+    # see exactly what Claude is passing if anything fails.
+    print(
+        f"[fat-tool] union={union!r} s3_prefix={s3_prefix!r} "
+        f"out_s3_key={out_s3_key!r} PROFILES_DIR={PROFILES_DIR!r}",
+        flush=True,
+    )
+    try:
+        print(f"[fat-tool] profiles_dir contents: {os.listdir(PROFILES_DIR)}", flush=True)
+    except Exception as e:
+        print(f"[fat-tool] cannot list PROFILES_DIR: {e!r}", flush=True)
+
+    # Normalize union to handle case mismatches or local-number shorthand from Claude.
+    _LOCAL_TO_UNION_LOCAL = {
+        "537": "pipe_fitters_537", "483": "sprinkler_fitters_483",
+        "704": "sprinkler_fitters_704", "281": "sprinkler_fitters_281",
+        "821": "sprinkler_fitters_821",
+    }
+    if union in _LOCAL_TO_UNION_LOCAL:
+        union = _LOCAL_TO_UNION_LOCAL[union]
+    union = union.strip().lower().replace(" ", "_").replace("-", "_")
+    print(f"[fat-tool] normalized union={union!r}", flush=True)
+
     if not out_s3_key:
         # Derive a default output key from the input prefix, preserving the
         # bucket path layout so an upload to inputs/laboraid/Sprinkler/704/2026-01-01/
         # lands as outputs/laboraid/Sprinkler/704/2026-01-01/output.csv.
         clean = s3_prefix.rstrip("/")
         out_s3_key = f"{clean}/output.csv" if clean else f"{union}/output.csv"
-    profile = _load_profile(union)
+
+    # Try to load the profile, with fallbacks for case/alias mismatches.
+    profile: dict[str, Any] | None = None
+    last_err: Exception | None = None
+    for candidate in (union, f"sprinkler_fitters_{union}", f"pipe_fitters_{union}"):
+        try:
+            profile = _load_profile(candidate)
+            print(f"[fat-tool] profile loaded for {candidate!r}", flush=True)
+            break
+        except FileNotFoundError as e:
+            last_err = e
+            print(f"[fat-tool] profile attempt {candidate!r} failed: {e}", flush=True)
+    if profile is None:
+        try:
+            available = os.listdir(PROFILES_DIR)
+        except Exception:
+            available = []
+        raise FileNotFoundError(
+            f"no profile for union={union!r}; PROFILES_DIR={PROFILES_DIR!r}; "
+            f"available={available}; last_err={last_err}"
+        )
+
     # 1. stage PDFs from S3 into the kernel's expected dir layout
     union_dir = f"{SCRATCH}/{union}"
     os.makedirs(f"{union_dir}/cba", exist_ok=True)
     keys = _list_s3_objects(s3_prefix)
+    print(f"[fat-tool] s3 list returned {len(keys)} keys under {s3_prefix!r}", flush=True)
     for key in keys:
         s3.download_file(INPUTS_BUCKET, key, f"{union_dir}/cba/{os.path.basename(key)}")
     # 2. extract — native Python ClassificationRow + RateCell objects
@@ -339,7 +384,25 @@ try:  # pragma: no cover - only present in the deployed container
 
     @app.entrypoint  # type: ignore[misc]
     def invoke(payload: dict[str, Any]) -> Any:
-        """AgentCore Runtime entrypoint — payload carries the union + S3 prefix."""
+        """AgentCore Runtime entrypoint — payload carries the union + S3 prefix.
+
+        Direct mode (`payload["direct"] == True`): bypass Strands/Claude and call
+        the fat tool function in-process. Faster + deterministic for unions with
+        kernel extractors; required when Claude can't reliably orchestrate due to
+        tool-boundary serialization quirks. Required keys: union, s3_prefix.
+        Optional: out_s3_key.
+
+        Normal mode: hand the JSON payload to the Strands agent as a prompt.
+        Claude orchestrates tool selection.
+        """
+        if payload.get("direct"):
+            # Strands @tool decorator wraps the function — unwrap via .func to call raw.
+            unwrapped = getattr(kernel_extract_to_csv_s3, "func", kernel_extract_to_csv_s3)
+            return unwrapped(
+                union=payload["union"],
+                s3_prefix=payload.get("s3_prefix", ""),
+                out_s3_key=payload.get("out_s3_key", ""),
+            )
         agent = build_agent()
         return agent(payload.get("prompt", json.dumps(payload)))
 
