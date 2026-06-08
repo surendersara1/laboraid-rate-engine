@@ -100,11 +100,32 @@ class ProcessingStack(Stack):
                 iam.ManagedPolicy.from_aws_managed_policy_name("AWSXRayDaemonWriteAccess"),
             ],
         )
+        # Bedrock — agent uses Strands which defaults to the Converse API, and our
+        # model ID is a cross-region inference profile (us.anthropic.claude-sonnet-4-6)
+        # that routes the underlying call to a model in us-east-1, us-east-2, or
+        # us-west-2. So we need:
+        #   - Converse + ConverseStream actions (Strands default API, NOT InvokeModel)
+        #   - InvokeModel + WithResponseStream (older API, kept for the agent's
+        #     direct escalate_to_claude_multimodal tool)
+        #   - the inference-profile resource itself
+        #   - the foundation-model resource in ALL 3 cross-region inference regions
+        # Smoke test 2026-06-08 caught the original InvokeModel-only scope on
+        # bedrock:ConverseStream AccessDeniedException.
         self.agent_role.add_to_policy(
             iam.PolicyStatement(
                 effect=iam.Effect.ALLOW,
-                actions=["bedrock:InvokeModel", "bedrock:InvokeModelWithResponseStream"],
-                resources=[bedrock_models],
+                actions=[
+                    "bedrock:InvokeModel",
+                    "bedrock:InvokeModelWithResponseStream",
+                    "bedrock:Converse",
+                    "bedrock:ConverseStream",
+                ],
+                resources=[
+                    f"arn:aws:bedrock:{config.region}:{Stack.of(self).account}:inference-profile/*",
+                    "arn:aws:bedrock:us-east-1::foundation-model/anthropic.claude-*",
+                    "arn:aws:bedrock:us-east-2::foundation-model/anthropic.claude-*",
+                    "arn:aws:bedrock:us-west-2::foundation-model/anthropic.claude-*",
+                ],
             )
         )
         inputs_bucket.grant_read(self.agent_role)
