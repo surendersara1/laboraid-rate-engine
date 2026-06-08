@@ -155,6 +155,79 @@ def pivot_to_ratesheet_csv(
 
 
 @tool
+def kernel_extract_to_csv_s3(
+    union: str, s3_prefix: str, out_s3_key: str = ""
+) -> dict[str, Any]:
+    """One-shot Path A: stage PDFs from S3, run the kernel extractor + compute +
+    pivot all in-process (native Python objects, no tool boundary), upload the
+    ratesheet CSV to S3, and return a summary.
+
+    out_s3_key is optional — if empty, the tool derives one from the s3_prefix
+    (laboraid/<union>/<period>/output.csv). Pass it explicitly if you want a
+    specific path under the outputs bucket.
+
+    Prefer this over the per-step (stage_inputs_from_s3 -> run_kernel_extractor ->
+    compute_derived_columns -> pivot_to_ratesheet_csv) chain whenever the union has
+    a deterministic kernel extractor. The per-step chain has to JSON-serialize
+    ClassificationRow/RateCell across each @tool boundary, which loses the native
+    dataclass typing the kernel's compute + pivot steps require. This tool keeps
+    everything in one process, so no serialization is involved.
+
+    Returns: {"s3_key": <output csv key>, "rows": <count>, "gaps": <count>,
+              "extracted_rows": <count>, "checksum": <{passed,...} or None>}
+    """
+    if not out_s3_key:
+        # Derive a default output key from the input prefix, preserving the
+        # bucket path layout so an upload to inputs/laboraid/Sprinkler/704/2026-01-01/
+        # lands as outputs/laboraid/Sprinkler/704/2026-01-01/output.csv.
+        clean = s3_prefix.rstrip("/")
+        out_s3_key = f"{clean}/output.csv" if clean else f"{union}/output.csv"
+    profile = _load_profile(union)
+    # 1. stage PDFs from S3 into the kernel's expected dir layout
+    union_dir = f"{SCRATCH}/{union}"
+    os.makedirs(f"{union_dir}/cba", exist_ok=True)
+    keys = _list_s3_objects(s3_prefix)
+    for key in keys:
+        s3.download_file(INPUTS_BUCKET, key, f"{union_dir}/cba/{os.path.basename(key)}")
+    # 2. extract — native Python ClassificationRow + RateCell objects
+    extractor_fn = k_extract.EXTRACTORS[union]
+    rows, gaps = extractor_fn(union_dir)
+    extracted_n = len(rows)
+    # 3. compute derived columns in-process (no JSON round-trip)
+    rows = [k_compute.resolve_row(profile, r) for r in rows]
+    # 4. checksum the Journeyman row (returns None if notice didn't print Total Package)
+    journeyman = next((r for r in rows if getattr(r, "classification", "") == "Journeyman"), None)
+    checksum: dict[str, Any] | None = None
+    if journeyman is not None:
+        cells = getattr(journeyman, "cells", {}) or {}
+        computed = (cells.get("wage", type("X", (), {"value": 0.0})()).value if hasattr(cells.get("wage", None), "value") else 0.0) + sum(
+            getattr(c, "value", 0.0)
+            for c in cells.values()
+            if str(getattr(c, "canonical_field", "")) in _PACKAGE_FRINGE_FIELDS
+        )
+        expected = getattr(journeyman, "notice_total", None)
+        if expected is not None:
+            checksum = {
+                "passed": abs(computed - expected) <= 0.05,
+                "computed": r2(computed),
+                "expected": expected,
+                "diff": r2(computed - expected),
+            }
+    # 5. pivot to CSV + upload to S3
+    local_csv = f"{SCRATCH}/{union}/output.csv"
+    n_rows = k_pivot.write_csv(profile, rows, local_csv)
+    s3.upload_file(local_csv, OUTPUTS_BUCKET, out_s3_key)
+    return {
+        "s3_key": out_s3_key,
+        "rows": n_rows,
+        "gaps": gaps,
+        "gap_count": len(gaps),
+        "extracted_rows": extracted_n,
+        "checksum": checksum,
+    }
+
+
+@tool
 def escalate_to_claude_multimodal(
     s3_key: str, profile_aliases: dict[str, Any], missing_fields: list[str]
 ) -> dict[str, Any]:
@@ -235,6 +308,14 @@ def build_agent() -> Agent:
         name="ExtractorAgent",
         system_prompt=EXTRACTOR_SYSTEM_PROMPT,
         tools=[
+            # Preferred Path-A fast path — runs extract + compute + pivot + upload in
+            # a single in-process call so kernel's native ClassificationRow/RateCell
+            # objects never cross a @tool JSON boundary.
+            kernel_extract_to_csv_s3,
+            # Fine-grained tools — kept for Path C (extract_via_claude_only) and for
+            # debugging individual stages. The kernel-data boundary issue makes
+            # chaining compute_derived_columns + pivot_to_ratesheet_csv unreliable
+            # in production; use the fat tool above when possible.
             stage_inputs_from_s3,
             run_kernel_extractor,
             extract_via_claude_only,
