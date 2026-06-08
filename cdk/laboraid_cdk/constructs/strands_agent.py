@@ -141,19 +141,51 @@ class StrandsAgentRuntime(Construct):
                             }
                         },
                     ),
-                    # AgentCore's CreateAgentRuntime auto-provisions one or more
-                    # service-linked roles on first use (the exact set is AWS-managed
-                    # and undocumented at the CFN level — observed iter 6 hit
-                    # "Failed creating service linked role" even after we pre-created
-                    # AWSServiceRoleForBedrockAgentCoreGatewayNetwork). Scope the
-                    # permission to the AgentCore SLR path so the lambda can create
-                    # whatever variants AgentCore needs without granting wider IAM.
+                    # AgentCore CreateAgentRuntime auto-provisions 3 distinct SLRs
+                    # on first use, each under a different sub-service principal.
+                    # Sourced verbatim from AWS managed policy BedrockAgentCoreFullAccess
+                    # (consulted via aws-documentation MCP after iter 6 failed with
+                    # "Failed creating service linked role" despite a broad path scope —
+                    # the RuntimeIdentity SLR lives under runtime-identity.bedrock-agentcore
+                    # not under bedrock-agentcore, so a single path glob didn't match).
                     iam.PolicyStatement(
+                        sid="CreateBedrockAgentCoreNetworkSLR",
                         effect=iam.Effect.ALLOW,
                         actions=["iam:CreateServiceLinkedRole"],
                         resources=[
-                            "arn:aws:iam::*:role/aws-service-role/bedrock-agentcore.amazonaws.com/*"
+                            "arn:aws:iam::*:role/aws-service-role/network.bedrock-agentcore.amazonaws.com/AWSServiceRoleForBedrockAgentCoreNetwork"
                         ],
+                        conditions={
+                            "StringEquals": {
+                                "iam:AWSServiceName": "network.bedrock-agentcore.amazonaws.com"
+                            }
+                        },
+                    ),
+                    iam.PolicyStatement(
+                        sid="CreateBedrockAgentCoreGatewayNetworkSLR",
+                        effect=iam.Effect.ALLOW,
+                        actions=["iam:CreateServiceLinkedRole"],
+                        resources=[
+                            "arn:aws:iam::*:role/aws-service-role/bedrock-agentcore.amazonaws.com/AWSServiceRoleForBedrockAgentCoreGatewayNetwork"
+                        ],
+                        conditions={
+                            "StringEquals": {
+                                "iam:AWSServiceName": "bedrock-agentcore.amazonaws.com"
+                            }
+                        },
+                    ),
+                    iam.PolicyStatement(
+                        sid="CreateBedrockAgentCoreRuntimeIdentitySLR",
+                        effect=iam.Effect.ALLOW,
+                        actions=["iam:CreateServiceLinkedRole"],
+                        resources=[
+                            "arn:aws:iam::*:role/aws-service-role/runtime-identity.bedrock-agentcore.amazonaws.com/AWSServiceRoleForBedrockAgentCoreRuntimeIdentity"
+                        ],
+                        conditions={
+                            "StringEquals": {
+                                "iam:AWSServiceName": "runtime-identity.bedrock-agentcore.amazonaws.com"
+                            }
+                        },
                     ),
                 ]
             ),
