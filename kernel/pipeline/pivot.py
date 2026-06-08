@@ -30,11 +30,16 @@ def write_csv(profile, classrows, out_csv):
     os.makedirs(os.path.dirname(out_csv), exist_ok=True)
     cols = profile["columns"]
     hdr = header(profile)
-    # stable sort: zone groups in first-seen order, classifications by class_order desc
-    zone_order = {}
-    for r in classrows:
-        zone_order.setdefault(r.zone, len(zone_order))
-    ordered = sorted(classrows, key=lambda r: (zone_order[r.zone], -r.class_order))
+    if profile.get("order") == "preserve":
+        # emit in the extractor's order (needed when indenture cohorts must stay
+        # grouped rather than ordered purely by pay, e.g. 281 / 821).
+        ordered = list(classrows)
+    else:
+        # stable sort: zone groups in first-seen order, classifications by class_order desc
+        zone_order = {}
+        for r in classrows:
+            zone_order.setdefault(r.zone, len(zone_order))
+        ordered = sorted(classrows, key=lambda r: (zone_order[r.zone], -r.class_order))
 
     with open(out_csv, "w", newline="") as fh:
         w = csv.writer(fh)

@@ -4,6 +4,13 @@ POC architecture for the CBA → canonical rate-sheet engine. This summarizes th
 deployed system; the build-ready detail lives in
 [`09_Technical_Implementation_Spec.md`](09_Technical_Implementation_Spec.md).
 
+> **Status update (2026-06-05) — see [`STATUS.md`](STATUS.md).** The kernel now
+> covers **all 5 POC unions** (537, 704, 821, 483, 281) through a CI accuracy gate;
+> 281 & 821 (indenture cohorts, 4 zones) are fully wired. Added a **Stage 6
+> completeness-coverage critic** (`kernel/pipeline/critic.py`), fixed a multiplier
+> rounding bug (Decimal-multiply) and the 537 wage source, and hardened the agent
+> model calls (guards + prompt caching + profile-driven checksum).
+
 ## Shape
 
 One Strands `ExtractorAgent` on AgentCore Runtime, wrapping Ashwani's deterministic

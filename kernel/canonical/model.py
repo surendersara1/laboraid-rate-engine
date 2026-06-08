@@ -21,6 +21,28 @@ def r2(x) -> float:
     return float(Decimal(str(x)).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP))
 
 
+def rmul(base, factor) -> float:
+    """base * factor, rounded half-up to 2dp, with the product taken IN Decimal.
+
+    Multiplying floats first loses precision and rounds the .x5 boundary the wrong
+    way: ``50.55 * 1.5`` is ``75.82499999999999`` in float, so ``r2(base*factor)``
+    yields 75.82 -- but the ratesheets carry 75.83. Likewise ``37.90 * 1.15`` ->
+    43.59 (float gives 43.58). Doing the product in Decimal preserves the exact
+    .825 / .585 half so ROUND_HALF_UP rounds it correctly. Use this for every
+    derived multiplier column (Wage 1.1x/1.5x/2.0x, Wage Differential, Temporary
+    Heat 1.1x/1.5x, etc.).
+
+    Note: the *source* ratesheets are not internally consistent about this -- some
+    locals' spreadsheets round the .x5 half down via Excel binary float (e.g. 537's
+    74.115 -> 74.11). Those differences are within the evaluator's +/-0.01
+    tolerance; this helper standardises on mathematically-correct half-up.
+    """
+    if base is None or factor is None:
+        return None
+    return float((Decimal(str(base)) * Decimal(str(factor))).quantize(
+        Decimal("0.01"), rounding=ROUND_HALF_UP))
+
+
 @dataclass
 class RateCell:
     """One value in the canonical long model."""
@@ -37,10 +59,20 @@ class RateCell:
 
 @dataclass
 class ClassificationRow:
-    """All canonical cells for one (zone, classification) row."""
+    """All canonical cells for one (zone, classification) row.
+
+    indenture_before / indenture_after hold the optional indenture-cohort dates
+    that locals like 281 and 821 carry as `Indentured Date is Before/After`
+    columns (blank for journeymen/foremen). emit_order, when set, lets the pivot
+    preserve the extractor's row order instead of sorting by zone/class_order
+    (needed when cohorts must stay grouped rather than ordered purely by pay).
+    """
     zone: str
     classification: str
     class_order: int
+    indenture_before: str = ""
+    indenture_after: str = ""
+    emit_order: int = 0
     cells: dict = field(default_factory=dict)  # canonical_field -> RateCell
 
     def add(self, cell: RateCell):

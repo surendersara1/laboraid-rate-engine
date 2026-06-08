@@ -3,6 +3,14 @@
 **Document:** 02 of 7 in `docs/`
 **Read after:** `01_Engine_Architecture.md`. This doc zooms into each stage of the pipeline.
 
+> **Status update (2026-06-05) — see [`STATUS.md`](STATUS.md).** The deterministic
+> kernel adds a **Stage 6 — completeness-coverage critic** (`kernel/pipeline/critic.py`,
+> advisory): after evaluate, it scans the CBA/notice text for the vocabulary of a
+> ratesheet (classifications, zones, fund names) and flags any missing from the
+> output. Also: derived multiplier columns now use Decimal-multiply half-up
+> (`canonical.model.rmul`); the evaluator's row key includes the indenture-date
+> columns (281/821 cohorts); and `run.py --min-accuracy` gates on sourced accuracy.
+
 ---
 
 ## Stage map

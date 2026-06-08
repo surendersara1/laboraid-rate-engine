@@ -1,0 +1,38 @@
+union: sprinkler_fitters_821
+constants:
+  Union Group: UA
+  Trade: Sprinkler
+  Union Local: "821"
+start_date: 1/1/26
+end_date: 6/30/26
+order: preserve
+key_columns: [Zone, Indentured Date is Before, Indentured Date is After, Package, Start Date, End Date]
+
+columns:
+  - Union Group
+  - Trade
+  - Union Local
+  - Zone
+  - Indentured Date is Before
+  - Indentured Date is After
+  - Package
+  - Start Date
+  - End Date
+  - {name: Wage,                          kind: $}
+  - {name: Wage Differential,             kind: $, multiplier_of: Wage, factor: 1.15}
+  - {name: Wage 1.5x,                     kind: $, multiplier_of: Wage, factor: 1.5}
+  - {name: Wage 2.0x,                     kind: $, multiplier_of: Wage, factor: 2.0}
+  - {name: Health & Welfare,              kind: $}
+  - {name: RESA,                          kind: $}
+  - {name: Health & Welfare Metal,        kind: $}
+  - {name: Pension,                       kind: $}
+  - {name: Pension Metal,                 kind: $}
+  - {name: SIS,                           kind: $}
+  - {name: UA International Training,      kind: $}
+  - {name: Industry Promotion National Use, kind: $}
+  - {name: Industry Promotion Local Use,  kind: $}
+  - {name: Apprenticeship Training,       kind: $}
+  - {name: Union Dues 821,                kind: "%"}
+  - {name: Market Recovery 821,           kind: $}
+  - {name: UA Organizing 821,             kind: $}
+  - {name: PAC 821,                       kind: $}

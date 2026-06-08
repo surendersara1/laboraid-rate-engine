@@ -1,8 +1,21 @@
 # Design: generic CBA → canonical ratesheet pipeline
 
-> **Status: design only — not yet built.** This document specifies the
-> architecture and records the feasibility analysis. No pipeline code exists yet
-> beyond the single-union proof in `extract/`.
+> **Status: BUILT and in regression.** (This doc was written as the design; it is
+> kept as the architectural rationale.) The pipeline exists under `pipeline/`
+> (`ingest, ocr, extract, compute, pivot, evaluate, critic, run`) with a canonical
+> model + per-union profiles, and runs **all 5 POC unions** (537, 704, 821, 483,
+> 281) through a CI accuracy gate. Current state, coverage and measured numbers
+> live in [`../docs/STATUS.md`](../docs/STATUS.md). Notable deltas from the
+> original design below:
+> - Stage 5 (evaluate) is joined by **Stage 6: a completeness-coverage critic**
+>   (`critic.py`) — advisory; flags CBA-mentioned classes/zones/funds missing from
+>   the output (the "missing breadth" failure mode).
+> - Derived multipliers use **Decimal-multiply half-up** (`canonical.model.rmul`),
+>   not `r2(base*factor)` — the float-first form rounds the `.x5` boundary wrong.
+> - **Indenture cohorts** (281/821) are first-class: `ClassificationRow.indenture_*`,
+>   the `Indentured Date is Before/After` columns, `order: preserve`, and an
+>   indenture-aware evaluator key.
+> - `run.py --min-accuracy` **gates** on sourced accuracy; `kernel/tests/` exists.
 
 ## Context
 
@@ -96,13 +109,15 @@ not new parser code. The 537/821 variants become **data, not code branches**.
 the 483 run does for the residential 1/1/2026 allocation. (Prior-year inference
 and human-worklist merge were considered and deferred.)
 
-## Files to create when built (not yet)
+## Files (now built)
 
-- `canonical/model.py`, `canonical/fields.yaml` — model + field dictionary.
-- `profiles/<union>.yaml` — one per local; reuse for new unions.
-- `pipeline/{ingest,extract,compute,pivot}.py` — stages B–D, reusing the parse in
-  `extract/build_483.py:parse_rate_notice`.
-- `pipeline/evaluate.py` — generalized from `extract/compare_483.py`.
+- `canonical/model.py`, `canonical/fields.yaml` — model (+ `r2`/`rmul`, indenture
+  fields) + field dictionary. ✅
+- `profiles/<union>.yaml` — one per local; **5 exist** (281, 483, 704, 821, 537). ✅
+- `pipeline/{ingest,ocr,extract,compute,pivot}.py` — stages 1–4. ✅
+- `pipeline/evaluate.py` — generalized from `extract/compare_483.py`. ✅
+- `pipeline/critic.py` — Stage 6 completeness-coverage critic (added). ✅
+- `kernel/tests/` — rounding + critic units + per-union regression gate. ✅
 
 ## Reuse of existing work
 

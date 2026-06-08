@@ -120,7 +120,7 @@ Conversely, if WE make improvements to `kernel/` that should flow back upstream,
 | Source control | GitHub (per SOW); single monorepo `laboraid-rate-engine` |
 | Compute architecture | ARM64 across the board (Graviton — cheaper + faster cold starts on Lambda) |
 | Default Lambda runtime | `python3.12` for all Lambdas; ExtractorAgent container also Python 3.12 ARM64 |
-| Agent count (POC) | **1** (`ExtractorAgent`) — others deferred to v1.1+ (see §15) |
+| Agent count (POC) | **2** (`ExtractorAgent` + `ProfileDrafterAgent`) — see §15 for what remains deferred. ProfileDrafterAgent shipped on `feat/path-c-and-drafter`; 7 of 9 original-design agents remain v1.1+ roadmap. |
 
 ---
 
@@ -1752,19 +1752,19 @@ These were in our broader design (`docs/01-08`) but are **NOT being built for th
 
 > **Note on kernel-covered items:** A few items previously labeled "deferred" in earlier versions of this doc are actually **already implemented by the kernel** (PDF reading, OCR via rapidocr, per-union extraction for 3 of 5 unions, derived-column compute, half-up rounding, gaps reporting). Those are now in the "kernel reuse" matrix at the top of this doc — not "deferred." Items below remain genuinely deferred.
 
-### 15.1 Additional agents (8 deferred)
+### 15.1 Additional agents (7 deferred — ProfileDrafterAgent moved to "shipped" 2026-06-05)
 
-| Agent | Purpose | Why deferred |
+| Agent | Purpose | Status |
 |---|---|---|
-| `OrchestratorAgent` | Top-level dispatch | Step Functions handles orchestration deterministically — no reasoning needed |
-| `ClassifierAgent` | Document classification | Filename regex + 1 Bedrock InvokeModel fallback fits in a Lambda |
-| `CBAMinerAgent` | Auto-mine CBA structural rules | Manual Profile authoring for 5 known unions is faster + safer for POC |
-| `ValidatorAgent` | LLM sanity review of anomalies | Need 2+ historical periods to anomaly-detect; defer |
-| `CitationAgent` | KB-grounded citations | Needs Bedrock KB which is deferred |
-| `ConciergeAgent` | "Ask the CBA" admin UX | Nice-to-have, not in SOW deliverables list |
-| `ReviewAssistAgent` | Semantic memory of past overrides | Needs accumulated data; meaningful only after weeks of use |
-| `ProfileDrafterAgent` | Auto-draft Profile for new unions | 5 POC unions get hand-authored Profiles |
-| `BackfillAgent` | Process historical periods | POC focuses on latest period per union |
+| `OrchestratorAgent` | Top-level dispatch | Deferred — Step Functions handles orchestration deterministically; no reasoning needed |
+| `ClassifierAgent` | Document classification | Deferred — filename regex + 1 Bedrock InvokeModel fallback fits in a Lambda |
+| `CBAMinerAgent` | Auto-mine CBA structural rules | Deferred — manual Profile authoring for 5 known unions was faster + safer for POC |
+| `ValidatorAgent` | LLM sanity review of anomalies | Deferred — need 2+ historical periods to anomaly-detect |
+| `CitationAgent` | KB-grounded citations | Deferred — needs Bedrock KB which is deferred |
+| `ConciergeAgent` | "Ask the CBA" admin UX | Deferred — nice-to-have, not in SOW deliverables list |
+| `ReviewAssistAgent` | Semantic memory of past overrides | Deferred — needs accumulated data; meaningful only after weeks of use |
+| **`ProfileDrafterAgent`** | **Auto-draft Profile YAML + Python extractor for new unions** | **✅ SHIPPED on `feat/path-c-and-drafter` (2026-06-05) — see [`Overnight_Delivery_Report.md`](Overnight_Delivery_Report.md). 87 pytest cases passing, mypy --strict clean, self-audit 31/31 PASS.** |
+| `BackfillAgent` | Process historical periods | Deferred — POC focuses on latest period per union |
 
 ### 15.2 AgentCore sub-services (6 deferred)
 

@@ -84,7 +84,12 @@ def test_ai_stack_guardrail() -> None:
 
 def test_processing_stack_resources() -> None:
     _, proc = _synth_processing()
-    proc.resource_count_is("AWS::ECR::Repository", 1)
+    # ECR repo is NOT created by CDK anymore — it's created+pushed by
+    # scripts/deploy.sh BEFORE `cdk deploy` so the AgentCore runtime can
+    # reference {repo}:latest at deploy time (deploy.sh ordering fix,
+    # commit d9d3a45). ProcessingStack imports the repo by name via
+    # ecr.Repository.from_repository_name(...).
+    proc.resource_count_is("AWS::ECR::Repository", 0)
     # AgentCore Runtime is provisioned via an AwsCustomResource (Custom::AWS)
     # calling bedrock-agentcore:CreateAgentRuntime — there is no native CFN type
     # yet (audit B5 / decision D-B5).

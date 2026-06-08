@@ -165,6 +165,9 @@
 <header>
   <h1>LaborAid Rate Engine — End-to-End Architecture Flow</h1>
   <p>Visual companion to <a href="Learning_Lessons.md">Learning_Lessons.md</a>. One master diagram, then per-lesson zoom-ins.</p>
+  <p style="background:#fff8e1;border:1px solid #ffe082;border-radius:6px;padding:8px 12px;font-size:0.9em">
+    <strong>Status update (2026-06-05):</strong> all 5 POC unions (537, 704, 821, 483, 281) now run through the kernel with a CI accuracy gate; 281 &amp; 821 (indenture cohorts, 4 zones) wired; a <strong>Stage 6 completeness-coverage critic</strong> added; multiplier rounding (Decimal-multiply) and the 537 wage source fixed; agent model calls guarded + prompt-cached. Current state of the world: <a href="STATUS.md">STATUS.md</a>.
+  </p>
 </header>
 
 <nav>
@@ -177,6 +180,7 @@
   <a href="#s6">§6 Storage Stack (L6)</a>
   <a href="#s7">§7 React UI (L7)</a>
   <a href="#s8">§8 Full sequence</a>
+  <a href="#s9"><strong>§9 Path C + Drafter (L8 NEW)</strong></a>
   <a href="#cheatsheet">Cheat sheet</a>
 </nav>
 
@@ -857,6 +861,137 @@ sequenceDiagram
     API->>Aurora: SELECT canonical_json
     Aurora-->>API: rate sheet
     API-->>Calc: canonical JSON (immutable)
+  </div>
+</section>
+
+<!-- ===================== §9 PATH C + DRAFTER (Lesson 8) ===================== -->
+<section id="s9">
+  <h2>§9 — Lesson 8 zoom-in: Path C + ProfileDrafterAgent</h2>
+  <p><strong>Where it fits:</strong> sits on top of the existing Engine Layer. Path C is a 7th tool on the existing <code>ExtractorAgent</code>. <code>ProfileDrafterAgent</code> is a brand-new 2nd Strands agent that runs at build time (not on every request) to author profile YAML + extractor.py for any new union, promoting it from Path C to Path A.</p>
+
+  <h3>3-path decision logic (now in ExtractorAgent system prompt)</h3>
+  <div class="mermaid">
+flowchart TB
+    Start["New PDF arrives<br/>union = ?"]
+    Q1{union in<br/>EXTRACTORS?}
+    A["Path A<br/>run_kernel_extractor<br/>deterministic, $0, 99%+"]
+    C["Path C<br/>extract_via_claude_only<br/>full-sheet LLM, ~$0.06, 75-90%"]
+    Q2{kernel reports<br/>gaps?}
+    B["Path B<br/>escalate_to_claude_multimodal<br/>per-cell LLM fallback"]
+    Done["ClassificationRow + gaps<br/>same canonical shape"]
+
+    Start --> Q1
+    Q1 -->|YES - 704, 483, 537, 281, 821| A
+    Q1 -->|NO - 120, 183, 268, ...| C
+    A --> Q2
+    Q2 -->|gaps| B
+    Q2 -->|none| Done
+    B --> Done
+    C --> Done
+
+    classDef pa fill:#bbf7d0,stroke:#15803d,color:#14532d
+    classDef pb fill:#fef3c7,stroke:#d97706,color:#78350f
+    classDef pc fill:#fae8ff,stroke:#a21caf,color:#581c87
+    classDef io fill:#f0f9ff,stroke:#0369a1,color:#0c4a6e
+    classDef q fill:#fce7f3,stroke:#db2777,color:#831843
+    class A pa
+    class B pb
+    class C pc
+    class Start,Done io
+    class Q1,Q2 q
+  </div>
+
+  <h3>ProfileDrafterAgent (build-time, async — promotes Path C → Path A)</h3>
+  <div class="mermaid">
+flowchart TB
+    Op["Operator triggers drafter<br/>on a Path C union"]
+
+    subgraph DrafterAgent["ProfileDrafterAgent on AgentCore Runtime"]
+        direction TB
+        E1["analyze_groundtruth<br/>pure Python<br/>reads CSV/xlsx + samples rows"]
+        E2["draft_profile_yaml<br/>Bedrock Sonnet 4.6<br/>outputs profile.yaml"]
+        E3["draft_extractor_python<br/>Bedrock Sonnet 4.6 + PDF<br/>outputs extract_NNN.py"]
+        E4["validate_generated<br/>schema_check + codegen_check<br/>+ mypy --strict + kernel evaluator"]
+        E5["iterate_or_finalize<br/>heuristic loop control"]
+        Steer["DrafterSteering<br/>blocks finish unless<br/>validation passes"]
+
+        E1 --> E2
+        E2 --> E3
+        E3 --> E4
+        E4 --> E5
+        E5 -->|regenerate| E2
+        Steer -.->|gate| E5
+    end
+
+    Out["orchestrate.py return:<br/>profile.yaml + extract.py +<br/>validation_result"]
+    PR["commit_helper opens<br/>draft PR via gh CLI<br/>auto/drafted-UNION-TS"]
+    Human{Human review}
+    Kernel["kernel/profiles/UNION.yaml<br/>+ kernel/pipeline/extract.py<br/>updated"]
+    PathA["Next extraction: Path A<br/>$0, 99%+, deterministic"]
+
+    Op --> DrafterAgent
+    E5 -->|finalize| Out
+    Out --> PR
+    PR --> Human
+    Human -->|approve + merge| Kernel
+    Kernel --> PathA
+
+    classDef tool fill:#dbeafe,stroke:#1d4ed8,color:#1e3a8a
+    classDef steer fill:#fee2e2,stroke:#dc2626,color:#7f1d1d
+    classDef io fill:#f0f9ff,stroke:#0369a1,color:#0c4a6e
+    classDef human fill:#fce7f3,stroke:#db2777,color:#831843
+    classDef target fill:#bbf7d0,stroke:#15803d,color:#14532d
+    class E1,E2,E3,E4,E5 tool
+    class Steer steer
+    class Op,Out,PR,Kernel io
+    class Human human
+    class PathA target
+  </div>
+
+  <h3>Lifecycle of a new union (end-to-end sequence)</h3>
+  <div class="mermaid">
+sequenceDiagram
+    autonumber
+    actor Customer
+    actor Operator
+    actor Reviewer
+    participant ExtractorAgent
+    participant Claude as Bedrock Claude
+    participant DrafterAgent
+    participant Kernel
+    participant BusinessUI
+
+    Note over Customer,BusinessUI: Stage 1 — first PDF (no kernel extractor yet)
+    Customer->>ExtractorAgent: upload Rate Notice for union 120
+    ExtractorAgent->>ExtractorAgent: check EXTRACTORS — 120 not in dict
+    ExtractorAgent->>Claude: extract_via_claude_only (Path C)
+    Claude-->>ExtractorAgent: rows + gaps (75-90% accuracy)
+    ExtractorAgent->>BusinessUI: rate sheet pending_review
+
+    Note over Customer,BusinessUI: Stage 2 — drafter time
+    Operator->>DrafterAgent: orchestrate(union_key='sprinkler_fitters_120')
+    DrafterAgent->>DrafterAgent: analyze_groundtruth
+    DrafterAgent->>Claude: draft_profile_yaml
+    Claude-->>DrafterAgent: YAML matching 704 schema
+    DrafterAgent->>Claude: draft_extractor_python + PDF
+    Claude-->>DrafterAgent: extract_120(union_dir) source
+    DrafterAgent->>DrafterAgent: validate_generated
+    DrafterAgent->>Reviewer: open draft PR (gh CLI)
+
+    Note over Customer,BusinessUI: Stage 3 — review + merge
+    Reviewer->>Kernel: review PR diff
+    Reviewer->>Kernel: approve + merge
+
+    Note over Customer,BusinessUI: Stage 4 — next PDF uses Path A
+    Customer->>ExtractorAgent: upload next PDF for union 120
+    ExtractorAgent->>Kernel: 120 NOW in EXTRACTORS
+    ExtractorAgent->>Kernel: run_kernel_extractor (Path A)
+    Kernel-->>ExtractorAgent: rows + gaps (99%+)
+    ExtractorAgent->>BusinessUI: rate sheet pending_review
+  </div>
+
+  <div class="takeaway">
+    <strong>Key takeaway:</strong> the existing architecture (Lessons 1-7) didn't change. Path C is one new <code>@tool</code>. ProfileDrafterAgent is a sibling directory next to <code>agents/extractor/</code>. The kernel, canonical model, Step Functions, Aurora schema, and UI all stay the same. That's the whole point of the canonical-layer design from Lesson 1 — new extraction paths plug in without touching the rest of the system.
   </div>
 </section>
 

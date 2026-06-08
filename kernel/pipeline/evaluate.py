@@ -9,7 +9,12 @@ from __future__ import annotations
 import csv
 import os
 
-KEYS = ["Zone", "Package", "Start Date", "End Date"]
+# Row-identity key. Indenture-date columns are included so the two apprentice
+# cohorts that locals like 281/821 carry (same Zone/Package/dates, different
+# "Indentured Date is After") do not collide onto one key. Columns absent from a
+# union's sheet contribute "" and are harmless.
+KEYS = ["Zone", "Indentured Date is Before", "Indentured Date is After",
+        "Package", "Start Date", "End Date"]
 TOL = 0.01
 
 
@@ -73,7 +78,10 @@ def cells_match(a, b):
     if a == b:
         return True
     try:
-        return (abs(float(a.rstrip("%")) - float(b.rstrip("%"))) <= TOL
+        # +1e-9 so an exact 1-cent difference counts as a match: in float,
+        # abs(74.12 - 74.11) == 0.010000000000005 which is > TOL without the
+        # epsilon, spuriously failing values that differ by exactly the tolerance.
+        return (abs(float(a.rstrip("%")) - float(b.rstrip("%"))) <= TOL + 1e-9
                 and a.endswith("%") == b.endswith("%"))
     except ValueError:
         return False
@@ -97,7 +105,7 @@ def evaluate(gt_path, ai_path, verbose=True):
         out = []
         for k in KEYS:
             v = r.get(k, "")
-            out.append(_norm_date(v) if k in ("Start Date", "End Date") else norm(v))
+            out.append(_norm_date(v) if "Date" in k else norm(v))
         return tuple(out)
 
     gkey = {keyfn(r): r for r in gt}

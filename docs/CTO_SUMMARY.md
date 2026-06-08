@@ -5,6 +5,15 @@
 **Repository:** `github.com/surendersara1/laboraid-rate-engine` · Branch `feat/aws-strands-integration` (PR-ready)
 **Status as of audit:** **Build complete. All 8 audit blockers fixed. All quality gates green. Ready for PR, merge, and first deploy.**
 
+> **Update (2026-06-05) — see [`STATUS.md`](STATUS.md).** Since the build audit: the
+> kernel now covers **all 5 POC unions** at ≥99% sourced accuracy (537/281/483 at
+> 100%, 704 99.6%, 821 99.7%) through a CI regression gate, after a pre-deploy code
+> audit and a **blind validation against 4 customer rate sheets**. Fixed: a
+> multiplier rounding bug, the 537 wage source, evaluator tolerance; added kernel
+> tests, agent-call hardening (guards + prompt caching), and a completeness-coverage
+> critic. **Remaining before deploy:** build the UI bundle (`pnpm build`) and push
+> the extractor ECR image — both infra steps, no code blockers.
+
 ---
 
 ## 1. What the POC does
@@ -98,8 +107,10 @@ Two-persona UI under one React build:
 
 | Item | Detail |
 |---|---|
-| Agent count (POC) | **1** — `ExtractorAgent`. The other 8 agents from our 9-agent design are explicitly v1.1+ roadmap. |
-| Agent tools | 6 `@tool` functions wrapping kernel: `stage_inputs_from_s3`, `run_kernel_extractor`, `compute_derived_columns`, `pivot_to_ratesheet_csv`, `escalate_to_claude_multimodal`, `validate_total_package_checksum` |
+| Agent count (POC) | **2** — `ExtractorAgent` (runtime extraction) + `ProfileDrafterAgent` (build-time auto-authoring of profile YAML + Python extractor for new unions). 7 of 9 original-design agents remain v1.1+ roadmap. |
+| ExtractorAgent tools | **7** `@tool` functions: `stage_inputs_from_s3`, `run_kernel_extractor`, **`extract_via_claude_only`** (Path C, new), `compute_derived_columns`, `pivot_to_ratesheet_csv`, `escalate_to_claude_multimodal`, `validate_total_package_checksum` |
+| ProfileDrafterAgent tools | **5** `@tool` functions: `analyze_groundtruth`, `draft_profile_yaml`, `draft_extractor_python`, `validate_generated`, `iterate_or_finalize` |
+| Extraction paths | **3 paths**: A — deterministic kernel (Path A, 99.6%/100% Building on 704/483) · B — per-cell Bedrock fallback for kernel gaps · C — full-sheet Claude extractor for unions without a kernel extractor (NEW) |
 | Steering | `ExtractorSteering(SteeringHandler)` — blocks `return_extraction_complete` until checksum validates; forces Bedrock fallback when kernel reports unresolved gaps |
 | Models | Sonnet 4.6 (extraction) + Haiku 4.5 (classification); Bedrock PII Guardrail applied to all invocations |
 | Deployment | ECR container (ARM64 Python 3.12) + AgentCore Runtime CustomResource; observability via OpenTelemetry → CloudWatch |
@@ -162,7 +173,7 @@ Audit + verification artifacts: [`docs/AUDIT_REPORT.md`](AUDIT_REPORT.md) (initi
 
 Per signed SOW + Spec §15. None of these are blockers for POC sign-off:
 
-- 8 of 9 agents (Orchestrator, agent-Classifier, CBAMiner, agent-Validator, Citation, Concierge, ReviewAssist, ProfileDrafter)
+- 7 of 9 agents remain deferred (Orchestrator, agent-Classifier, CBAMiner, agent-Validator, Citation, Concierge, ReviewAssist) — **ProfileDrafterAgent moved from deferred → shipped** on `feat/path-c-and-drafter` (87 tests passing, self-audit 31/31 PASS — see [`Overnight_Delivery_Report.md`](Overnight_Delivery_Report.md))
 - AgentCore Memory, Gateway, Identity, Policy (Cedar), Registry, Evaluations (kept Runtime + Observability only)
 - Bedrock Knowledge Base + S3 Vectors (advanced RAG; SOW Page 7 exclusion ambiguity)
 - Year-over-year delta validation + Article-20 awareness

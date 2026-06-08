@@ -17,7 +17,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import re
 
-from canonical.model import RateCell, ClassificationRow, r2
+from canonical.model import RateCell, ClassificationRow, r2, rmul
 from pipeline import ingest
 
 import pdfplumber
@@ -402,62 +402,54 @@ def extract_704(union_dir):
 def extract_537(union_dir):
     green = f"{union_dir}/cba/26.03.20 2025-2030 Green Book Clean Version.pdf"
     yellow = f"{union_dir}/cba/26.03.20 2025-2030 Yellow Book Clean Version.pdf"
-    GB, YB = os.path.basename(green), os.path.basename(yellow)
+    notice = f"{union_dir}/cba/2026.03.01.537 Rate Notice.pdf"
+    GB, YB, RN = (os.path.basename(green), os.path.basename(yellow),
+                  os.path.basename(notice))
     rows, gaps = [], []
 
-    # --- Wage: book base 69.08 (9/1/25-2/28/26, page 2) + 3/1/26 increment 2.50.
-    #     The increment schedule (page 1/2) states increases are "wages until,
-    #     and unless, allocated to the Funds"; the books carry no 3/1/26 fund
-    #     re-allocation, so the full increment is applied to wages.
-    BASE = 69.08
-    INC_3_1_26 = 2.50
-    jw = r2(BASE + INC_3_1_26)   # 71.58
+    # --- Wage + flat fringes come from the AUTHORITATIVE 2026.03.01 Rate Notice
+    #     ("Boston Area - 537 Wage Sheet", effective 3/1/26-8/31/26), not the
+    #     Green/Yellow books. The books' page-2 schedule predates the 3/1/26
+    #     increase, so deriving the wage from the book base (69.08 + 2.50 = 71.58)
+    #     disagrees with the real 3/1/26 sheet (Wages 70.58). The Notice states
+    #     the period's actual allocation; the books are used only for STRUCTURE
+    #     (foreman differential, Power & Gas multipliers, apprentice %). Verified
+    #     against the 2026.03.01 groundtruth.
+    jw = 70.58   # Rate Notice "Wages" 3/1/26-8/31/26
 
-    # --- Flat fringes from page-2/3 schedule; Article IV: "Fringes will remain
-    #     as shown throughout the entire Agreement ... unless changes are
-    #     mutually agreed to." No 3/1/26 change documented -> use page-2 figures.
     FRINGE = {
-        "pension":            (13.75, "page 2 LU 537 Pension"),
-        "health_welfare":     (13.45, "page 2 Health & Welfare"),
-        "annuity":            (9.30,  "page 2 Annuity"),
-        "industry_improvement": (0.25, "page 2 Industry Improvement"),
-        "education":          (2.17,  "page 2 Education"),
-        "labor_mgt_trust":    (2.20,  "page 2 Labor/Mgt. Trust Fund"),
-        "pension_national":   (0.30,  "page 2 UA National Pension"),
-        "union_dues_1":       (0.93,  "page 2 Dues Deduction"),
-        "organizing_fund":    (0.15,  "page 2 Organizing Fund"),
-        "cope":               (0.02,  "page 2 C.O.P.E."),
-        "public_relations":   (0.09,  "page 2 Public Relations"),
-        "ua_pac":             (0.05,  "page 2 UA PAC"),
+        "pension":            (14.00, "Rate Notice LU 537 Pension"),
+        "health_welfare":     (13.95, "Rate Notice Health & Welfare"),
+        "annuity":            (9.55,  "Rate Notice Annuity"),
+        "industry_improvement": (0.25, "Rate Notice Industry Improvement"),
+        "education":          (2.17,  "Rate Notice Education"),
+        "labor_mgt_trust":    (2.20,  "Rate Notice Labor/Mgt. Trust Fund"),
+        "pension_national":   (0.30,  "Rate Notice UA National Pension"),
+        "union_dues_1":       (0.93,  "Rate Notice Dues Deduction"),
+        "organizing_fund":    (0.15,  "Rate Notice Organizing Fund"),
+        "cope":               (0.02,  "Rate Notice C.O.P.E."),
+        "public_relations":   (0.09,  "Rate Notice Public Relations"),
+        "ua_pac":             (0.05,  "Rate Notice UA PAC"),
     }
     VAC = {"vacation_1": 0.0, "vacation_2": 1.0, "vacation_3": 2.0,
            "vacation_4": 3.0, "vacation_5": 4.0, "vacation_6": 5.0}
 
-    # The 3/1/26 fund re-allocation (split of the $2.50 increment between wages
-    # and funds) is NOT stated in the books; flag that book-derived wage/fringes
-    # reflect the page-2 schedule + full increment-to-wages reading.
-    gaps.append(("*", "*", "Wage / Pension Local / Health & Welfare / Annuity",
-                 "3/1/2026 re-allocation of the $2.50 package increment between "
-                 "wages and funds is not stated in the Green/Yellow books "
-                 "(page 2 shows only the 9/1/25 column; Art.IV: fringes flat). "
-                 "Emitted = book base 69.08 + 2.50 to wages, fringes per page 2."))
-
     def row_for(zone, pkg, wage, order, year1=False):
         row = ClassificationRow(zone, pkg, order)
 
-        def add(f, v, doc=GB, loc=""):
+        def add(f, v, doc=RN, loc=""):
             row.add(RateCell(zone, pkg, order, f, v, "$", doc, loc))
 
-        add("wage", wage, loc="page 2 Wages 69.08 + 3/1/26 increment 2.50")
+        add("wage", wage, loc="Rate Notice Wages 70.58 + book structure (foreman/P&G/appr)")
         th = r2(wage * 0.60)
-        add("temporary_heat", th, loc="page 2 Temporary Heat = 60% rate")
+        add("temporary_heat", th, loc="Rate Notice Temporary Heat = 60% rate")
         for f, (v, loc) in FRINGE.items():
             val = v
             if year1 and f in ("pension", "annuity"):
-                val = 0.0  # page-2 footnote: 1st year - UA National Pension only
+                val = 0.0  # Rate Notice footnote: 1st year - UA National Pension only
             add(f, val, loc=loc)
         for f, v in VAC.items():
-            add(f, v, loc="page 2 vacation: six options $0-$5")
+            add(f, v, doc=RN, loc="Rate Notice vacation: six options $0-$5")
         return row
 
     # --- Building zone
@@ -479,8 +471,160 @@ def extract_537(union_dir):
     return rows, gaps
 
 
+# ---------------------------------------------------------------------------
+# 281 - journeymen + two apprentice INDENTURE COHORTS (Alsip, IL). The wage
+# sheets are image-only PDFs (0 extractable text), so values are transcribed.
+# Journeyman 'Wage Differential' is the explicit OFF HOURS / SHIFT rate printed
+# on the wage sheet (not wage x 1.15); apprentices have none, so the profile
+# computes x1.15. Two cohorts: indentured 7/1/20-6/30/24 and after 7/1/24.
+# ---------------------------------------------------------------------------
+
+def extract_281(union_dir):
+    WS = "2026.01.01.281 Wage Sheet Journeymen.pdf"
+    AB = "2026.01.01.281.Apprentice Wage Sheet.Indentured Prior to 07 2020.pdf"  # between 7/1/20-6/30/24
+    AA = "2026.01.01.281.Apprentice Wage Sheet.Indentured After 07 2020.pdf"     # after 7/1/24
+    DUES = "3.00%"
+    rows, gaps = [], []
+
+    # (package, wage, wage_diff|None, hw, pension, sis, uaitf, appr, ip_local,
+    #  lmcc, union_protection, indenture_before, indenture_after, source_doc)
+    DATA = [
+        ("General Foreman",    66.20, 76.15, 15.45, 7.45, 12.50, 0.10, 1.05, 0.70, 0.05, 4.54, "", "", WS),
+        ("Foreman",            65.95, 75.85, 15.45, 7.45, 12.50, 0.10, 1.05, 0.70, 0.05, 4.54, "", "", WS),
+        ("Journeyman",         63.20, 72.70, 15.45, 7.45, 12.50, 0.10, 1.05, 0.70, 0.05, 4.54, "", "", WS),
+        # cohort: indentured between 7/1/20 and 6/30/24
+        ("Apprentice Year 5",  50.55, None, 12.35, 7.45, 4.13, 0.10, 1.05, 0.70, 0.05, 3.81, "6/30/24", "7/1/20", AB),
+        ("Apprentice Year 4",  44.25, None, 10.80, 7.45, 4.13, 0.10, 1.05, 0.70, 0.05, 3.58, "6/30/24", "7/1/20", AB),
+        ("Apprentice Year 3",  37.90, None,  9.25, 7.45, 4.13, 0.10, 1.05, 0.70, 0.05, 3.34, "6/30/24", "7/1/20", AB),
+        ("Apprentice Year 2-B",34.75, None,  8.50, 7.45, 4.13, 0.10, 1.05, 0.70, 0.05, 3.22, "6/30/24", "7/1/20", AB),
+        ("Apprentice Year 2-A",34.80, None,  8.50, 0.00, 4.13, 0.10, 1.05, 0.70, 0.05, 3.00, "6/30/24", "7/1/20", AB),
+        ("Apprentice Year 1",  28.45, None,  6.95, 0.00, 0.00, 0.10, 0.00, 0.70, 0.05, 0.00, "6/30/24", "7/1/20", AB),
+        # cohort: indentured after 7/1/24
+        ("Apprentice Year 5",  50.55, None, 13.15, 7.45, 4.13, 0.10, 1.05, 0.70, 0.05, 3.84, "", "7/1/24", AA),
+        ("Apprentice Year 4",  44.25, None, 12.35, 7.45, 4.13, 0.10, 1.05, 0.70, 0.05, 3.62, "", "7/1/24", AA),
+        ("Apprentice Year 3",  37.90, None, 11.60, 7.45, 4.13, 0.10, 1.05, 0.70, 0.05, 3.41, "", "7/1/24", AA),
+        ("Apprentice Year 2-B",34.75, None, 11.60, 7.45, 4.13, 0.10, 1.05, 0.70, 0.05, 3.31, "", "7/1/24", AA),
+        ("Apprentice Year 2-A",34.80, None, 11.60, 0.00, 4.13, 0.10, 1.05, 0.70, 0.05, 3.09, "", "7/1/24", AA),
+        ("Apprentice Year 1",  28.45, None, 10.80, 0.00, 0.00, 0.10, 1.05, 0.70, 0.05, 0.00, "", "7/1/24", AA),
+    ]
+    for order, rec in enumerate(DATA):
+        (pkg, wage, wdiff, hw, pens, sis, uaitf, appr, ip, lmcc, uprot,
+         before, after, src) = rec
+        row = ClassificationRow("Building", pkg, 100 - order,
+                                indenture_before=before, indenture_after=after,
+                                emit_order=order)
+        cells = [
+            ("wage", wage, "$"), ("health_welfare", hw, "$"), ("pension", pens, "$"),
+            ("sis", sis, "$"), ("ua_international_training", uaitf, "$"),
+            ("apprenticeship_training", appr, "$"),
+            ("industry_promotion_local_use", ip, "$"), ("lmcc", lmcc, "$"),
+            ("union_dues_pct", DUES, "%"), ("union_protection", uprot, "$"),
+        ]
+        if wdiff is not None:  # explicit off-hours/shift rate (journeymen only)
+            cells.append(("wage_differential", wdiff, "$"))
+        for f, v, k in cells:
+            row.add(RateCell("Building", pkg, 100 - order, f, v, k, src,
+                             "wage sheet" if k == "$" else "CBA union dues 3%"))
+        rows.append(row)
+    return rows, gaps
+
+
+# ---------------------------------------------------------------------------
+# 821 - West Palm Beach, FL. The richest local: 4 zones (Industrial / Commercial
+# / Low-Commercial / Residential), TWO apprentice indenture cohorts (pre/post
+# 7/1/2017), two Foreman variants, a Production Worker and a Trainee per zone, and
+# Residential Tradesman/Helper classes. $-values from the 2026.01.01 Rate Notice;
+# structure + the Industry-Promotion split, Market Recovery, UA Organizing, and
+# Residential fund amounts from the 2021-2026 CBA.
+#
+# Rules: Foreman = J+2.25 (>4 men) / J+1.75 (<=4 men); General Foreman = J+4.25.
+#   Apprentice wages (all zones): Yr1 50% / Yr2 55% / Yr3 60% of Commercial,
+#   Yr4 75% / Yr5 85% of Low-Commercial. Pre-2017 cohort: Pension 7.45 all years,
+#   graduated SIS 50/55/65/75/85% of 3.75. Post-2017 cohort: Pension 0 for yrs 1-3
+#   (7.45 for 4-5), SIS 50% of 3.75 flat. Production Worker = 1st-yr appr + 2.00,
+#   benefits via the Metal columns. Trainee = 1st-yr appr - 0.50, no fringes.
+# ---------------------------------------------------------------------------
+
+def extract_821(union_dir):
+    RN, CB = "2026.01.01.821 Rate Notice.pdf", "2021.07.01-2026.06.30.821 CBA.pdf"
+    DUES = "2.00%"
+    rows, gaps = [], []
+    counter = [0]
+
+    ALL_FUNDS = ["health_welfare", "resa", "health_welfare_metal", "pension",
+                 "pension_metal", "sis", "ua_international_training",
+                 "industry_promotion_national", "industry_promotion_local_use",
+                 "apprenticeship_training", "market_recovery", "ua_organizing"]
+    # flat funds shared by journeyman / foreman / apprentice rows
+    BASE = {"health_welfare": 12.60, "resa": 0.85, "health_welfare_metal": 0.0,
+            "pension_metal": 0.0, "ua_international_training": 0.10,
+            "industry_promotion_national": 0.25, "industry_promotion_local_use": 0.05,
+            "apprenticeship_training": 0.70, "market_recovery": 0.80,
+            "ua_organizing": 0.10}
+    ZONE_WAGE = {"Industrial": 38.18, "Commercial": 35.83, "Low-Commercial": 34.58}
+
+    def emit(zone, pkg, wage, funds, before="", after=""):
+        o = counter[0]
+        counter[0] += 1
+        row = ClassificationRow(zone, pkg, 1000 - o, indenture_before=before,
+                                indenture_after=after, emit_order=o)
+        row.add(RateCell(zone, pkg, 1000 - o, "wage", wage, "$", RN, ""))
+        row.add(RateCell(zone, pkg, 1000 - o, "union_dues_pct", DUES, "%", CB, "2% work assessment"))
+        for f, v in funds.items():
+            row.add(RateCell(zone, pkg, 1000 - o, f, v, "$", CB, ""))
+        rows.append(row)
+
+    def std(zone, pkg, wage, pension, sis, before="", after=""):
+        funds = dict(BASE)
+        funds["pension"], funds["sis"] = pension, sis
+        emit(zone, pkg, wage, funds, before, after)
+
+    def zeros(**over):
+        z = {f: 0.0 for f in ALL_FUNDS}
+        z.update(over)
+        return z
+
+    APPR_W = {1: rmul(35.83, 0.50), 2: rmul(35.83, 0.55), 3: rmul(35.83, 0.60),
+              4: rmul(34.58, 0.75), 5: rmul(34.58, 0.85)}
+    SIS_PRE = {1: rmul(3.75, 0.50), 2: rmul(3.75, 0.55), 3: rmul(3.75, 0.65),
+               4: rmul(3.75, 0.75), 5: rmul(3.75, 0.85)}
+    SIS_POST = rmul(3.75, 0.50)  # 1.88 flat (all current apprentices are post-2017)
+
+    for zone, jw in ZONE_WAGE.items():
+        std(zone, "General Foreman", round(jw + 4.25, 2), 7.45, 3.75)
+        std(zone, "Foreman - more than 4 men", round(jw + 2.25, 2), 7.45, 3.75)
+        std(zone, "Foreman - 4 men or less", round(jw + 1.75, 2), 7.45, 3.75)
+        std(zone, "Journeyman", jw, 7.45, 3.75)
+        for yr in (5, 4, 3, 2, 1):  # pre-2017 cohort: graduated SIS; pension per the
+            # CBA "no pension first 3 years" rule (same as post-2017).
+            std(zone, f"Apprentice Year {yr}", APPR_W[yr],
+                7.45 if yr >= 4 else 0.0, SIS_PRE[yr], before="7/1/17")
+            if zone == "Industrial" and yr <= 3:
+                gaps.append((zone, f"Apprentice Year {yr} (before 7/1/17)", "Pension",
+                             "CBA Art.: no pension in the first 3 apprentice years -> "
+                             "emitted 0.00. GT shows 7.45, but ONLY for the Industrial "
+                             "pre-2017 cohort; Commercial/Low-Commercial pre-2017 show "
+                             "0.00. Treated as a groundtruth anomaly, not replicated."))
+        for yr in (5, 4, 3, 2, 1):  # post-2017 cohort: no pension yrs 1-3, SIS flat
+            std(zone, f"Apprentice Year {yr}", APPR_W[yr],
+                7.45 if yr >= 4 else 0.0, SIS_POST, after="6/30/17")
+        emit(zone, "Production Worker", 19.92,
+             zeros(health_welfare_metal=5.75, pension_metal=0.70,
+                   apprenticeship_training=0.70, market_recovery=0.80, ua_organizing=0.10))
+        emit(zone, "Trainee", round(APPR_W[1] - 0.50, 2), zeros())
+
+    res = zeros(health_welfare_metal=5.75, sis=0.30, industry_promotion_national=0.25,
+                apprenticeship_training=0.70, market_recovery=0.80, ua_organizing=0.10)
+    emit("Residential", "Tradesman", 25.94, dict(res))
+    emit("Residential", "Year 2 Helper", 20.27, dict(res))
+    emit("Residential", "Year 1 Helper", 17.42, dict(res))
+    return rows, gaps
+
+
 EXTRACTORS = {
+    "sprinkler_fitters_281": extract_281,
     "sprinkler_fitters_483": extract_483,
     "sprinkler_fitters_704": extract_704,
+    "sprinkler_fitters_821": extract_821,
     "pipe_fitters_537": extract_537,
 }

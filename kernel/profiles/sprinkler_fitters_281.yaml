@@ -1,0 +1,36 @@
+union: sprinkler_fitters_281
+constants:
+  Union Group: UA
+  Trade: Sprinkler
+  Union Local: "281"
+  Zone: Building
+start_date: 1/1/26
+end_date: 6/30/26
+order: preserve                # cohorts grouped in extractor order, not by pay
+key_columns: [Zone, Indentured Date is Before, Indentured Date is After, Package, Start Date, End Date]
+
+columns:
+  - Union Group
+  - Trade
+  - Union Local
+  - Zone
+  - Indentured Date is Before
+  - Indentured Date is After
+  - Package
+  - Start Date
+  - End Date
+  - {name: Wage,                          kind: $}
+  # Journeyman/foreman differential is the explicit off-hours rate from the wage
+  # sheet; apprentices have none, so it falls back to Wage x 1.15.
+  - {name: Wage Differential,             kind: $, multiplier_of: Wage, factor: 1.15}
+  - {name: Wage 1.5x,                     kind: $, multiplier_of: Wage, factor: 1.5}
+  - {name: Wage 2.0x,                     kind: $, multiplier_of: Wage, factor: 2.0}
+  - {name: Health & Welfare 281,          kind: $}
+  - {name: Pension,                       kind: $}
+  - {name: SIS,                           kind: $}
+  - {name: UA International Training,      kind: $}
+  - {name: Apprenticeship Training,       kind: $}
+  - {name: Industry Promotion Local Use,  kind: $}
+  - {name: LMCC 281,                      kind: $}
+  - {name: Union Dues 281,                kind: "%"}
+  - {name: Union Protection 281,          kind: $}
