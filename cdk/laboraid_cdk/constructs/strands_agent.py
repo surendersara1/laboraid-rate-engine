@@ -120,14 +120,15 @@ class StrandsAgentRuntime(Construct):
             ),
             policy=cr.AwsCustomResourcePolicy.from_statements(
                 [
+                    # CreateAgentRuntime chains an internal CreateAgentRuntimeEndpoint
+                    # (AgentCore provisions a default endpoint behind the scenes), and
+                    # delete chains the matching teardown. Listing every chained action
+                    # is brittle; this lambda only exists at stack create/update/delete
+                    # to manage one runtime + its endpoint, so a service-scoped wildcard
+                    # is the simplest correct policy.
                     iam.PolicyStatement(
                         effect=iam.Effect.ALLOW,
-                        actions=[
-                            "bedrock-agentcore:CreateAgentRuntime",
-                            "bedrock-agentcore:UpdateAgentRuntime",
-                            "bedrock-agentcore:DeleteAgentRuntime",
-                            "bedrock-agentcore:GetAgentRuntime",
-                        ],
+                        actions=["bedrock-agentcore:*"],
                         resources=["*"],
                     ),
                     iam.PolicyStatement(
