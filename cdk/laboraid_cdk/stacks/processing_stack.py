@@ -164,6 +164,12 @@ class ProcessingStack(Stack):
             image_uri=f"{self.extractor_repo.repository_uri}:latest",
             execution_role=self.agent_role,
             environment={
+                # AgentCore Runtime does NOT auto-inject AWS_REGION the way Lambda
+                # does (smoke test 2026-06-08: agent.py:44 crashed at boto3.client
+                # call with NoRegionError; container ran but produced no logs since
+                # Python died at module import time before OTEL collector started).
+                "AWS_REGION": config.region,
+                "AWS_DEFAULT_REGION": config.region,
                 "ENV": env,
                 "INPUTS_BUCKET": inputs_bucket.bucket_name,
                 "OUTPUTS_BUCKET": outputs_bucket.bucket_name,
