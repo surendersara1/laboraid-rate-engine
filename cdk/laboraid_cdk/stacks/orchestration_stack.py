@@ -50,6 +50,7 @@ class OrchestrationStack(Stack):
         agent_config_table: ddb.ITable,
         extractor_runtime_arn: str,
         master_key: kms.IKey,
+        publisher: lambda_.IFunction | None = None,
         **kwargs: Any,
     ) -> None:
         super().__init__(scope, construct_id, **kwargs)
@@ -111,6 +112,7 @@ class OrchestrationStack(Stack):
             articles=articles,
             agent_config_table=agent_config_table,
             extract_task=extract_task,
+            publisher=publisher,
         )
 
         log_group = logs.LogGroup(

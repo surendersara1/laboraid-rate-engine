@@ -80,6 +80,7 @@ ai = AiStack(
 )
 ai.add_dependency(security)
 
+assert storage.aurora.secret is not None
 processing = ProcessingStack(
     app,
     f"Laboraid-{config.env}-Processing",
@@ -89,6 +90,8 @@ processing = ProcessingStack(
     outputs_bucket=storage.outputs_bucket,
     files_table=storage.files_table,
     guardrail_id=ai.guardrail_id,
+    aurora=storage.aurora,
+    aurora_secret=storage.aurora.secret,
 )
 processing.add_dependency(storage)
 processing.add_dependency(ai)
@@ -144,6 +147,7 @@ orchestration = OrchestrationStack(
     agent_config_table=storage.agent_config_table,
     extractor_runtime_arn=processing.extractor_runtime.runtime_arn,
     master_key=security.master_key,
+    publisher=processing.publisher,
 )
 orchestration.add_dependency(processing)
 orchestration.add_dependency(validation)

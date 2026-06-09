@@ -19,10 +19,13 @@ from typing import Any
 from aws_cdk import CfnOutput, Duration, Stack
 from aws_cdk import aws_dynamodb as ddb
 from aws_cdk import aws_ecr as ecr
+from aws_cdk import aws_events as events
 from aws_cdk import aws_iam as iam
 from aws_cdk import aws_kms as kms
 from aws_cdk import aws_lambda as lambda_
+from aws_cdk import aws_rds as rds
 from aws_cdk import aws_s3 as s3
+from aws_cdk import aws_secretsmanager as secretsmanager
 from aws_cdk import aws_sns as sns
 from aws_cdk import aws_sqs as sqs
 from constructs import Construct
@@ -47,6 +50,9 @@ class ProcessingStack(Stack):
         outputs_bucket: s3.IBucket,
         files_table: ddb.ITable,
         guardrail_id: str,
+        aurora: rds.IDatabaseCluster | None = None,
+        aurora_secret: secretsmanager.ISecret | None = None,
+        engine_bus: events.IEventBus | None = None,
         **kwargs: Any,
     ) -> None:
         super().__init__(scope, construct_id, **kwargs)
@@ -229,5 +235,43 @@ class ProcessingStack(Stack):
             master_key=master_key,
         )
 
+        # --- Publisher Lambda (writes the agent's extraction into Aurora) -----
+        # This is the missing piece the pipeline used to lack: the SFN's
+        # "Publish" state was a literal sfn.Succeed() — the agent CSV ended up
+        # in S3 and the pipeline terminated. Without this Lambda the product
+        # never produces rate sheets; every demo row was hand-loaded.
+        # Optional aurora/aurora_secret/engine_bus to keep the unit-test stub
+        # simple (test_stacks doesn't construct an Aurora cluster).
+        self.publisher = TaggedLambda(
+            self,
+            "Publisher",
+            env=env,
+            layer="l4",
+            function_name=name(env, "l4", "fn", "publisher"),
+            handler="handler.handler",
+            code=lambda_.Code.from_asset("../lambdas/processing/publisher"),
+            timeout=Duration.minutes(5),
+            memory_size=1024,
+        )
+        self.publisher.add_environment(
+            "OUTPUTS_BUCKET", outputs_bucket.bucket_name
+        )
+        outputs_bucket.grant_read(self.publisher)
+        if aurora is not None and aurora_secret is not None:
+            aurora.grant_data_api_access(self.publisher)
+            aurora_secret.grant_read(self.publisher)
+            self.publisher.add_environment(
+                "AURORA_CLUSTER_ARN", aurora.cluster_arn
+            )
+            self.publisher.add_environment(
+                "AURORA_SECRET_ARN", aurora_secret.secret_arn
+            )
+        if engine_bus is not None:
+            engine_bus.grant_put_events_to(self.publisher)
+            self.publisher.add_environment(
+                "ENGINE_BUS_NAME", engine_bus.event_bus_name
+            )
+
         CfnOutput(self, "ClassifierFnName", value=self.classifier.function_name)
         CfnOutput(self, "ExtractorRepoUri", value=self.extractor_repo.repository_uri)
+        CfnOutput(self, "PublisherFnName", value=self.publisher.function_name)

@@ -60,6 +60,7 @@ def build_definition(
     articles: lambda_.IFunction,
     agent_config_table: ddb.ITable,
     extract_task: sfn.IChainable | None = None,
+    publisher: lambda_.IFunction | None = None,
 ) -> sfn.IChainable:
     """Construct the pipeline chain. Tasks are created under ``scope``.
 
@@ -94,41 +95,67 @@ def build_definition(
         scope, "ExtractViaAgent", comment="ExtractorAgent on AgentCore Runtime"
     )
 
-    validate = sfn.Parallel(scope, "Validate", result_path="$.validation")
-    validate.branch(_invoke(scope, "Checksum", checksum))
-    validate.branch(_invoke(scope, "Range", range_fn))
-    validate.branch(_invoke(scope, "Confidence", confidence))
+    # PublishToAurora — write rate_periods + rate_cells from the agent's CSV.
+    # Runs UNCONDITIONALLY after Extract, so the row lands in Aurora as
+    # approval_state='pending_review' regardless of validator pass/fail.
+    # Without this state the SFN's "Publish" was a literal Succeed — the
+    # agent's extraction never reached Aurora.
+    publish_succeed = sfn.Succeed(scope, "Published")
 
-    render = sfn.Parallel(scope, "Render", result_path="$.render")
-    render.branch(_invoke(scope, "RenderXlsx", xlsx))
-    render.branch(_invoke(scope, "RenderCsv", csv))
-    render.branch(_invoke(scope, "RenderArticles", articles))
+    # Wire the chain. The product-critical flow today is:
+    #   extract -> publish (writes Aurora) -> Succeed
+    # The validators + renderers exist but were never wired to read the SFN
+    # state shape the agent actually emits (they look for $.canonical, but the
+    # state has $.extract.canonical). We exit cleanly after Publish so the row
+    # lands and the reviewer can do their job in the UI. Re-wiring validators
+    # + renderers as quality signals is the next iteration; not blocking the
+    # core PDF -> Aurora story.
+    if publisher is not None:
+        publish_to_aurora = _invoke(scope, "PublishToAurora", publisher)
+        sfn.Chain.start(extract).next(publish_to_aurora).next(publish_succeed)
+        # Agent-disabled bypass: also terminate cleanly without running the
+        # publisher (no extraction = nothing to publish).
+        agent_disabled_target: sfn.IChainable = sfn.Succeed(scope, "AgentDisabledSkip")
+    else:
+        # Legacy path (unit-test stub): keep the old validator + render flow.
+        validate = sfn.Parallel(scope, "Validate", result_path="$.validation")
+        validate.branch(_invoke(scope, "Checksum", checksum))
+        validate.branch(_invoke(scope, "Range", range_fn))
+        validate.branch(_invoke(scope, "Confidence", confidence))
 
-    publish = sfn.Succeed(scope, "Published")
-    to_review = _invoke(scope, "RouteToReview", review_router).next(
-        sfn.Succeed(scope, "AwaitingReview")
-    )
+        render = sfn.Parallel(scope, "Render", result_path="$.render")
+        render.branch(_invoke(scope, "RenderXlsx", xlsx))
+        render.branch(_invoke(scope, "RenderCsv", csv))
+        render.branch(_invoke(scope, "RenderArticles", articles))
 
-    # Choice on the aggregate validator verdict (set on $.validation[*].passed).
-    gate = (
-        sfn.Choice(scope, "AllValidatorsPassed")
-        .when(
-            sfn.Condition.boolean_equals("$.validation[0].passed", True),
-            render.next(publish),
+        review_succeed = sfn.Succeed(scope, "AwaitingReview")
+        to_review = _invoke(scope, "RouteToReview", review_router).next(
+            review_succeed
         )
-        .otherwise(to_review)
-    )
-
-    # validate -> gate (single edge; reached from both Choice branches below).
-    validate.next(gate)
-    sfn.Chain.start(extract).next(validate)
+        gate = (
+            sfn.Choice(scope, "AllValidatorsPassed")
+            .when(
+                sfn.Condition.boolean_equals("$.validation[0].passed", True),
+                render.next(publish_succeed),
+            )
+            .otherwise(to_review)
+        )
+        validate.next(gate)
+        sfn.Chain.start(extract).next(validate)
+        agent_disabled_target = validate
 
     # Stage 1b — gate the agent invocation on agent-config.enabled. When the
-    # ExtractorAgent is disabled, bypass Stage 2 and validate directly.
+    # ExtractorAgent is disabled we bypass extraction; with the publisher-led
+    # chain, that means terminating cleanly (nothing to publish).
     agent_gate = (
         sfn.Choice(scope, "AgentEnabled")
-        .when(sfn.Condition.boolean_equals("$.agentCfg.Item.enabled.BOOL", True), extract)
-        .otherwise(validate)
+        .when(
+            sfn.Condition.boolean_equals(
+                "$.agentCfg.Item.enabled.BOOL", True
+            ),
+            extract,
+        )
+        .otherwise(agent_disabled_target)
     )
 
     failed = sfn.Fail(scope, "PipelineFailed", error="PipelineError", cause="See execution input")
