@@ -41,6 +41,28 @@ export interface JobArtifact {
   url?: string | null;
 }
 
+export interface RateSheetJobMeta {
+  job_id: string;
+  status: string;
+  started_at?: string;
+  stopped_at?: string;
+  duration_ms?: number | null;
+}
+
+export interface RateSheetDetail {
+  id: string;
+  union: string;
+  trade?: string;
+  local?: number;
+  period: string;
+  approval_state: string;
+  cells: RateCell[];
+  source_pdf_url?: string;
+  artifacts: JobArtifact[];
+  job_meta?: RateSheetJobMeta;
+  counts?: { classifications?: number; cells?: number; gaps?: number };
+}
+
 export interface JobDetail {
   job_id: string;
   execution_arn: string;

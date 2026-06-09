@@ -1,4 +1,7 @@
-"""Rate sheet get Lambda (Spec/09 §4 L2). Returns canonical JSON + approval state. Cognito/M2M."""
+"""Rate sheet get Lambda (Spec/09 §4 L2). Returns canonical JSON + approval
+state, presigned URLs to every artifact, and the most recent SFN job that
+produced this rate sheet (job_id + duration + status). Cognito-authenticated.
+"""
 
 from __future__ import annotations
 
@@ -28,18 +31,70 @@ def _resp(body: dict[str, Any], status: int = 200) -> dict[str, Any]:
     return {
         "statusCode": status,
         "headers": {"Content-Type": "application/json"},
-        "body": json.dumps(body),
+        "body": json.dumps(body, default=str),
     }
 
 
-def _sub(event: dict[str, Any]) -> str:
-    return (
-        event.get("requestContext", {})
-        .get("authorizer", {})
-        .get("jwt", {})
-        .get("claims", {})
-        .get("sub", "unknown")
-    )
+STATE_MACHINE_ARN = os.environ.get(
+    "STATE_MACHINE_ARN",
+    "arn:aws:states:us-east-2:908106425069:stateMachine:laboraid-dev-l3-sfn-main",
+)
+INPUTS_BUCKET = os.environ.get("INPUTS_BUCKET", "laboraid-dev-l3-bucket-inputs")
+OUTPUTS_BUCKET = os.environ.get("OUTPUTS_BUCKET", "laboraid-dev-l3-bucket-outputs")
+
+
+def _latest_job_for_source(sfn: Any, source_key: str) -> dict[str, Any] | None:
+    """Find the most recent SFN execution whose EventBridge input refers to
+    this S3 source key. Used so the Business header can link to the Admin
+    job page that produced this rate sheet.
+    """
+    if not source_key:
+        return None
+    try:
+        execs = sfn.list_executions(
+            stateMachineArn=STATE_MACHINE_ARN, maxResults=50
+        )["executions"]
+    except Exception:
+        return None
+    for e in execs:
+        try:
+            desc = sfn.describe_execution(executionArn=e["executionArn"])
+            inp = json.loads(desc.get("input", "{}"))
+            if inp.get("detail", {}).get("object", {}).get("key") == source_key:
+                start, stop = e.get("startDate"), e.get("stopDate")
+                duration_ms = (
+                    int((stop - start).total_seconds() * 1000)
+                    if start and stop
+                    else None
+                )
+                return {
+                    "job_id": e["name"],
+                    "status": e["status"],
+                    "started_at": start.isoformat() if start else None,
+                    "stopped_at": stop.isoformat() if stop else None,
+                    "duration_ms": duration_ms,
+                }
+        except Exception:
+            continue
+    return None
+
+
+def _presign(s3: Any, bucket: str, key: str) -> str | None:
+    if not key:
+        return None
+    try:
+        return s3.generate_presigned_url(
+            "get_object", Params={"Bucket": bucket, "Key": key}, ExpiresIn=3600
+        )
+    except Exception:
+        return None
+
+
+def _head_size(s3: Any, bucket: str, key: str) -> int | None:
+    try:
+        return s3.head_object(Bucket=bucket, Key=key).get("ContentLength")
+    except Exception:
+        return None
 
 
 @_instrument
@@ -49,7 +104,9 @@ def handler(event: dict[str, Any], _context: Any) -> dict[str, Any]:
         import boto3
 
         data = boto3.client("rds-data")
-        # 1. Fetch the rate_period header (approval_state + source_files for PDF link)
+        s3 = boto3.client("s3")
+        sfn = boto3.client("stepfunctions")
+
         head = data.execute_statement(
             resourceArn=os.environ["AURORA_CLUSTER_ARN"],
             secretArn=os.environ["AURORA_SECRET_ARN"],
@@ -57,7 +114,8 @@ def handler(event: dict[str, Any], _context: Any) -> dict[str, Any]:
             sql=(
                 "SELECT rp.id::text, rp.approval_state, "
                 "       COALESCE(rp.source_files::text, '{}') AS source_files, "
-                "       COALESCE(rp.canonical_json::text, '{}') AS canonical_json "
+                "       COALESCE(rp.canonical_json::text, '{}') AS canonical_json, "
+                "       u.local, u.trade "
                 "  FROM rate_periods rp "
                 "  JOIN unions u ON rp.union_id = u.id "
                 " WHERE u.local = :local::int AND rp.start_date = :period::date"
@@ -73,8 +131,11 @@ def handler(event: dict[str, Any], _context: Any) -> dict[str, Any]:
         period_id = rows[0][0]["stringValue"]
         approval_state = rows[0][1]["stringValue"]
         source_files = json.loads(rows[0][2].get("stringValue", "{}"))
+        canonical_summary = json.loads(rows[0][3].get("stringValue", "{}"))
+        local = rows[0][4].get("longValue")
+        trade = rows[0][5].get("stringValue") or ""
 
-        # 2. Fetch all rate_cells for this period
+        # Pull every cell. Order by package then column_name for deterministic UI.
         cells_resp = data.execute_statement(
             resourceArn=os.environ["AURORA_CLUSTER_ARN"],
             secretArn=os.environ["AURORA_SECRET_ARN"],
@@ -101,29 +162,71 @@ def handler(event: dict[str, Any], _context: Any) -> dict[str, Any]:
                 "provenance": json.loads(row[6].get("stringValue", "{}")),
             })
 
-        # Build a presigned URL to the source PDF if we know its S3 key.
-        source_pdf_url = None
-        pdf_key = source_files.get("rate_notice") or source_files.get("pdf")
-        if pdf_key:
-            try:
-                s3 = boto3.client("s3")
-                source_pdf_url = s3.generate_presigned_url(
-                    "get_object",
-                    Params={
-                        "Bucket": os.environ.get("INPUTS_BUCKET", "laboraid-dev-l3-bucket-inputs"),
-                        "Key": pdf_key,
-                    },
-                    ExpiresIn=3600,
-                )
-            except Exception:  # pragma: no cover
-                logger.exception("presign failed")
+        # Build the full artifact list. Source PDF is the input; output_csv,
+        # output_xlsx, gap_report_json may be present in source_files JSON. We
+        # presign + size each one that's actually in S3 so the UI can render
+        # "open" links with confidence; missing artifacts show as "not produced".
+        artifact_specs: list[tuple[str, str, str, str]] = [
+            ("Source PDF", "input", INPUTS_BUCKET,
+             source_files.get("rate_notice") or source_files.get("pdf") or ""),
+            ("Canonical CSV", "output", OUTPUTS_BUCKET,
+             source_files.get("output_csv") or ""),
+            ("Excel (xlsx)", "output", OUTPUTS_BUCKET,
+             source_files.get("output_xlsx") or ""),
+            ("Gap report (JSON)", "output", OUTPUTS_BUCKET,
+             source_files.get("gap_report") or ""),
+        ]
+        artifacts: list[dict[str, Any]] = []
+        for name, kind, bucket, key in artifact_specs:
+            if not key:
+                # Still emit the row so the UI can show "not produced" for the
+                # ones not yet in this run.
+                artifacts.append({
+                    "name": name, "kind": kind, "bucket": bucket, "key": "",
+                    "size": None, "url": None,
+                })
+                continue
+            size = _head_size(s3, bucket, key)
+            artifacts.append({
+                "name": name,
+                "kind": kind,
+                "bucket": bucket,
+                "key": key,
+                "size": size,
+                "url": _presign(s3, bucket, key) if size is not None else None,
+            })
+
+        # Resolve the source PDF URL up-top too for the inline viewer.
+        source_pdf_url = next(
+            (a["url"] for a in artifacts if a["name"] == "Source PDF" and a.get("url")),
+            None,
+        )
+
+        # Walk the SFN to find the run that produced this rate sheet.
+        source_key = source_files.get("rate_notice") or source_files.get("pdf") or ""
+        job_meta = _latest_job_for_source(sfn, source_key)
+
+        # Pull counts from canonical_json if present (extractor writes them).
+        counts = {
+            "classifications": canonical_summary.get("rows"),
+            "cells": len(cells),
+            "gaps": canonical_summary.get("gaps", 0),
+        }
 
         return _resp({
             "id": period_id,
+            "union": f"{trade} {local}".strip() if local else trade,
+            "trade": trade,
+            "local": local,
+            "period": p["period"],
             "approval_state": approval_state,
             "cells": cells,
             "source_pdf_url": source_pdf_url,
             "source_files": source_files,
+            "artifacts": artifacts,
+            "job_meta": job_meta,
+            "counts": counts,
+            "canonical_summary": canonical_summary,
         })
     except Exception:
         logger.exception("ratesheet-get failed")
