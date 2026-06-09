@@ -2,3 +2,9 @@ node_modules/
 dist/
 *.local
 .vite/
+
+# Playwright
+test-results/
+playwright-report/
+playwright/.cache/
+tests/e2e/.auth/

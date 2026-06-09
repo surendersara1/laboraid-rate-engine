@@ -59,10 +59,14 @@ export function CellOverrideModal({
           </span>
         </div>
         <div>
-          <label className="text-xs font-medium uppercase tracking-wide text-slate-500">
+          <label
+            htmlFor="override-new-value"
+            className="text-xs font-medium uppercase tracking-wide text-slate-500"
+          >
             New value
           </label>
           <input
+            id="override-new-value"
             type="number"
             step="0.01"
             className="mt-1 w-full rounded-md border border-slate-200 px-3 py-1.5 font-mono text-sm tabular-nums focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand"
@@ -72,10 +76,14 @@ export function CellOverrideModal({
           />
         </div>
         <div>
-          <label className="text-xs font-medium uppercase tracking-wide text-slate-500">
+          <label
+            htmlFor="override-justification"
+            className="text-xs font-medium uppercase tracking-wide text-slate-500"
+          >
             Justification (optional)
           </label>
           <textarea
+            id="override-justification"
             className="mt-1 h-20 w-full rounded-md border border-slate-200 px-3 py-2 text-sm focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand"
             value={justification}
             onChange={(e) => setJustification(e.target.value)}

@@ -9,7 +9,12 @@
     "typecheck": "tsc --noEmit",
     "lint": "eslint . --ext ts,tsx --max-warnings 0",
     "test": "vitest",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test:e2e": "playwright test",
+    "test:e2e:headed": "playwright test --headed",
+    "test:e2e:debug": "playwright test --debug",
+    "test:e2e:codegen": "playwright codegen https://d3ggwschjt81wu.cloudfront.net",
+    "test:e2e:report": "playwright show-report"
   },
   "dependencies": {
     "@tanstack/react-table": "8.20.5",
@@ -22,6 +27,8 @@
     "zustand": "4.5.5"
   },
   "devDependencies": {
+    "@aws-sdk/client-cognito-identity-provider": "3.1064.0",
+    "@playwright/test": "1.49.0",
     "@testing-library/jest-dom": "6.5.0",
     "@testing-library/react": "16.0.1",
     "@types/react": "18.3.11",

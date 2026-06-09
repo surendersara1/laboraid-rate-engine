@@ -110,6 +110,7 @@ api = ApiStack(
     config=config,
     user_pool=security.user_pool,
     user_pool_client=security.user_pool_client,
+    user_pool_test_client=getattr(security, "user_pool_test_client", None),
     inputs_bucket=storage.inputs_bucket,
     jobs_table=storage.jobs_table,
     agent_config_table=storage.agent_config_table,

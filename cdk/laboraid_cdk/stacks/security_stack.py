@@ -72,7 +72,12 @@ class SecurityStack(Stack):
             user_pool_name=name(config.env, "l1", "cognito", "userpool"),
             self_sign_up_enabled=False,  # admin-invited only for POC
             sign_in_aliases=cognito.SignInAliases(email=True),
-            mfa=cognito.Mfa.REQUIRED,
+            # MFA: required for prod (real fund-member PII), OFF for dev. The
+            # dev pool holds only synthetic POC data and the E2E suite needs to
+            # InitiateAuth programmatically; pool-wide REQUIRED forces every
+            # user (including a dedicated test user) into MFA_SETUP on first
+            # sign-in. Gate flips back on for prod via config.is_prod.
+            mfa=cognito.Mfa.REQUIRED if config.is_prod else cognito.Mfa.OFF,
             mfa_second_factor=cognito.MfaSecondFactor(otp=True, sms=False),
             password_policy=cognito.PasswordPolicy(min_length=12, require_symbols=True),
             removal_policy=(RemovalPolicy.RETAIN if config.is_prod else RemovalPolicy.DESTROY),
@@ -88,6 +93,7 @@ class SecurityStack(Stack):
             )
 
         # SPA app client (auth-code flow with Cognito hosted UI).
+        # Auth flows are OAuth code only — used by the live SPA in the browser.
         self.user_pool_client = self.user_pool.add_client(
             "SpaClient",
             user_pool_client_name=name(config.env, "l1", "cognito", "spa-client"),
@@ -99,6 +105,26 @@ class SecurityStack(Stack):
                 logout_urls=[f"{redirect_url}/"],
             ),
         )
+
+        # Separate, test-only app client. USER_PASSWORD_AUTH is enabled so the
+        # Playwright E2E suite (ui/tests/e2e) can call InitiateAuth from Node and
+        # inject Amplify-compatible tokens into the page's localStorage. This
+        # client is NEVER referenced by the production SPA — it exists purely so
+        # the test harness can sidestep the hosted-UI redirect without weakening
+        # the real SPA client's auth surface.
+        # Skipped on prod (config.is_prod): tests on prod would use a separate
+        # test pool or run in a staging env.
+        if not config.is_prod:
+            self.user_pool_test_client = self.user_pool.add_client(
+                "SpaTestClient",
+                user_pool_client_name=name(config.env, "l1", "cognito", "spa-test-client"),
+                generate_secret=False,
+                auth_flows=cognito.AuthFlow(
+                    user_password=True,
+                    user_srp=True,
+                ),
+                prevent_user_existence_errors=True,
+            )
 
         # Hosted-UI domain (free amazoncognito.com prefix).
         self.user_pool_domain = self.user_pool.add_domain(
@@ -120,3 +146,9 @@ class SecurityStack(Stack):
         CfnOutput(self, "MasterKeyArn", value=self.master_key.key_arn)
         CfnOutput(self, "UserPoolId", value=self.user_pool.user_pool_id)
         CfnOutput(self, "UserPoolClientId", value=self.user_pool_client.user_pool_client_id)
+        if not config.is_prod:
+            CfnOutput(
+                self,
+                "UserPoolTestClientId",
+                value=self.user_pool_test_client.user_pool_client_id,
+            )

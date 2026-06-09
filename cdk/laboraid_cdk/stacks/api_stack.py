@@ -99,6 +99,7 @@ class ApiStack(Stack):
         config: Config,
         user_pool: cognito.IUserPool,
         user_pool_client: cognito.IUserPoolClient,
+        user_pool_test_client: cognito.IUserPoolClient | None,
         inputs_bucket: s3.IBucket,
         jobs_table: ddb.ITable,
         agent_config_table: ddb.ITable,
@@ -174,10 +175,17 @@ class ApiStack(Stack):
             self.functions[key] = fn
 
         # --- HTTP API + Cognito authorizer ------------------------------------
+        # Both the live SPA client and the E2E test-only client are allowed.
+        # The authorizer just validates issuer + aud; accepting two clients
+        # means Playwright can sign in via USER_PASSWORD_AUTH against the test
+        # client without weakening the production SPA client's auth flows.
+        allowed_clients = [user_pool_client]
+        if user_pool_test_client is not None:
+            allowed_clients.append(user_pool_test_client)
         authorizer = authorizers.HttpUserPoolAuthorizer(
             "CognitoAuthorizer",
             user_pool,
-            user_pool_clients=[user_pool_client],
+            user_pool_clients=allowed_clients,
         )
         self.http_api = apigw.HttpApi(
             self,
