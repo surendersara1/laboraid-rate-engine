@@ -252,6 +252,30 @@ export function RateSheetReview(): JSX.Element {
                     ? " · current"
                     : " · historical"}
                 </span>
+                {/* Show rework mode (merge vs ai) for any non-original version. */}
+                {detail.parent_version &&
+                  (() => {
+                    const mode =
+                      (detail.versions?.find((v) => v.version === detail.version)
+                        ?.rework_context as { mode?: string } | null)?.mode ||
+                      "merge";
+                    return (
+                      <span
+                        className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ring-1 ring-inset ${
+                          mode === "ai"
+                            ? "bg-indigo-100 text-indigo-800 ring-indigo-200"
+                            : "bg-emerald-100 text-emerald-800 ring-emerald-200"
+                        }`}
+                        title={
+                          mode === "ai"
+                            ? "Reworked via AgentCore Runtime (AI re-extraction + overrides)"
+                            : "Reworked via deterministic merge (parent + overrides)"
+                        }
+                      >
+                        {mode === "ai" ? "✨ ai" : "merge"}
+                      </span>
+                    );
+                  })()}
                 {(detail.versions?.length ?? 0) > 1 && (
                   <select
                     value={String(detail.version ?? "")}

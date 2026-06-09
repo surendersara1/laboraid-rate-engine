@@ -14,13 +14,14 @@ from __future__ import annotations
 
 from typing import Any
 
-from aws_cdk import CfnOutput, Stack
+from aws_cdk import CfnOutput, Duration, Stack
 from aws_cdk import aws_apigatewayv2 as apigw
 from aws_cdk import aws_apigatewayv2_authorizers as authorizers
 from aws_cdk import aws_apigatewayv2_integrations as integrations
 from aws_cdk import aws_cognito as cognito
 from aws_cdk import aws_dynamodb as ddb
 from aws_cdk import aws_events as events
+from aws_cdk import aws_iam as iam
 from aws_cdk import aws_lambda as lambda_
 from aws_cdk import aws_rds as rds
 from aws_cdk import aws_s3 as s3
@@ -82,7 +83,13 @@ GRANTS: dict[str, set[str]] = {
     # overrides DDB table (read the user's manual overrides), events (emit
     # the lifecycle event), and invoke permission on the xlsx renderer to
     # regenerate the v2 spreadsheet.
-    "ratesheet-rework": {"aurora", "overrides", "events", "invoke-renderers"},
+    "ratesheet-rework": {
+        "aurora",
+        "overrides",
+        "events",
+        "invoke-renderers",
+        "invoke-extractor-agent",
+    },
     "cell-override": {"overrides"},
     "cell-comment": {"aurora"},
 }
@@ -109,6 +116,7 @@ class ApiStack(Stack):
         engine_bus: events.IEventBus,
         xlsx_renderer: lambda_.IFunction,
         outputs_bucket: s3.IBucket,
+        extractor_runtime_arn: str | None = None,
         **kwargs: Any,
     ) -> None:
         super().__init__(scope, construct_id, **kwargs)
@@ -136,11 +144,21 @@ class ApiStack(Stack):
             "ENGINE_BUS_NAME": engine_bus.event_bus_name,
             "OUTPUTS_BUCKET": outputs_bucket.bucket_name,
             "XLSX_RENDERER_FN": xlsx_renderer.function_name,
+            "EXTRACTOR_RUNTIME_ARN": extractor_runtime_arn or "",
         }
 
         # --- Create one Lambda per unique dir, applying its grants -------------
+        # Per-route extras: routes that need longer execution time than the
+        # 30s default (e.g. rework[mode=ai] synchronously invokes the agent).
+        per_fn_timeout: dict[str, Duration] = {
+            "ratesheet-rework": Duration.minutes(5),
+        }
+
         self.functions: dict[str, TaggedLambda] = {}
         for key in {dir_ for _, _, dir_ in ROUTES}:
+            extra_kwargs: dict[str, Any] = {}
+            if key in per_fn_timeout:
+                extra_kwargs["timeout"] = per_fn_timeout[key]
             fn = TaggedLambda(
                 self,
                 _pascal(key),
@@ -151,6 +169,7 @@ class ApiStack(Stack):
                 code=lambda_.Code.from_asset(f"../lambdas/api/{key}"),
                 environment=dict(common_env),
                 layers=[authz_layer],
+                **extra_kwargs,
             )
             cats = GRANTS[key]
             if "inputs" in cats:
@@ -171,6 +190,17 @@ class ApiStack(Stack):
                 # Rework reads parent CSV from outputs, writes patched v2 CSV
                 # back, then HEAD-checks both the CSV + the xlsx output.
                 outputs_bucket.grant_read_write(fn)
+            if "invoke-extractor-agent" in cats and extractor_runtime_arn:
+                fn.add_to_role_policy(
+                    iam.PolicyStatement(
+                        effect=iam.Effect.ALLOW,
+                        actions=["bedrock-agentcore:InvokeAgentRuntime"],
+                        resources=[
+                            extractor_runtime_arn,
+                            extractor_runtime_arn + "/*",
+                        ],
+                    )
+                )
             self.functions[key] = fn
 
         # --- HTTP API + Cognito authorizer ------------------------------------

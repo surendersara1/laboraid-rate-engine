@@ -172,6 +172,7 @@ def _synth_api() -> Template:
         engine_bus=engine_bus,
         xlsx_renderer=xlsx_renderer,
         outputs_bucket=storage.outputs_bucket,
+        extractor_runtime_arn=None,
     )
     return Template.from_stack(api)
 

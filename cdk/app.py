@@ -120,10 +120,12 @@ api = ApiStack(
     engine_bus=validation.engine_bus,
     xlsx_renderer=validation.xlsx,
     outputs_bucket=storage.outputs_bucket,
+    extractor_runtime_arn=processing.extractor_runtime.runtime_arn,
 )
 api.add_dependency(security)
 api.add_dependency(storage)
 api.add_dependency(validation)
+api.add_dependency(processing)
 
 # Orchestration — Step Functions pipeline over the processing + validation fns.
 orchestration = OrchestrationStack(

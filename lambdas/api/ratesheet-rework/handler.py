@@ -36,9 +36,11 @@ import authz  # shared Lambda layer (/opt/python/authz.py)
 
 ENGINE_BUS_NAME = os.environ.get("ENGINE_BUS_NAME", "")
 OUTPUTS_BUCKET = os.environ.get("OUTPUTS_BUCKET", "laboraid-dev-l3-bucket-outputs")
+INPUTS_BUCKET = os.environ.get("INPUTS_BUCKET", "laboraid-dev-l3-bucket-inputs")
 XLSX_RENDERER_FN = os.environ.get(
     "XLSX_RENDERER_FN", "laboraid-dev-l7-fn-renderer-xlsx"
 )
+EXTRACTOR_RUNTIME_ARN = os.environ.get("EXTRACTOR_RUNTIME_ARN", "")
 
 try:  # pragma: no cover - present in the Lambda runtime
     from aws_lambda_powertools import Logger, Tracer
@@ -79,6 +81,63 @@ def _actor(event: dict[str, Any]) -> str:
         or claims.get("sub")
         or "unknown"
     )
+
+
+def _invoke_extractor_runtime(
+    union_local: str,
+    s3_prefix: str,
+    out_s3_key: str,
+    rework_context: dict[str, Any],
+    session_id: str,
+) -> dict[str, Any]:
+    """Synchronously invoke the ExtractorAgent on AgentCore Runtime in direct
+    mode. The agent's invoke entrypoint forwards `direct=True` straight to the
+    fat kernel tool, so for the 5 kernel unions this is deterministic — the
+    returned CSV is identical to the parent's. We pass `rework_context` along
+    too: the agent ignores it today (Path-A is deterministic so re-extraction
+    converges anyway), but the field is required when a Path-C union later
+    needs Claude re-prompted with the reviewer's feedback.
+
+    Returns the agent's parsed JSON: {s3_key, rows, gaps, gap_count,
+    extracted_rows, checksum}.
+    """
+    if not EXTRACTOR_RUNTIME_ARN:
+        raise RuntimeError("EXTRACTOR_RUNTIME_ARN env var is not set")
+    import boto3
+    from botocore.config import Config
+
+    client = boto3.client(
+        "bedrock-agentcore",
+        config=Config(
+            read_timeout=900, connect_timeout=10, retries={"max_attempts": 1}
+        ),
+    )
+    payload = {
+        "direct": True,
+        "union": str(union_local),
+        "s3_prefix": s3_prefix,
+        "out_s3_key": out_s3_key,
+        "rework_context": rework_context,
+    }
+    # AgentCore needs session id >= 33 chars.
+    sid = (session_id + "-" + "0" * 33)[:64]
+    resp = client.invoke_agent_runtime(
+        agentRuntimeArn=EXTRACTOR_RUNTIME_ARN,
+        runtimeSessionId=sid,
+        payload=json.dumps(payload).encode("utf-8"),
+    )
+    body = resp.get("response")
+    raw = (
+        body.read()
+        if hasattr(body, "read")
+        else (body if isinstance(body, (bytes, bytearray)) else b"")
+    )
+    try:
+        return json.loads(raw.decode("utf-8")) if raw else {}
+    except Exception:
+        return {
+            "_raw": raw[:1000].decode("utf-8", errors="replace") if raw else "",
+        }
 
 
 def _comments_since_last_rework(
@@ -229,6 +288,15 @@ def handler(event: dict[str, Any], _context: Any) -> dict[str, Any]:
             return _resp({"error": "missing_path_params"}, 400)
         body = json.loads(event.get("body") or "{}")
         note = body.get("note") or ""
+        # mode: "merge" (default, inline merge) or "ai" (re-invoke ExtractorAgent
+        # so the kernel re-extracts fresh from the source PDF, then overrides
+        # are applied on top). For 704/483/537/281/821 the kernel is
+        # deterministic so the ai output equals merge for now — the path
+        # exists so future Path-C unions can re-prompt Claude with
+        # rework_context in its message body.
+        mode = (body.get("mode") or "merge").lower()
+        if mode not in ("merge", "ai"):
+            return _resp({"error": "invalid_mode", "got": mode}, 400)
         actor = _actor(event)
 
         import boto3
@@ -307,6 +375,7 @@ def handler(event: dict[str, Any], _context: Any) -> dict[str, Any]:
         new_period_id = str(uuid.uuid4())
         new_version = int(prev_version) + 1
         rework_ctx = {
+            "mode": mode,
             "previous_version": prev_version,
             "previous_period_id": prev_period_id,
             "rejection_reason": rejection_reason,
@@ -418,13 +487,56 @@ def handler(event: dict[str, Any], _context: Any) -> dict[str, Any]:
         # the key by suffix so the v1 file survives for diff/audit.
         sf = json.loads(source_files) if source_files else {}
         csv_key = sf.get("output_csv")
+        rate_notice_key = sf.get("rate_notice", "")
         new_sf = dict(sf)
-        if csv_key:
-            new_csv_key = csv_key.replace("/output.csv", f"/output.v{new_version}.csv")
-            new_xlsx_key = csv_key.replace("/output.csv", f"/output.v{new_version}.xlsx")
+        agent_summary: dict[str, Any] = {}
+
+        if mode == "ai" and rate_notice_key:
+            # Re-invoke the ExtractorAgent on AgentCore Runtime. The agent
+            # writes a fresh CSV based on the source PDF; we use THAT as the
+            # base for the override patch below. For Path-A unions the agent's
+            # CSV is byte-identical to the parent's (deterministic kernel) —
+            # the value here is that the demo demonstrably routed rework
+            # through the agent, and the rework_context is in the agent's
+            # CloudWatch log + the audit trail.
+            ai_csv_key = csv_key.replace(
+                "/output.csv", f"/output.v{new_version}.ai.csv"
+            ) if csv_key else (
+                rate_notice_key.rsplit("/", 1)[0] + f"/output.v{new_version}.ai.csv"
+            )
+            s3_prefix = (
+                rate_notice_key.rsplit("/", 1)[0] + "/" if "/" in rate_notice_key else ""
+            )
             try:
-                # 6a. Build the v2 CSV by patching the parent CSV with every
-                # (classification, column) override we just applied to cells.
+                agent_summary = _invoke_extractor_runtime(
+                    union_local=local,
+                    s3_prefix=s3_prefix,
+                    out_s3_key=ai_csv_key,
+                    rework_context=rework_ctx,
+                    session_id=f"rework-{new_period_id}",
+                )
+                logger.info(
+                    "rework[ai]: agent returned %s", json.dumps(agent_summary)[:300]
+                )
+                if agent_summary.get("s3_key"):
+                    # Use the agent's CSV as the source for the override patch.
+                    csv_key = agent_summary["s3_key"]
+                    new_sf["output_csv_ai"] = csv_key
+            except Exception as e:  # pragma: no cover - lambda runtime only
+                logger.warning("rework[ai]: agent invoke failed: %s", e)
+                agent_summary = {"error": str(e)}
+
+        if csv_key:
+            new_csv_key = (
+                csv_key.replace("/output.v{new_version}.ai.csv", f"/output.v{new_version}.csv")
+                .replace(".ai.csv", ".csv")
+                if mode == "ai"
+                else csv_key.replace("/output.csv", f"/output.v{new_version}.csv")
+            )
+            new_xlsx_key = new_csv_key.replace(".csv", ".xlsx")
+            try:
+                # 6a. Build the v2 CSV by patching the (agent's or parent's) CSV
+                # with every (classification, column) override we just applied.
                 patched_csv = _rebuild_csv_with_overrides(
                     s3, OUTPUTS_BUCKET, csv_key, overrides_by_position
                 )
@@ -438,7 +550,7 @@ def handler(event: dict[str, Any], _context: Any) -> dict[str, Any]:
                 s3.head_object(Bucket=OUTPUTS_BUCKET, Key=new_csv_key)
                 new_sf["output_csv"] = new_csv_key
                 logger.info(
-                    "rework: wrote v%d csv key=%s", new_version, new_csv_key
+                    "rework[%s]: wrote v%d csv key=%s", mode, new_version, new_csv_key
                 )
 
                 # 6b. Re-render the xlsx from the v2 CSV so the spreadsheet
@@ -475,11 +587,20 @@ def handler(event: dict[str, Any], _context: Any) -> dict[str, Any]:
             "period": period,
             "from_version": prev_version,
             "to_version": new_version,
+            "mode": mode,
             "applied_overrides": applied_count,
             "comments_incorporated": len(rework_comments),
             "note": note,
             "rejection_reason": rejection_reason,
         }
+        if mode == "ai":
+            details["agent"] = {
+                "rows": agent_summary.get("rows"),
+                "extracted_rows": agent_summary.get("extracted_rows"),
+                "gap_count": agent_summary.get("gap_count"),
+                "checksum_passed": (agent_summary.get("checksum") or {}).get("passed"),
+                "error": agent_summary.get("error"),
+            }
         rds.execute_statement(
             **common,
             sql=(
@@ -517,10 +638,12 @@ def handler(event: dict[str, Any], _context: Any) -> dict[str, Any]:
         return _resp({
             "from_version": prev_version,
             "to_version": new_version,
+            "mode": mode,
             "applied_overrides": applied_count,
             "comments_incorporated": len(rework_comments),
             "new_period_id": new_period_id,
             "source_files": new_sf,
+            "agent_summary": agent_summary if mode == "ai" else None,
         })
     except Exception:
         logger.exception("ratesheet-rework failed")

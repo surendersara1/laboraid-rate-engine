@@ -1,11 +1,31 @@
 import { useState } from "react";
 import { api } from "../lib/api";
 
-// Tier 3 — Rework action bar. Visible only when the rate sheet is rejected
-// AND there are pending overrides + a rejection reason; the backend collects
-// both from DDB/Aurora when it builds the new version, so the UI doesn't need
-// to send them inline. We just give the reviewer a single "create v(N+1)"
-// button + an optional note.
+type ReworkMode = "merge" | "ai";
+
+interface ReworkResult {
+  to_version: number;
+  applied_overrides: number;
+  comments_incorporated: number;
+  mode: ReworkMode;
+  agent_summary?: Record<string, unknown> | null;
+}
+
+// Tier 3 — Rework action bar. Visible only on the latest version of a
+// rejected sheet. Two modes:
+//
+//  • merge (default): the rework Lambda copies parent cells to v(N+1)
+//    applying every override in DDB, patches the canonical CSV by
+//    (Package, column) → new value, regenerates the xlsx. ~2-3s.
+//
+//  • ai: the rework Lambda synchronously invokes the ExtractorAgent on
+//    AgentCore Runtime in direct mode, passing rework_context (rejection
+//    reason + tags + applied overrides + cell comments) in the payload.
+//    The agent re-extracts from the source PDF, returns a fresh CSV, and
+//    the Lambda then applies overrides on top. ~30-60s.
+//    For the 5 kernel unions the agent's output equals the merge output —
+//    the path exists so future Path-C unions can re-prompt Claude with
+//    rework_context.
 export function ReworkBar({
   union,
   period,
@@ -22,7 +42,7 @@ export function ReworkBar({
   onReworked: (toVersion: number) => void;
 }): JSX.Element | null {
   const [note, setNote] = useState("");
-  const [busy, setBusy] = useState(false);
+  const [busy, setBusy] = useState<ReworkMode | null>(null);
   const [error, setError] = useState("");
   const [ok, setOk] = useState("");
 
@@ -33,24 +53,30 @@ export function ReworkBar({
 
   const local = (union.match(/(\d{2,4})\s*$/) || [])[1] || union;
 
-  const submit = async () => {
-    setBusy(true);
+  const submit = async (mode: ReworkMode) => {
+    setBusy(mode);
     setError("");
     setOk("");
     try {
-      const r = await api.post<{ to_version: number; applied_overrides: number }>(
+      const r = await api.post<ReworkResult>(
         `/v1/unions/${local}/rate-sheets/${period}/rework`,
-        { note },
+        { note, mode },
       );
+      const aiSuffix =
+        mode === "ai" && r.agent_summary?.rows
+          ? ` (agent: ${String(r.agent_summary.rows)} rows, ${String(
+              r.agent_summary.gap_count ?? 0,
+            )} gaps)`
+          : "";
       setOk(
-        `Reworked → v${r.to_version}. ${r.applied_overrides} override(s) applied.`,
+        `Reworked → v${r.to_version} [${r.mode}]. ${r.applied_overrides} override(s) + ${r.comments_incorporated} comment(s) incorporated${aiSuffix}.`,
       );
       setNote("");
       onReworked(r.to_version);
     } catch (e) {
       setError(String(e));
     } finally {
-      setBusy(false);
+      setBusy(null);
     }
   };
 
@@ -72,15 +98,25 @@ export function ReworkBar({
           onChange={(e) => setNote(e.target.value)}
           placeholder="Optional note for the rework (visible in the activity log)"
           className="flex-1 rounded-md border border-amber-200 bg-white px-3 py-1.5 text-sm focus:border-amber-400 focus:outline-none focus:ring-1 focus:ring-amber-400"
-          disabled={busy}
+          disabled={busy !== null}
         />
         <button
           type="button"
-          disabled={busy}
-          onClick={submit}
+          disabled={busy !== null}
+          onClick={() => submit("merge")}
           className="rounded-md bg-amber-600 px-4 py-1.5 text-sm font-medium text-white shadow-sm transition hover:bg-amber-700 disabled:cursor-not-allowed disabled:bg-slate-300"
+          title="Deterministic merge: parent cells + your overrides → v(N+1). Fast (~2s)."
         >
-          {busy ? "Reworking…" : "Apply overrides → new version"}
+          {busy === "merge" ? "Reworking…" : "Apply overrides → new version"}
+        </button>
+        <button
+          type="button"
+          disabled={busy !== null}
+          onClick={() => submit("ai")}
+          className="rounded-md bg-indigo-600 px-4 py-1.5 text-sm font-medium text-white shadow-sm transition hover:bg-indigo-700 disabled:cursor-not-allowed disabled:bg-slate-300"
+          title="Re-invoke the ExtractorAgent on AgentCore Runtime with your rejection feedback + comments in the payload, then apply overrides. Slower (~30-60s) but uses the AI path end-to-end."
+        >
+          {busy === "ai" ? "AI re-extracting (≈30-60s)…" : "✨ Re-extract with AI feedback"}
         </button>
       </div>
       {(error || ok) && (
