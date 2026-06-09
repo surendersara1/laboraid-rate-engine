@@ -25,6 +25,8 @@ Path-C unions can re-prompt Claude with the rejection feedback in a follow-up.
 
 from __future__ import annotations
 
+import csv
+import io
 import json
 import os
 import uuid
@@ -77,6 +79,112 @@ def _actor(event: dict[str, Any]) -> str:
         or claims.get("sub")
         or "unknown"
     )
+
+
+def _comments_since_last_rework(
+    rds: Any, common: dict[str, Any], local: str, period: str
+) -> list[dict[str, Any]]:
+    """Pull every per-cell comment for this {local, period} that landed after
+    the most recent rework (or all of them on the first rework). Each entry
+    keeps the cell + the comment text + actor + ts so the rework_context is a
+    self-contained record of what the reviewer said about the parent version.
+    Enriches each comment with the cell's package + column_name so the agent
+    (or a human reading the JSON) doesn't have to cross-reference cell_ids.
+    """
+    sql = (
+        "WITH last_rework AS ( "
+        "  SELECT COALESCE(MAX(ts), 'epoch'::timestamptz) AS ts "
+        "    FROM audit_log "
+        "   WHERE action = 'rework' "
+        "     AND details->>'local' = :local "
+        "     AND details->>'period' = :period "
+        ") "
+        "SELECT a.id, "
+        "       to_char(a.ts AT TIME ZONE 'UTC','YYYY-MM-DD\"T\"HH24:MI:SS.MS\"Z\"'), "
+        "       a.actor, "
+        "       a.details->>'cell_id' AS cell_id, "
+        "       a.details->>'text' AS text, "
+        "       rc.package, rc.column_name "
+        "  FROM audit_log a "
+        "  LEFT JOIN rate_cells rc "
+        "    ON rc.id::text = a.details->>'cell_id' "
+        " WHERE a.action = 'comment' "
+        "   AND a.details->>'local' = :local "
+        "   AND a.details->>'period' = :period "
+        "   AND a.ts > (SELECT ts FROM last_rework) "
+        " ORDER BY a.ts ASC"
+    )
+    r = rds.execute_statement(
+        **common,
+        sql=sql,
+        parameters=[
+            {"name": "local", "value": {"stringValue": local}},
+            {"name": "period", "value": {"stringValue": period}},
+        ],
+    )
+    out: list[dict[str, Any]] = []
+    for row in r.get("records", []):
+        out.append({
+            "id": row[0].get("longValue"),
+            "ts": row[1].get("stringValue"),
+            "actor": row[2].get("stringValue"),
+            "cell_id": row[3].get("stringValue"),
+            "text": row[4].get("stringValue"),
+            "package": row[5].get("stringValue") if not row[5].get("isNull") else None,
+            "column_name": row[6].get("stringValue") if not row[6].get("isNull") else None,
+        })
+    return out
+
+
+def _rebuild_csv_with_overrides(
+    s3: Any,
+    src_bucket: str,
+    src_key: str,
+    overrides_by_position: dict[tuple[str, str], str],
+) -> bytes:
+    """Read the parent version's canonical CSV and emit a new CSV with the
+    overridden values patched in. We preserve the column order + classification
+    rows exactly — only specific (classification, column) cells change. This
+    keeps the xlsx-renderer downstream code unchanged.
+
+    `overrides_by_position` is keyed by (package, column_name) → new_value (str).
+    The kernel CSV puts the classification value under a "Package" header
+    (consistently across unions); we locate it by name rather than position so
+    the function works regardless of how many lead context columns each profile
+    prepends (Union Group, Trade, Local, Zone, …).
+    """
+    raw = s3.get_object(Bucket=src_bucket, Key=src_key)["Body"].read()
+    reader = csv.reader(io.StringIO(raw.decode("utf-8")))
+    rows = list(reader)
+    if not rows:
+        return raw
+    header = rows[0]
+    if "Package" not in header:
+        print(
+            f"[rework] CSV header lacks 'Package' column; cannot patch overrides. "
+            f"header={header[:8]}..."
+        )
+        return raw
+    pkg_idx = header.index("Package")
+    col_lookup = {col: idx for idx, col in enumerate(header) if idx != pkg_idx}
+    patched = 0
+    for r in rows[1:]:
+        if not r:
+            continue
+        classification = r[pkg_idx] if pkg_idx < len(r) else ""
+        for col_name, idx in col_lookup.items():
+            key = (classification, col_name)
+            if key in overrides_by_position and idx < len(r):
+                # Use the override value as-is (already string-formatted by the
+                # cell-override Lambda's `str(float(value))` path).
+                r[idx] = overrides_by_position[key]
+                patched += 1
+    out = io.StringIO()
+    writer = csv.writer(out, lineterminator="\n")
+    writer.writerow(header)
+    writer.writerows(rows[1:])
+    print(f"[rework] patched {patched} CSV cells (Package col={pkg_idx})")
+    return out.getvalue().encode("utf-8")
 
 
 def _latest_overrides_for_period(local: str, period: str) -> dict[str, dict[str, Any]]:
@@ -176,6 +284,14 @@ def handler(event: dict[str, Any], _context: Any) -> dict[str, Any]:
         # 2. Read overrides for this {local, period} from DDB.
         overrides_by_cell = _latest_overrides_for_period(local, period)
 
+        # 2b. Pull cell-level comments that landed since the last rework. These
+        # are not currently used to mutate cells (only overrides do that), but
+        # they ARE folded into rework_context so the v2 row carries a verbatim
+        # record of every reviewer note about the parent. The Path-C agent
+        # re-prompt (T3.D) reads them out of rework_context.comments[] to
+        # incorporate human feedback into the re-extraction.
+        rework_comments = _comments_since_last_rework(rds, common, local, period)
+
         # 3. Pull every cell of the parent version.
         cells = rds.execute_statement(
             **common,
@@ -207,6 +323,11 @@ def handler(event: dict[str, Any], _context: Any) -> dict[str, Any]:
                 }
                 for c, v in overrides_by_cell.items()
             ],
+            # Verbatim reviewer comments on cells of the parent version. The
+            # Path-C agent re-prompt reads this to fold human feedback into
+            # its next extraction; for Path-A unions it's preserved purely
+            # for audit + UI diff context.
+            "comments": rework_comments,
             "note": note,
         }
         rds.execute_statement(
@@ -232,7 +353,12 @@ def handler(event: dict[str, Any], _context: Any) -> dict[str, Any]:
         )
 
         # 5. Copy rate_cells into the new period, applying overrides per cell_id.
+        # We also collect a (package, column_name) → new_value map so we can
+        # patch the canonical CSV in step 6 — the xlsx-renderer just rewrites
+        # whatever CSV it's pointed at, so if we patch the CSV both artifacts
+        # agree on v2 values.
         applied_count = 0
+        overrides_by_position: dict[tuple[str, str], str] = {}
         for crow in cells.get("records", []):
             old_cell_id = crow[0]["stringValue"]
             zone = crow[1].get("stringValue") or ""
@@ -249,6 +375,7 @@ def handler(event: dict[str, Any], _context: Any) -> dict[str, Any]:
             override = overrides_by_cell.get(old_cell_id)
             if override and override.get("value") is not None:
                 new_value = str(override["value"])
+                overrides_by_position[(package, column_name)] = new_value
                 applied_count += 1
                 # Mark the provenance so the diff view can highlight rework cells.
                 try:
@@ -293,21 +420,41 @@ def handler(event: dict[str, Any], _context: Any) -> dict[str, Any]:
         csv_key = sf.get("output_csv")
         new_sf = dict(sf)
         if csv_key:
+            new_csv_key = csv_key.replace("/output.csv", f"/output.v{new_version}.csv")
             new_xlsx_key = csv_key.replace("/output.csv", f"/output.v{new_version}.xlsx")
             try:
+                # 6a. Build the v2 CSV by patching the parent CSV with every
+                # (classification, column) override we just applied to cells.
+                patched_csv = _rebuild_csv_with_overrides(
+                    s3, OUTPUTS_BUCKET, csv_key, overrides_by_position
+                )
+                s3.put_object(
+                    Bucket=OUTPUTS_BUCKET,
+                    Key=new_csv_key,
+                    Body=patched_csv,
+                    ContentType="text/csv",
+                    ServerSideEncryption="aws:kms",
+                )
+                s3.head_object(Bucket=OUTPUTS_BUCKET, Key=new_csv_key)
+                new_sf["output_csv"] = new_csv_key
+                logger.info(
+                    "rework: wrote v%d csv key=%s", new_version, new_csv_key
+                )
+
+                # 6b. Re-render the xlsx from the v2 CSV so the spreadsheet
+                # download agrees with the canonical CSV.
                 lc.invoke(
                     FunctionName=XLSX_RENDERER_FN,
                     InvocationType="RequestResponse",
                     Payload=json.dumps({
-                        "csv_s3_key": csv_key,
+                        "csv_s3_key": new_csv_key,
                         "out_s3_key": new_xlsx_key,
                     }).encode(),
                 )
-                # Verify it landed.
                 s3.head_object(Bucket=OUTPUTS_BUCKET, Key=new_xlsx_key)
                 new_sf["output_xlsx"] = new_xlsx_key
             except Exception as e:  # pragma: no cover - lambda runtime only
-                logger.warning("xlsx re-render failed: %s", e)
+                logger.warning("rework artifact regeneration failed: %s", e)
 
         # Update the v2 row with refreshed source_files.
         rds.execute_statement(
@@ -329,6 +476,7 @@ def handler(event: dict[str, Any], _context: Any) -> dict[str, Any]:
             "from_version": prev_version,
             "to_version": new_version,
             "applied_overrides": applied_count,
+            "comments_incorporated": len(rework_comments),
             "note": note,
             "rejection_reason": rejection_reason,
         }
@@ -370,6 +518,7 @@ def handler(event: dict[str, Any], _context: Any) -> dict[str, Any]:
             "from_version": prev_version,
             "to_version": new_version,
             "applied_overrides": applied_count,
+            "comments_incorporated": len(rework_comments),
             "new_period_id": new_period_id,
             "source_files": new_sf,
         })

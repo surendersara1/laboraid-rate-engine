@@ -168,10 +168,9 @@ class ApiStack(Stack):
                 engine_bus.grant_put_events_to(fn)
             if "invoke-renderers" in cats:
                 xlsx_renderer.grant_invoke(fn)
-                # Rework also HEAD-checks the new artifact in the outputs
-                # bucket to confirm the re-render landed before updating
-                # source_files.
-                outputs_bucket.grant_read(fn)
+                # Rework reads parent CSV from outputs, writes patched v2 CSV
+                # back, then HEAD-checks both the CSV + the xlsx output.
+                outputs_bucket.grant_read_write(fn)
             self.functions[key] = fn
 
         # --- HTTP API + Cognito authorizer ------------------------------------
