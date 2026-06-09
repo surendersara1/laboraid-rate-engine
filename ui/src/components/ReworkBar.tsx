@@ -11,6 +11,43 @@ interface ReworkResult {
   agent_summary?: Record<string, unknown> | null;
 }
 
+interface ReworkAccepted {
+  accepted: true;
+  mode: "ai";
+  eta_seconds: number;
+}
+
+interface RateSheetVersionsLite {
+  versions: { version: number }[];
+}
+
+async function pollForNewVersion(
+  local: string,
+  period: string,
+  fromVersion: number,
+  maxSeconds: number,
+): Promise<number> {
+  const deadline = Date.now() + maxSeconds * 1000;
+  let delay = 2500;
+  while (Date.now() < deadline) {
+    await new Promise((r) => setTimeout(r, delay));
+    try {
+      const r = await api.get<RateSheetVersionsLite>(
+        `/v1/unions/${local}/rate-sheets/${period}`,
+      );
+      const latest = r.versions?.[0]?.version ?? fromVersion;
+      if (latest > fromVersion) return latest;
+    } catch {
+      // transient — keep polling
+    }
+    // gentle backoff (2.5s → 5s) to ease load while the agent runs
+    delay = Math.min(5000, delay + 500);
+  }
+  throw new Error(
+    `AI rework didn't complete within ${maxSeconds}s — check the activity log.`,
+  );
+}
+
 // Tier 3 — Rework action bar. Visible only on the latest version of a
 // rejected sheet. Two modes:
 //
@@ -58,21 +95,34 @@ export function ReworkBar({
     setError("");
     setOk("");
     try {
-      const r = await api.post<ReworkResult>(
-        `/v1/unions/${local}/rate-sheets/${period}/rework`,
-        { note, mode },
-      );
-      const aiSuffix =
-        mode === "ai" && r.agent_summary?.rows
-          ? ` (agent: ${String(r.agent_summary.rows)} rows, ${String(
-              r.agent_summary.gap_count ?? 0,
-            )} gaps)`
-          : "";
-      setOk(
-        `Reworked → v${r.to_version} [${r.mode}]. ${r.applied_overrides} override(s) + ${r.comments_incorporated} comment(s) incorporated${aiSuffix}.`,
-      );
-      setNote("");
-      onReworked(r.to_version);
+      if (mode === "ai") {
+        // API Gateway has a 29s integration timeout; the agent takes ~60s.
+        // Backend returns 202 immediately + dispatches the work async; we
+        // poll the rate-sheet endpoint until a new version appears.
+        const fromVersion = version ?? 1;
+        await api.post<ReworkAccepted>(
+          `/v1/unions/${local}/rate-sheets/${period}/rework`,
+          { note, mode },
+        );
+        const newVersion = await pollForNewVersion(local, period, fromVersion, 180);
+        setOk(
+          `Reworked → v${newVersion} [ai]. AgentCore Runtime + overrides applied (took ~${Math.round(
+            (Date.now() - (window as any).__t0 || 60_000) / 1000,
+          )}s).`,
+        );
+        setNote("");
+        onReworked(newVersion);
+      } else {
+        const r = await api.post<ReworkResult>(
+          `/v1/unions/${local}/rate-sheets/${period}/rework`,
+          { note, mode },
+        );
+        setOk(
+          `Reworked → v${r.to_version} [${r.mode}]. ${r.applied_overrides} override(s) + ${r.comments_incorporated} comment(s) incorporated.`,
+        );
+        setNote("");
+        onReworked(r.to_version);
+      }
     } catch (e) {
       setError(String(e));
     } finally {

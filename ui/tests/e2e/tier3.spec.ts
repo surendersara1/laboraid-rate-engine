@@ -1,11 +1,13 @@
 import { expect, test, type Page } from "@playwright/test";
 
-// Tier 3 end-to-end: takes a fresh v1/pending_review rate sheet through
-// override → reject → rework → version switch → activity verification. Maps
-// 1:1 to the manual checklist in docs/feature_improvement_1_2026-06-09.md.
+import { resetDemoState } from "./helpers";
+
+// Tier 3 end-to-end (merge mode): takes a fresh v1/pending_review rate sheet
+// through override → reject → rework → version switch → activity verification.
+// Maps 1:1 to the manual checklist in docs/feature_improvement_1_2026-06-09.md.
 //
-// Global setup resets state and writes the auth fixture. We don't navigate
-// through Cognito; the storage state is already signed-in.
+// Each spec file resets its own state in beforeAll so file order doesn't
+// matter — the previous spec file's mutations don't leak in here.
 
 const RATE_SHEET_URL = "/business/rate-sheets/Sprinkler+704/2026-01-01";
 const OVERRIDE_VALUE = "66";
@@ -13,7 +15,9 @@ const OVERRIDE_JUSTIFICATION = "Per CBA §4.2";
 const REJECTION_REASON = "Wage row needs human verification";
 
 // Run in order: the second test mutates state that the third test reads.
-test.describe.serial("Tier 3 — rework loop", () => {
+test.describe.serial("Tier 3 — rework loop (merge mode)", () => {
+  test.beforeAll(() => resetDemoState());
+
   test.beforeEach(async ({ page }) => {
     await page.goto(RATE_SHEET_URL);
     // Wait for the header to render — confirms the SPA hydrated + auth worked.
@@ -102,8 +106,10 @@ test.describe.serial("Tier 3 — rework loop", () => {
       fullPage: true,
     });
 
-    // ---- v2 pill + version dropdown --------------------------------------
+    // ---- v2 pill + version dropdown + merge mode chip --------------------
     await expect(page.getByText(/v2 · current/)).toBeVisible();
+    // The mode chip (merge=emerald, ai=indigo) lives next to the version pill.
+    await expect(page.getByText(/^merge$/)).toBeVisible();
     const versionDropdown = page.locator("select").first();
     await expect(versionDropdown).toBeVisible();
     await expect(versionDropdown).toHaveValue("2");

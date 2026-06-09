@@ -201,6 +201,18 @@ class ApiStack(Stack):
                         ],
                     )
                 )
+                # API Gateway HTTP API caps integration timeout at 29s; the
+                # AI rework path takes ~60s. The handler self-dispatches via
+                # `InvocationType: Event` on its own ARN to release the
+                # synchronous request, then completes the work in the
+                # background. Grant that loopback.
+                fn.add_to_role_policy(
+                    iam.PolicyStatement(
+                        effect=iam.Effect.ALLOW,
+                        actions=["lambda:InvokeFunction"],
+                        resources=[fn.function_arn],
+                    )
+                )
             self.functions[key] = fn
 
         # --- HTTP API + Cognito authorizer ------------------------------------

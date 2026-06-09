@@ -278,15 +278,33 @@ def _latest_overrides_for_period(local: str, period: str) -> dict[str, dict[str,
 @_instrument
 def handler(event: dict[str, Any], _context: Any) -> dict[str, Any]:
     try:
-        denied = authz.enforce_groups(event, ["Business"])
-        if denied:
-            return denied
-        params = event.get("pathParameters") or {}
+        # Distinguish API-Gateway-routed invocations from the self-async dispatch
+        # we use for mode=ai. The self-async path carries `_async: true` in the
+        # event root (not nested under requestContext / body) and skips authz
+        # because the calling principal is the Lambda's own role.
+        is_self_async = event.get("_async") is True
+
+        if not is_self_async:
+            denied = authz.enforce_groups(event, ["Business"])
+            if denied:
+                return denied
+
+        if is_self_async:
+            # Repacked event from the initial dispatch: path params + body are
+            # passed as top-level fields, not nested under API Gateway shape.
+            params = event.get("pathParameters") or {}
+            body = event.get("body_json") or {}
+            actor = event.get("actor") or "system"
+        else:
+            params = event.get("pathParameters") or {}
+            body = json.loads(event.get("body") or "{}")
+            actor = _actor(event)
+
         local = str(params.get("local") or "")
         period = str(params.get("period") or "")
         if not local or not period:
             return _resp({"error": "missing_path_params"}, 400)
-        body = json.loads(event.get("body") or "{}")
+
         note = body.get("note") or ""
         # mode: "merge" (default, inline merge) or "ai" (re-invoke ExtractorAgent
         # so the kernel re-extracts fresh from the source PDF, then overrides
@@ -297,7 +315,51 @@ def handler(event: dict[str, Any], _context: Any) -> dict[str, Any]:
         mode = (body.get("mode") or "merge").lower()
         if mode not in ("merge", "ai"):
             return _resp({"error": "invalid_mode", "got": mode}, 400)
-        actor = _actor(event)
+
+        # API Gateway HTTP API has a hard 29s integration timeout. The AI path
+        # routes through AgentCore Runtime which takes ~45-90s. So when called
+        # from API Gateway with mode=ai, we dispatch the actual work to a
+        # self-async Lambda invocation and return 202 immediately. The browser
+        # polls the rate-sheet GET endpoint until a new version appears.
+        if mode == "ai" and not is_self_async:
+            import boto3
+
+            lc_async = boto3.client("lambda")
+            async_event = {
+                "_async": True,
+                "pathParameters": params,
+                "body_json": body,
+                "actor": actor,
+            }
+            try:
+                lc_async.invoke(
+                    FunctionName=os.environ.get(
+                        "AWS_LAMBDA_FUNCTION_NAME",
+                        "laboraid-dev-l2-fn-ratesheet-rework",
+                    ),
+                    InvocationType="Event",
+                    Payload=json.dumps(async_event).encode("utf-8"),
+                )
+                logger.info(
+                    "rework[ai]: dispatched self-async for %s/%s", local, period
+                )
+            except Exception as e:
+                logger.exception("rework[ai]: self-async dispatch failed")
+                return _resp(
+                    {"error": "dispatch_failed", "detail": str(e)}, 500
+                )
+            return _resp(
+                {
+                    "accepted": True,
+                    "mode": "ai",
+                    "eta_seconds": 60,
+                    "message": (
+                        "AI rework dispatched. Poll the rate-sheet endpoint; "
+                        "a new version will appear when extraction completes."
+                    ),
+                },
+                202,
+            )
 
         import boto3
 
