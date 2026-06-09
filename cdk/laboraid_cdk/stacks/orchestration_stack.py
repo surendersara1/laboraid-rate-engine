@@ -51,6 +51,7 @@ class OrchestrationStack(Stack):
         extractor_runtime_arn: str,
         master_key: kms.IKey,
         publisher: lambda_.IFunction | None = None,
+        llm_extractor: lambda_.IFunction | None = None,
         **kwargs: Any,
     ) -> None:
         super().__init__(scope, construct_id, **kwargs)
@@ -72,7 +73,12 @@ class OrchestrationStack(Stack):
             function_name=name(env, "l3", "fn", "extractor-invoker"),
             handler="handler.handler",
             code=lambda_.Code.from_asset("../lambdas/processing/extractor-invoker"),
-            environment={"EXTRACTOR_RUNTIME_ARN": extractor_runtime_arn},
+            environment={
+                "EXTRACTOR_RUNTIME_ARN": extractor_runtime_arn,
+                "LLM_EXTRACTOR_FN": (
+                    llm_extractor.function_name if llm_extractor else ""
+                ),
+            },
             timeout=Duration.minutes(15),
         )
         self.extractor_invoker.add_to_role_policy(
@@ -82,6 +88,8 @@ class OrchestrationStack(Stack):
                 resources=[extractor_runtime_arn, f"{extractor_runtime_arn}/*"],
             )
         )
+        if llm_extractor is not None:
+            llm_extractor.grant_invoke(self.extractor_invoker)
         extract_task = tasks.LambdaInvoke(
             self,
             "ExtractViaAgent",
@@ -89,14 +97,17 @@ class OrchestrationStack(Stack):
             payload_response_only=True,
             result_path="$.extract",
         )
+        # Narrow retries: only retry on transient infra errors. The blanket
+        # States.TaskFailed retry causes triple-execution on the LLM path
+        # (slow boto3 timeouts get retried mid-call). 15-min Lambda timeout
+        # already handles the long Claude call.
         extract_task.add_retry(
             errors=[
                 "Lambda.ServiceException",
                 "Lambda.TooManyRequestsException",
-                "States.TaskFailed",
             ],
-            interval=Duration.seconds(2),
-            max_attempts=3,
+            interval=Duration.seconds(5),
+            max_attempts=2,
             backoff_rate=2.0,
         )
 

@@ -1,0 +1,408 @@
+"""LLM-driven extractor Lambda.
+
+When the classifier says the union has no hand-coded kernel profile (any local
+other than 537/704/483/281/821), the SFN routes here. We send the source PDF
+to Bedrock Claude Sonnet 4.6 with a prompt that asks for a structured
+extraction of every classification + every rate column visible in the
+document. Claude's JSON response is converted into the same CSV shape the
+deterministic kernel emits (Union Group, Trade, Union Local, Zone, Package,
+Start Date, End Date, then N rate-value columns), uploaded to S3, and
+returned to the SFN as `{s3_key, rows, gaps, gap_count, extracted_rows}` so
+the Publisher Lambda treats it identically to a kernel extraction.
+
+Never-fabricate rule: Claude is instructed to use `null` for any cell whose
+source it cannot identify in the PDF. Those null cells flow through to
+rate_cells with `value IS NULL` and are surfaced in the UI's gap report.
+
+Input shape (called by extractor-invoker for unknown unions):
+  {
+    "classify": {"s3_key": "<input PDF>", "local": "111", "period": "YYYY-MM-DD", ...},
+    "out_s3_key": "<canonical CSV output key>"
+  }
+
+Output shape — matches what the agent direct-mode returns:
+  {"s3_key", "rows", "gaps", "gap_count", "extracted_rows", "checksum": null,
+   "method": "llm_claude"}
+"""
+
+from __future__ import annotations
+
+import base64
+import csv
+import io
+import json
+import os
+import re
+from typing import Any
+
+try:  # pragma: no cover - present in the Lambda runtime
+    from aws_lambda_powertools import Logger, Tracer
+
+    logger = Logger(service="laboraid-llm-extractor")
+    tracer = Tracer()
+
+    def _instrument(fn: Any) -> Any:
+        return logger.inject_lambda_context(tracer.capture_lambda_handler(fn))
+
+except ModuleNotFoundError:  # pragma: no cover - offline unit-test env
+    import logging
+
+    logger = logging.getLogger("laboraid-llm-extractor")  # type: ignore[assignment]
+
+    def _instrument(fn: Any) -> Any:
+        return fn
+
+
+INPUTS_BUCKET = os.environ.get("INPUTS_BUCKET", "laboraid-dev-l3-bucket-inputs")
+OUTPUTS_BUCKET = os.environ.get("OUTPUTS_BUCKET", "laboraid-dev-l3-bucket-outputs")
+GUARDRAIL_ID = os.environ.get("BEDROCK_GUARDRAIL_ID", "")
+
+# Cross-region inference profile for Claude Sonnet 4.6. Same model IDs the
+# agent container uses. Sonnet is required (not Haiku) because the extraction
+# needs structured JSON adherence + visual table understanding from PDF.
+_MODEL_ID = "us.anthropic.claude-sonnet-4-6"
+
+
+SYSTEM_PROMPT = """You extract a union construction trade rate sheet from a Rate Notice PDF.
+
+PRIME DIRECTIVE — NEVER FABRICATE: every numeric cell you emit MUST come from
+text/tables in the PDF. If a cell isn't in the PDF, use null. Blank is correct;
+fabricated is a defect.
+
+OUTPUT — return ONLY a single JSON object (no prose, no markdown fences) with
+this compact shape. Use null (not 0) for missing values. Do NOT emit
+source_locator or confidence — keep the output small to fit token limits:
+
+{
+  "union_local": "<local number, string>",
+  "trade": "<Sprinkler|Plumber|Pipefitter|Electrician|Carpenter|Laborer|...>",
+  "parent_intl": "<UA|IBEW|Carpenters|Laborers|...>",
+  "start_date": "YYYY-MM-DD",
+  "end_date": "YYYY-MM-DD" or null,
+  "zone": "Building",
+  "columns": ["Wage", "<column names exactly as in the PDF>"],
+  "rows": [
+    {
+      "classification": "Journeyman",
+      "cells": {"Wage": 52.32, "Health & Welfare": 12.60, ...}
+    },
+    {"classification": "Apprentice Class 1", "cells": {"Wage": 20.93, ...}},
+    ...
+  ]
+}
+
+RULES:
+1. Discover columns from the PDF — use the EXACT column names you see. Common:
+   Wage, Wage 1.5x, Wage 2.0x, Wage Differential, Health & Welfare, Pension,
+   Annuity, Apprenticeship Training, Industry Promotion, Retiree Holiday,
+   S.U.B., Union Dues, Working Assessment, S&E Fund, Craft Fund, RESA.
+2. Discover classifications. Typical ladder: General Foreman, Foreman,
+   Journeyman, then Apprentice Class 1..10 (or Year 1..5) descending pay.
+3. Every "columns" entry must appear as a key in every row's "cells"
+   (use null if not present).
+4. Numeric values only — no $ signs, no commas. e.g., 52.32.
+5. Percentages as raw numbers without %: "6.00%" -> 6.00 (or 0.06 if decimal).
+6. Compact form: values directly in "cells", NOT wrapped in {value, ...}.
+"""
+
+
+def _invoke_bedrock(pdf_bytes: bytes) -> dict[str, Any]:
+    """Call Bedrock Claude with the PDF and parse its JSON response.
+
+    boto3's default read_timeout on bedrock-runtime is 60s, but a 3MB PDF +
+    several thousand output tokens routinely takes 90-180s. We give the call
+    14 minutes of headroom (Lambda's 15-min ceiling) and disable retries so a
+    slow first call doesn't double-charge the API.
+    """
+    import boto3
+    from botocore.config import Config
+
+    bedrock = boto3.client(
+        "bedrock-runtime",
+        config=Config(
+            read_timeout=840,
+            connect_timeout=10,
+            retries={"max_attempts": 1},
+        ),
+    )
+    body: dict[str, Any] = {
+        "anthropic_version": "bedrock-2023-05-31",
+        "max_tokens": 16000,
+        "system": [
+            {
+                "type": "text",
+                "text": SYSTEM_PROMPT,
+                "cache_control": {"type": "ephemeral"},
+            }
+        ],
+        "messages": [
+            {
+                "role": "user",
+                "content": [
+                    {
+                        "type": "document",
+                        "source": {
+                            "type": "base64",
+                            "media_type": "application/pdf",
+                            "data": base64.b64encode(pdf_bytes).decode(),
+                        },
+                    },
+                    {
+                        "type": "text",
+                        "text": (
+                            "Extract every classification and every rate "
+                            "column visible in this Rate Notice. Return the "
+                            "JSON exactly as specified."
+                        ),
+                    },
+                ],
+            }
+        ],
+    }
+    kwargs: dict[str, Any] = {"modelId": _MODEL_ID, "body": json.dumps(body)}
+    if GUARDRAIL_ID:
+        kwargs["guardrailIdentifier"] = GUARDRAIL_ID
+        kwargs["guardrailVersion"] = "DRAFT"
+    resp = bedrock.invoke_model(**kwargs)
+    raw = resp["body"].read()
+    payload = json.loads(raw)
+    # Claude responses come back as content blocks; concat text blocks.
+    text_blocks = [
+        b.get("text", "")
+        for b in payload.get("content", [])
+        if b.get("type") == "text"
+    ]
+    text = "\n".join(text_blocks).strip()
+    # Defensive: strip ```json fences if Claude adds them despite the prompt.
+    text = re.sub(r"^```(?:json)?\s*", "", text)
+    text = re.sub(r"\s*```$", "", text).strip()
+    # Find the JSON object by balanced-brace scanning. Claude sometimes wraps
+    # its response in prose ("Here is the extraction: {...}") or appends a
+    # trailing comment; extracting just the {...} prevents that from breaking
+    # the parse.
+    json_text = _extract_balanced_object(text)
+    parsed = None
+    try:
+        parsed = json.loads(json_text)
+    except json.JSONDecodeError as e:
+        # Some Claude responses include trailing commas in tables of cells —
+        # strip them and retry once before giving up.
+        cleaned = re.sub(r",(\s*[}\]])", r"\1", json_text)
+        try:
+            parsed = json.loads(cleaned)
+            logger.info(
+                "llm-extractor: parsed Claude JSON after trailing-comma cleanup"
+            )
+        except json.JSONDecodeError as e2:
+            logger.warning(
+                "could not parse Claude JSON even after cleanup: %s (orig %s)",
+                e2,
+                e,
+            )
+    if parsed is not None:
+        return parsed
+    # Last resort — write the raw response to S3 for debugging then return a
+    # stub so the SFN doesn't 5-min-timeout while waiting for a re-parse.
+    return _write_raw_for_debug(text)
+
+
+def _extract_balanced_object(text: str) -> str:
+    """Return the substring of text that starts with the first '{' and ends
+    with its matching '}' (handles nested braces + strings)."""
+    start = text.find("{")
+    if start < 0:
+        return text
+    depth = 0
+    in_string = False
+    escape = False
+    for i in range(start, len(text)):
+        ch = text[i]
+        if in_string:
+            if escape:
+                escape = False
+            elif ch == "\\":
+                escape = True
+            elif ch == '"':
+                in_string = False
+            continue
+        if ch == '"':
+            in_string = True
+            continue
+        if ch == "{":
+            depth += 1
+        elif ch == "}":
+            depth -= 1
+            if depth == 0:
+                return text[start : i + 1]
+    return text[start:]  # unbalanced, return what we have
+
+
+def _write_raw_for_debug(text: str) -> dict[str, Any]:
+    """Persist the raw Claude response to S3 so we can read it back to debug
+    the parse failure. Returns an empty-extraction stub."""
+    import boto3
+
+    s3 = boto3.client("s3")
+    debug_key = f"llm-extractor-debug/{int(__import__('time').time())}.txt"
+    try:
+        s3.put_object(
+            Bucket=OUTPUTS_BUCKET,
+            Key=debug_key,
+            Body=text.encode("utf-8"),
+            ContentType="text/plain",
+            ServerSideEncryption="aws:kms",
+        )
+        logger.warning(
+            "llm-extractor: wrote unparseable Claude response to s3://%s/%s",
+            OUTPUTS_BUCKET,
+            debug_key,
+        )
+    except Exception:
+        logger.exception("llm-extractor: failed to persist debug payload")
+    return {
+        "_parse_error": "could not parse Claude JSON",
+        "_debug_key": debug_key,
+        "_raw_head": text[:2000],
+        "rows": [],
+        "columns": [],
+    }
+
+
+def _to_canonical_csv(
+    payload: dict[str, Any], classify: dict[str, Any]
+) -> tuple[str, list[tuple[str, str, str, str]]]:
+    """Convert Claude's structured response into the canonical CSV shape +
+    gap list. The CSV layout mirrors what the kernel emits so the Publisher
+    Lambda handles both extractors identically.
+    """
+    # Use classifier fallbacks for any field Claude didn't return.
+    union_group = (
+        payload.get("parent_intl") or "UNKNOWN"
+    ).upper() or "UNKNOWN"
+    trade_raw = payload.get("trade") or ""
+    if not trade_raw:
+        union_kernel = (classify.get("union") or "").lower()
+        if union_kernel.startswith("local_"):
+            trade_raw = "Unknown"
+        else:
+            trade_raw = union_kernel.split("_")[0].title() if union_kernel else "Unknown"
+    local = str(
+        payload.get("union_local") or classify.get("local") or ""
+    ).strip()
+    start_date = payload.get("start_date") or classify.get("period") or ""
+    end_date = payload.get("end_date") or ""
+    zone = payload.get("zone") or "Building"
+
+    columns = list(payload.get("columns") or [])
+    # Dedup + preserve order.
+    seen: set[str] = set()
+    columns = [c for c in columns if not (c in seen or seen.add(c))]
+    rows = payload.get("rows") or []
+
+    header = [
+        "Union Group",
+        "Trade",
+        "Union Local",
+        "Zone",
+        "Package",
+        "Start Date",
+        "End Date",
+        *columns,
+    ]
+    out = io.StringIO()
+    writer = csv.writer(out, lineterminator="\n")
+    writer.writerow(header)
+
+    gaps: list[tuple[str, str, str, str]] = []
+    extracted = 0
+    for row in rows:
+        cls = row.get("classification") or ""
+        cells = row.get("cells") or {}
+        row_zone = row.get("zone") or zone
+        line: list[Any] = [
+            union_group,
+            trade_raw,
+            local,
+            row_zone,
+            cls,
+            start_date,
+            end_date,
+        ]
+        for col in columns:
+            cell = cells.get(col)
+            # New compact schema: cells map directly to scalar values (or null).
+            # Legacy verbose schema: {"value": x, "source_locator": "...", ...}.
+            # Tolerate both so we don't have to re-prompt on schema drift.
+            if isinstance(cell, dict):
+                val = cell.get("value")
+            else:
+                val = cell
+            if val is None:
+                line.append("")
+                gaps.append((row_zone, cls, col, "claude did not extract"))
+            else:
+                line.append(val)
+        writer.writerow(line)
+        extracted += 1
+    return out.getvalue(), gaps if extracted else [
+        ("(global)", "(any)", "(any)", "Claude returned no rows")
+    ]
+
+
+@_instrument
+def handler(event: dict[str, Any], _context: Any) -> dict[str, Any]:
+    try:
+        classify = event.get("classify") or event
+        s3_key = classify.get("s3_key") or event.get("s3_key") or ""
+        if not s3_key:
+            raise RuntimeError("llm-extractor: no s3_key in input")
+        out_s3_key = event.get("out_s3_key") or _default_out_key(s3_key)
+
+        import boto3
+
+        s3 = boto3.client("s3")
+        pdf_bytes = s3.get_object(Bucket=INPUTS_BUCKET, Key=s3_key)[
+            "Body"
+        ].read()
+        logger.info("llm-extractor: downloaded %d bytes from %s", len(pdf_bytes), s3_key)
+
+        payload = _invoke_bedrock(pdf_bytes)
+        if payload.get("_parse_error"):
+            logger.warning(
+                "llm-extractor: Claude returned malformed JSON — see _raw"
+            )
+
+        csv_text, gaps = _to_canonical_csv(payload, classify)
+        s3.put_object(
+            Bucket=OUTPUTS_BUCKET,
+            Key=out_s3_key,
+            Body=csv_text.encode("utf-8"),
+            ContentType="text/csv",
+            ServerSideEncryption="aws:kms",
+        )
+
+        rows = payload.get("rows") or []
+        result = {
+            "s3_key": out_s3_key,
+            "rows": len(rows),
+            "extracted_rows": len(rows),
+            "gaps": gaps,
+            "gap_count": len(gaps),
+            "checksum": None,
+            "method": "llm_claude",
+            "union_local": payload.get("union_local") or classify.get("local"),
+        }
+        logger.info("llm-extractor: %s", json.dumps({k: v for k, v in result.items() if k != "gaps"}))
+        return result
+    except Exception:
+        logger.exception("llm-extractor failed")
+        raise
+
+
+def _default_out_key(input_pdf_key: str) -> str:
+    """Mirror the kernel's output-key convention so artifacts land under the
+    same directory as the source PDF: replace the filename with output.csv."""
+    if "/" in input_pdf_key:
+        prefix, _ = input_pdf_key.rsplit("/", 1)
+        return f"{prefix}/output.csv"
+    return "output.csv"

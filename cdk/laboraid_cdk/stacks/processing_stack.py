@@ -235,6 +235,63 @@ class ProcessingStack(Stack):
             master_key=master_key,
         )
 
+        # --- LLM extractor Lambda (Path-C fallback for any union with NO
+        # kernel profile). Receives the SFN classify state, downloads the
+        # source PDF, sends it to Bedrock Claude Sonnet 4.6, and emits a
+        # canonical CSV that the Publisher consumes identically to the
+        # kernel's output.
+        self.llm_extractor = TaggedLambda(
+            self,
+            "LlmExtractor",
+            env=env,
+            layer="l4",
+            function_name=name(env, "l4", "fn", "llm-extractor"),
+            handler="handler.handler",
+            code=lambda_.Code.from_asset("../lambdas/processing/llm-extractor"),
+            timeout=Duration.minutes(15),
+            memory_size=2048,
+        )
+        self.llm_extractor.add_environment(
+            "INPUTS_BUCKET", inputs_bucket.bucket_name
+        )
+        self.llm_extractor.add_environment(
+            "OUTPUTS_BUCKET", outputs_bucket.bucket_name
+        )
+        self.llm_extractor.add_environment("BEDROCK_GUARDRAIL_ID", guardrail_id)
+        inputs_bucket.grant_read(self.llm_extractor)
+        outputs_bucket.grant_read_write(self.llm_extractor)
+        master_key.grant_encrypt_decrypt(self.llm_extractor)
+        # Bedrock invoke — same actions + ARNs the agent role has, scoped to
+        # Claude foundation models + the cross-region inference profile.
+        self.llm_extractor.add_to_role_policy(
+            iam.PolicyStatement(
+                effect=iam.Effect.ALLOW,
+                actions=[
+                    "bedrock:InvokeModel",
+                    "bedrock:InvokeModelWithResponseStream",
+                    "bedrock:Converse",
+                    "bedrock:ConverseStream",
+                ],
+                resources=[
+                    f"arn:aws:bedrock:{config.region}:{Stack.of(self).account}:inference-profile/*",
+                    "arn:aws:bedrock:*::foundation-model/anthropic.claude-*",
+                ],
+            )
+        )
+        # Guardrail apply permission so guardrailIdentifier= works on the
+        # InvokeModel call (Bedrock denies otherwise even though the request
+        # syntax accepts it).
+        if guardrail_id:
+            self.llm_extractor.add_to_role_policy(
+                iam.PolicyStatement(
+                    effect=iam.Effect.ALLOW,
+                    actions=["bedrock:ApplyGuardrail"],
+                    resources=[
+                        f"arn:aws:bedrock:{config.region}:{Stack.of(self).account}:guardrail/{guardrail_id}"
+                    ],
+                )
+            )
+
         # --- Publisher Lambda (writes the agent's extraction into Aurora) -----
         # This is the missing piece the pipeline used to lack: the SFN's
         # "Publish" state was a literal sfn.Succeed() — the agent CSV ended up
@@ -275,3 +332,4 @@ class ProcessingStack(Stack):
         CfnOutput(self, "ClassifierFnName", value=self.classifier.function_name)
         CfnOutput(self, "ExtractorRepoUri", value=self.extractor_repo.repository_uri)
         CfnOutput(self, "PublisherFnName", value=self.publisher.function_name)
+        CfnOutput(self, "LlmExtractorFnName", value=self.llm_extractor.function_name)

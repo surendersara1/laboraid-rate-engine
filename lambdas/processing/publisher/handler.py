@@ -272,7 +272,21 @@ def _publish(
     # 4) Insert all rate_cells. Skip blank/null rate values — they go in as
     #    NULL so the UI can show them as gaps. Provenance carries the agent's
     #    method so the UI's "Method" line in the Provenance panel reads true.
-    method = "kernel" if "_" in (classify.get("union") or "") else "llm_claude"
+    # Method label drives confidence + the Provenance panel's "Method" line.
+    # The 5 hand-coded kernel unions are explicit; anything else came from the
+    # LLM path. Don't use "_" presence — every normalized union name has one.
+    _KERNEL_UNIONS = {
+        "pipe_fitters_537",
+        "sprinkler_fitters_483",
+        "sprinkler_fitters_704",
+        "sprinkler_fitters_281",
+        "sprinkler_fitters_821",
+    }
+    method = (
+        "kernel"
+        if (classify.get("union") or "").lower() in _KERNEL_UNIONS
+        else "llm_claude"
+    )
     inserted = 0
     skipped = 0
     for row in data_rows:

@@ -32,6 +32,17 @@ except ModuleNotFoundError:  # pragma: no cover - offline unit-test env
 
 
 EXTRACTOR_RUNTIME_ARN = os.environ.get("EXTRACTOR_RUNTIME_ARN", "")
+LLM_EXTRACTOR_FN = os.environ.get("LLM_EXTRACTOR_FN", "")
+
+# Unions with a hand-coded kernel profile. Anything outside this set has no
+# deterministic extractor and routes through the LLM extractor.
+_KNOWN_KERNEL_UNIONS = {
+    "pipe_fitters_537",
+    "sprinkler_fitters_483",
+    "sprinkler_fitters_704",
+    "sprinkler_fitters_281",
+    "sprinkler_fitters_821",
+}
 
 
 def _client() -> Any:
@@ -98,10 +109,61 @@ def invoke_runtime(event: dict[str, Any]) -> dict[str, Any]:
         return {"_raw": raw[:1000].decode("utf-8", errors="replace"), "_parse_error": repr(e)}
 
 
+def _invoke_llm_extractor(event: dict[str, Any]) -> dict[str, Any]:
+    """Call the LLM extractor Lambda synchronously for unions without a
+    kernel profile. Returns the same canonical shape AgentCore direct mode
+    does so the downstream Publisher consumes both identically."""
+    import boto3
+    from botocore.config import Config
+
+    lc = boto3.client(
+        "lambda",
+        config=Config(read_timeout=900, connect_timeout=10, retries={"max_attempts": 1}),
+    )
+    classify = event.get("classify") or {}
+    out_s3_key = _default_llm_out_key(classify.get("s3_key") or "")
+    payload = {"classify": classify, "out_s3_key": out_s3_key}
+    resp = lc.invoke(
+        FunctionName=LLM_EXTRACTOR_FN,
+        InvocationType="RequestResponse",
+        Payload=json.dumps(payload).encode("utf-8"),
+    )
+    body = resp["Payload"].read()
+    if resp.get("FunctionError"):
+        raise RuntimeError(
+            f"llm-extractor returned FunctionError: {body[:500].decode('utf-8', errors='replace')}"
+        )
+    return json.loads(body.decode("utf-8")) if body else {}
+
+
+def _default_llm_out_key(input_pdf_key: str) -> str:
+    if "/" in input_pdf_key:
+        prefix, _ = input_pdf_key.rsplit("/", 1)
+        return f"{prefix}/output.csv"
+    return "output.csv"
+
+
+def _route(event: dict[str, Any]) -> dict[str, Any]:
+    """Pick AgentCore (kernel) or LLM extractor based on the classifier's
+    union name. Known kernel union -> deterministic AgentCore path; otherwise
+    -> Bedrock Claude via the llm-extractor Lambda."""
+    classify = event.get("classify") or {}
+    union = (classify.get("union") or "").lower()
+    if union in _KNOWN_KERNEL_UNIONS:
+        logger.info("extractor-invoker: routing union=%s to AgentCore (kernel)", union)
+        return invoke_runtime(event)
+    if not LLM_EXTRACTOR_FN:
+        raise RuntimeError(
+            f"union={union!r} is not in the kernel set and LLM_EXTRACTOR_FN is not configured"
+        )
+    logger.info("extractor-invoker: routing union=%s to LLM extractor", union)
+    return _invoke_llm_extractor(event)
+
+
 @_instrument
 def handler(event: dict[str, Any], _context: Any) -> dict[str, Any]:
     try:
-        result = invoke_runtime(event)
+        result = _route(event)
         # Build a canonical-shaped key the downstream validators / review-router
         # read directly. Carries the agent's output csv key, gap list, checksum,
         # and the classify metadata (union/local/period/doc_type) under one
