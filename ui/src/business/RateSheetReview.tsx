@@ -2,11 +2,10 @@ import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { ApproveRejectBar } from "../components/ApproveRejectBar";
 import { CellOverrideModal } from "../components/CellOverrideModal";
-import { PdfViewer } from "../components/PdfViewer";
 import { ProvenancePanel } from "../components/ProvenancePanel";
 import { RateCellTable } from "../components/RateCellTable";
 import { api } from "../lib/api";
-import type { RateCell, RateSheetDetail } from "../types/api";
+import type { JobArtifact, RateCell, RateSheetDetail } from "../types/api";
 
 const APPROVAL_PILL: Record<string, string> = {
   pending_review: "bg-amber-100 text-amber-800 ring-amber-200",
@@ -47,6 +46,55 @@ function fmtBytes(n?: number | null): string {
 function fmtTime(iso?: string): string {
   if (!iso) return "—";
   return new Date(iso).toLocaleString();
+}
+
+function ArtifactCard({ a }: { a: JobArtifact }): JSX.Element {
+  const filename = a.key ? a.key.split("/").pop() ?? a.name : a.name;
+  const available = Boolean(a.url);
+  const kindLabel =
+    a.kind === "input" ? "Source" : a.kind === "output" ? "Output" : "Artifact";
+
+  return (
+    <a
+      href={a.url ?? undefined}
+      target={available ? "_blank" : undefined}
+      rel="noreferrer"
+      onClick={(e) => {
+        if (!available) e.preventDefault();
+      }}
+      className={`block rounded-lg border bg-white p-4 shadow-sm transition ${
+        available
+          ? "border-slate-200 hover:border-brand hover:shadow"
+          : "cursor-not-allowed border-slate-200 opacity-60"
+      }`}
+      title={available ? "Open in a new tab" : "Not produced yet"}
+    >
+      <div className="flex items-start justify-between">
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-medium uppercase tracking-wide text-slate-500">
+              {kindLabel}
+            </span>
+            <span className="text-xs text-slate-300">·</span>
+            <span className="font-mono text-xs tabular-nums text-slate-500">
+              {fmtBytes(a.size)}
+            </span>
+          </div>
+          <div className="mt-1 font-medium text-slate-900">{a.name}</div>
+          <div className="mt-0.5 truncate font-mono text-xs text-slate-500">
+            {filename}
+          </div>
+        </div>
+        <span
+          className={`ml-2 mt-1 text-sm font-medium ${
+            available ? "text-brand" : "text-slate-300"
+          }`}
+        >
+          {available ? "Open ↗" : "—"}
+        </span>
+      </div>
+    </a>
+  );
 }
 
 export function RateSheetReview(): JSX.Element {
@@ -152,6 +200,56 @@ export function RateSheetReview(): JSX.Element {
         </div>
       </div>
 
+      {/* ARTIFACT CARDS — prominent at top so the reviewer always knows what's
+          downloadable. Clicking opens in a new tab; we don't auto-load any of
+          them (a 50-page PDF inline would dominate the workflow). */}
+      {(artifacts.length > 0 || job) && (
+        <div className="rounded-lg border border-slate-200 bg-white shadow-sm">
+          <div className="flex items-center justify-between border-b border-slate-100 px-5 py-3">
+            <h3 className="text-sm font-semibold uppercase tracking-wide text-slate-500">
+              Artifacts
+            </h3>
+            <span className="text-xs text-slate-500">
+              {artifacts.filter((a) => a.url).length} of {artifacts.length} produced
+            </span>
+          </div>
+          <div className="grid grid-cols-1 gap-3 p-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+            {artifacts.map((a) => (
+              <ArtifactCard key={`${a.bucket}/${a.key || a.name}`} a={a} />
+            ))}
+            {job && (
+              <Link
+                to={`/admin/jobs/${encodeURIComponent(job.job_id)}`}
+                className="block rounded-lg border border-slate-200 bg-white p-4 shadow-sm transition hover:border-brand hover:shadow"
+              >
+                <div className="flex items-start justify-between">
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-medium uppercase tracking-wide text-slate-500">
+                        Pipeline
+                      </span>
+                      <span className="text-xs text-slate-300">·</span>
+                      <span className="font-mono text-xs text-slate-500">
+                        {job.status}
+                      </span>
+                    </div>
+                    <div className="mt-1 font-medium text-slate-900">
+                      Step Functions trace
+                    </div>
+                    <div className="mt-0.5 truncate font-mono text-xs text-slate-500">
+                      job {job.job_id.slice(0, 16)}…
+                    </div>
+                  </div>
+                  <span className="ml-2 mt-1 text-sm font-medium text-brand">
+                    Admin ↗
+                  </span>
+                </div>
+              </Link>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* ACTION BAR */}
       <ApproveRejectBar
         union={union}
@@ -161,98 +259,22 @@ export function RateSheetReview(): JSX.Element {
         onChanged={setState}
       />
 
-      {/* 3-PANE BODY */}
-      <div className="grid grid-cols-12 gap-3" style={{ minHeight: 600 }}>
-        <div className="col-span-4 h-[640px]">
-          <PdfViewer url={detail?.source_pdf_url ?? ""} />
+      {/* MAIN BODY — table + provenance. PDF is opened on demand via the
+          Source PDF artifact card above; the data table gets the room. */}
+      <div className="grid grid-cols-12 gap-3">
+        <div className="col-span-9 overflow-hidden rounded-md border border-slate-200 bg-white shadow-sm">
+          <div className="max-h-[640px] overflow-auto">
+            <RateCellTable cells={cells} onSelect={setSelected} />
+          </div>
         </div>
-        <div className="col-span-6 h-[640px] overflow-auto rounded-md border border-slate-200 bg-white shadow-sm">
-          <RateCellTable cells={cells} onSelect={setSelected} />
-        </div>
-        <div className="col-span-2 h-[640px] overflow-auto rounded-md border border-slate-200 bg-white shadow-sm">
-          <ProvenancePanel cell={selected} />
+        <div className="col-span-3 overflow-hidden rounded-md border border-slate-200 bg-white shadow-sm">
+          <div className="max-h-[640px] overflow-auto">
+            <ProvenancePanel cell={selected} />
+          </div>
         </div>
       </div>
 
-      {/* ARTIFACTS PANEL */}
-      <div className="rounded-lg border border-slate-200 bg-white shadow-sm">
-        <div className="flex items-center justify-between border-b border-slate-100 px-5 py-3">
-          <h3 className="text-sm font-semibold uppercase tracking-wide text-slate-500">
-            Artifacts
-          </h3>
-          <span className="text-xs text-slate-500">
-            {artifacts.filter((a) => a.url).length} of {artifacts.length} produced
-          </span>
-        </div>
-        <ul className="divide-y divide-slate-100">
-          {artifacts.map((a) => (
-            <li
-              key={`${a.bucket}/${a.key || a.name}`}
-              className="flex items-center justify-between px-5 py-3 text-sm"
-            >
-              <div className="min-w-0 flex-1">
-                <div className="flex items-center gap-2">
-                  <span className="font-medium text-slate-900">{a.name}</span>
-                  <span
-                    className={`rounded px-1.5 py-0.5 text-xs ${
-                      a.kind === "input"
-                        ? "bg-slate-100 text-slate-700"
-                        : "bg-indigo-50 text-indigo-700"
-                    }`}
-                  >
-                    {a.kind}
-                  </span>
-                </div>
-                {a.key && (
-                  <p className="mt-0.5 truncate font-mono text-xs text-slate-500">
-                    s3://{a.bucket}/{a.key}
-                  </p>
-                )}
-              </div>
-              <div className="flex items-center gap-3 text-xs text-slate-500">
-                <span className="font-mono tabular-nums">{fmtBytes(a.size)}</span>
-                {a.url ? (
-                  <a
-                    href={a.url}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="font-medium text-brand hover:text-brand-dark"
-                  >
-                    Open ↗
-                  </a>
-                ) : (
-                  <span className="text-slate-400">not produced</span>
-                )}
-              </div>
-            </li>
-          ))}
-          {job && (
-            <li className="flex items-center justify-between px-5 py-3 text-sm">
-              <div>
-                <div className="flex items-center gap-2">
-                  <span className="font-medium text-slate-900">
-                    Step Functions trace
-                  </span>
-                  <span className="rounded bg-slate-100 px-1.5 py-0.5 text-xs text-slate-700">
-                    pipeline
-                  </span>
-                </div>
-                <p className="mt-0.5 font-mono text-xs text-slate-500">
-                  job {job.job_id}
-                </p>
-              </div>
-              <Link
-                to={`/admin/jobs/${encodeURIComponent(job.job_id)}`}
-                className="text-xs font-medium text-brand hover:text-brand-dark"
-              >
-                Open in Admin ↗
-              </Link>
-            </li>
-          )}
-        </ul>
-      </div>
-
-      {/* ACTIVITY — Tier 2 work; render a placeholder so the layout is final */}
+      {/* ACTIVITY placeholder — Tier 2 wires the real audit log here */}
       <div className="rounded-lg border border-slate-200 bg-white shadow-sm">
         <div className="border-b border-slate-100 px-5 py-3">
           <h3 className="text-sm font-semibold uppercase tracking-wide text-slate-500">
