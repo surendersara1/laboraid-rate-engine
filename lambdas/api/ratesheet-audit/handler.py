@@ -1,4 +1,9 @@
-"""Rate sheet audit Lambda (Spec/09 §4 L2). Full audit trail for a rate sheet. Cognito."""
+"""Rate sheet audit Lambda (Spec/09 §4 L2). Full audit trail for a rate sheet.
+
+Returns a structured feed (newest first) of every approve/reject/comment/
+override event for a single (local, period). The Business activity timeline
+calls this; the response shape is {records: [{ts, actor, action, details}]}.
+"""
 
 from __future__ import annotations
 
@@ -28,18 +33,8 @@ def _resp(body: dict[str, Any], status: int = 200) -> dict[str, Any]:
     return {
         "statusCode": status,
         "headers": {"Content-Type": "application/json"},
-        "body": json.dumps(body),
+        "body": json.dumps(body, default=str),
     }
-
-
-def _sub(event: dict[str, Any]) -> str:
-    return (
-        event.get("requestContext", {})
-        .get("authorizer", {})
-        .get("jwt", {})
-        .get("claims", {})
-        .get("sub", "unknown")
-    )
 
 
 @_instrument
@@ -53,16 +48,32 @@ def handler(event: dict[str, Any], _context: Any) -> dict[str, Any]:
             secretArn=os.environ["AURORA_SECRET_ARN"],
             database="laboraid",
             sql=(
-                "SELECT ts, actor, action, details FROM audit_log "
-                "WHERE details->>'local' = :local AND details->>'period' = :period "
-                "ORDER BY ts DESC LIMIT 200"
+                "SELECT id, to_char(ts AT TIME ZONE 'UTC','YYYY-MM-DD\"T\"HH24:MI:SS\"Z\"'), "
+                "       actor, action, COALESCE(details::text,'{}') "
+                "  FROM audit_log "
+                " WHERE details->>'local' = :local AND details->>'period' = :period "
+                " ORDER BY ts DESC LIMIT 200"
             ),
             parameters=[
                 {"name": "local", "value": {"stringValue": str(p["local"])}},
                 {"name": "period", "value": {"stringValue": p["period"]}},
             ],
         )
-        return _resp({"records": resp.get("records", [])})
+
+        records: list[dict[str, Any]] = []
+        for row in resp.get("records", []):
+            try:
+                details = json.loads(row[4].get("stringValue", "{}"))
+            except Exception:
+                details = {}
+            records.append({
+                "id": row[0].get("longValue") or row[0].get("stringValue"),
+                "ts": row[1].get("stringValue"),
+                "actor": row[2].get("stringValue"),
+                "action": row[3].get("stringValue"),
+                "details": details,
+            })
+        return _resp({"records": records, "count": len(records)})
     except Exception:
         logger.exception("ratesheet-audit failed")
         raise

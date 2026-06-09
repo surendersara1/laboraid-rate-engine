@@ -1,3 +1,4 @@
+import { useOverrideStore } from "../lib/store";
 import type { RateCell } from "../types/api";
 
 // Per-cell provenance + confidence side panel (Tier 1.5).
@@ -11,7 +12,15 @@ const METHOD_LABEL: Record<string, string> = {
   pdfplumber: "Deterministic kernel (pdfplumber)",
 };
 
-export function ProvenancePanel({ cell }: { cell: RateCell | null }): JSX.Element {
+export function ProvenancePanel({
+  cell,
+  onComment,
+}: {
+  cell: RateCell | null;
+  onComment?: (cell: RateCell) => void;
+}): JSX.Element {
+  const openOverride = useOverrideStore((s) => s.open);
+
   if (!cell) {
     return (
       <div className="p-6 text-center text-sm text-slate-500">
@@ -105,8 +114,27 @@ export function ProvenancePanel({ cell }: { cell: RateCell | null }): JSX.Elemen
         )}
       </div>
 
-      <div className="rounded-md border border-dashed border-slate-200 p-3 text-xs text-slate-500">
-        Tier 2 will add: per-cell comments, override value, comment thread.
+      <div className="flex gap-2">
+        <button
+          type="button"
+          onClick={() => onComment?.(cell)}
+          className="flex-1 rounded-md border border-sky-200 bg-sky-50 px-3 py-1.5 text-xs font-medium text-sky-700 hover:bg-sky-100"
+        >
+          💬 Comment
+        </button>
+        <button
+          type="button"
+          onClick={() =>
+            openOverride(
+              cell.cell_id,
+              `${cell.package} · ${cell.column_name}`,
+              cell.value == null ? "" : String(cell.value),
+            )
+          }
+          className="flex-1 rounded-md border border-amber-200 bg-amber-50 px-3 py-1.5 text-xs font-medium text-amber-700 hover:bg-amber-100"
+        >
+          ✎ Override
+        </button>
       </div>
     </div>
   );

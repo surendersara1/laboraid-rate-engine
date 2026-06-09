@@ -72,29 +72,52 @@ def reject_transition(
 def persist_rejection(
     local: str, period: str, rejected_by: str, reason: str, tags: list[str]
 ) -> None:
-    """Persist the rejection (incl. reason + tags) to Aurora via the RDS Data API."""
+    """Persist the rejection (incl. reason + tags) to Aurora + audit_log."""
     import boto3
 
-    # rejection_tags is a Postgres TEXT[] — pass an array literal and cast it.
+    rds = boto3.client("rds-data")
+    common = {
+        "resourceArn": os.environ["AURORA_CLUSTER_ARN"],
+        "secretArn": os.environ["AURORA_SECRET_ARN"],
+        "database": "laboraid",
+    }
     tags_literal = "{" + ",".join(tags) + "}"
-    sql = (
-        "UPDATE rate_periods SET approval_state='rejected', rejected_by=:by, "
-        "rejected_at=NOW(), rejection_reason=:reason, "
-        "rejection_tags=CAST(:tags AS TEXT[]) "
-        "WHERE union_id = (SELECT id FROM unions WHERE local = :local) "
-        "AND start_date = :period"
-    )
-    boto3.client("rds-data").execute_statement(
-        resourceArn=os.environ["AURORA_CLUSTER_ARN"],
-        secretArn=os.environ["AURORA_SECRET_ARN"],
-        database="laboraid",
-        sql=sql,
+    rds.execute_statement(
+        **common,
+        sql=(
+            "UPDATE rate_periods SET approval_state='rejected', rejected_by=:by, "
+            "rejected_at=NOW(), rejection_reason=:reason, "
+            "rejection_tags=CAST(:tags AS TEXT[]) "
+            "WHERE union_id = (SELECT id FROM unions WHERE local = :local::int) "
+            "AND start_date = :period::date"
+        ),
         parameters=[
             {"name": "by", "value": {"stringValue": rejected_by}},
             {"name": "reason", "value": {"stringValue": reason}},
             {"name": "tags", "value": {"stringValue": tags_literal}},
-            {"name": "local", "value": {"longValue": int(local)}},
-            {"name": "period", "value": {"stringValue": period}, "typeHint": "DATE"},
+            {"name": "local", "value": {"stringValue": str(local)}},
+            {"name": "period", "value": {"stringValue": period}},
+        ],
+    )
+    rds.execute_statement(
+        **common,
+        sql=(
+            "INSERT INTO audit_log (tenant, actor, action, details) "
+            "VALUES ('laboraid', :actor, 'reject', :details::jsonb)"
+        ),
+        parameters=[
+            {"name": "actor", "value": {"stringValue": rejected_by}},
+            {
+                "name": "details",
+                "value": {
+                    "stringValue": json.dumps({
+                        "local": str(local),
+                        "period": period,
+                        "reason": reason,
+                        "tags": tags,
+                    })
+                },
+            },
         ],
     )
 

@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
+import { ActivityTimeline } from "../components/ActivityTimeline";
 import { ApproveRejectBar } from "../components/ApproveRejectBar";
+import { CellCommentModal } from "../components/CellCommentModal";
 import { CellOverrideModal } from "../components/CellOverrideModal";
 import { ProvenancePanel } from "../components/ProvenancePanel";
 import { RateCellTable } from "../components/RateCellTable";
@@ -103,11 +105,14 @@ export function RateSheetReview(): JSX.Element {
   const [detail, setDetail] = useState<RateSheetDetail | null>(null);
   const [state, setState] = useState("pending_review");
   const [error, setError] = useState("");
+  const [commentCell, setCommentCell] = useState<RateCell | null>(null);
+  const [activityKey, setActivityKey] = useState(0);
+
+  const local = unionLocal(union);
 
   useEffect(() => {
     setSelected(null);
     setError("");
-    const local = unionLocal(union);
     api
       .get<RateSheetDetail>(`/v1/unions/${local}/rate-sheets/${period}`)
       .then((r) => {
@@ -115,13 +120,23 @@ export function RateSheetReview(): JSX.Element {
         setState(r.approval_state ?? "pending_review");
       })
       .catch((e) => setError(String(e)));
-  }, [union, period]);
+  }, [local, period]);
+
+  // After any state-changing action, refresh both the detail (for approval pill)
+  // and the activity timeline by bumping its key.
+  const onActionChanged = (next: string) => {
+    setState(next);
+    setActivityKey((k) => k + 1);
+  };
+  const onCellActionSaved = () => setActivityKey((k) => k + 1);
 
   const cells = detail?.cells ?? [];
   const artifacts = detail?.artifacts ?? [];
   const job = detail?.job_meta;
   const counts = detail?.counts ?? {};
-  const reviewQueueEmpty = cells.length === 0;
+  // POC: there's no review-queue gate wired yet, so Approve is enabled as long
+  // as we have cells. Tier 3 will tie this to unresolved comments/overrides.
+  const reviewQueueEmpty = cells.length > 0;
 
   return (
     <div className="space-y-4">
@@ -256,7 +271,7 @@ export function RateSheetReview(): JSX.Element {
         period={period}
         approvalState={state}
         reviewQueueEmpty={reviewQueueEmpty}
-        onChanged={setState}
+        onChanged={onActionChanged}
       />
 
       {/* MAIN BODY — table + provenance. PDF is opened on demand via the
@@ -269,25 +284,25 @@ export function RateSheetReview(): JSX.Element {
         </div>
         <div className="col-span-3 overflow-hidden rounded-md border border-slate-200 bg-white shadow-sm">
           <div className="max-h-[640px] overflow-auto">
-            <ProvenancePanel cell={selected} />
+            <ProvenancePanel
+              cell={selected}
+              onComment={(c) => setCommentCell(c)}
+            />
           </div>
         </div>
       </div>
 
-      {/* ACTIVITY placeholder — Tier 2 wires the real audit log here */}
-      <div className="rounded-lg border border-slate-200 bg-white shadow-sm">
-        <div className="border-b border-slate-100 px-5 py-3">
-          <h3 className="text-sm font-semibold uppercase tracking-wide text-slate-500">
-            Activity
-          </h3>
-        </div>
-        <p className="px-5 py-4 text-sm text-slate-500">
-          Approvals, rejections, comments, and overrides will be listed here
-          (Tier 2 work).
-        </p>
-      </div>
+      <ActivityTimeline local={local} period={period} refreshKey={activityKey} />
 
-      <CellOverrideModal />
+      <CellOverrideModal onSaved={onCellActionSaved} />
+      {commentCell && (
+        <CellCommentModal
+          cellId={commentCell.cell_id}
+          cellLabel={`${commentCell.package} · ${commentCell.column_name}`}
+          onClose={() => setCommentCell(null)}
+          onSaved={onCellActionSaved}
+        />
+      )}
     </div>
   );
 }

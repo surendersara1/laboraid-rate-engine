@@ -58,28 +58,47 @@ def handler(event: dict[str, Any], _context: Any) -> dict[str, Any]:
         body = json.loads(event.get("body") or "{}")
         import boto3
 
-        boto3.client("rds-data").execute_statement(
+        rds = boto3.client("rds-data")
+        # Look up the period the cell belongs to so the activity feed can
+        # scope per-rate-sheet without an extra query later.
+        scope = rds.execute_statement(
+            resourceArn=os.environ["AURORA_CLUSTER_ARN"],
+            secretArn=os.environ["AURORA_SECRET_ARN"],
+            database="laboraid",
+            sql=(
+                "SELECT u.local::text, to_char(rp.start_date,'YYYY-MM-DD') "
+                "  FROM rate_cells rc "
+                "  JOIN rate_periods rp ON rp.id = rc.period_id "
+                "  JOIN unions u ON u.id = rp.union_id "
+                " WHERE rc.id = :id::uuid"
+            ),
+            parameters=[{"name": "id", "value": {"stringValue": cell_id}}],
+        )
+        local = period = None
+        if scope.get("records"):
+            local = scope["records"][0][0].get("stringValue")
+            period = scope["records"][0][1].get("stringValue")
+
+        details = {
+            "cell_id": cell_id,
+            "text": body.get("text", ""),
+            "local": local,
+            "period": period,
+        }
+        rds.execute_statement(
             resourceArn=os.environ["AURORA_CLUSTER_ARN"],
             secretArn=os.environ["AURORA_SECRET_ARN"],
             database="laboraid",
             sql=(
                 "INSERT INTO audit_log (tenant, actor, action, details) "
-                "VALUES (:tenant, :actor, 'comment', :details::jsonb)"
+                "VALUES ('laboraid', :actor, 'comment', :details::jsonb)"
             ),
             parameters=[
-                {"name": "tenant", "value": {"stringValue": "laboraid"}},
                 {"name": "actor", "value": {"stringValue": _sub(event)}},
-                {
-                    "name": "details",
-                    "value": {
-                        "stringValue": json.dumps(
-                            {"cell_id": cell_id, "text": body.get("text", "")}
-                        )
-                    },
-                },
+                {"name": "details", "value": {"stringValue": json.dumps(details)}},
             ],
         )
-        return _resp({"cell_id": cell_id, "status": "commented"})
+        return _resp({"cell_id": cell_id, "status": "commented", "local": local, "period": period})
     except Exception:
         logger.exception("cell-comment failed")
         raise

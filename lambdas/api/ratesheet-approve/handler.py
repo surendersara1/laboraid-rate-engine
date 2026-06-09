@@ -64,24 +64,45 @@ def approve_transition(
 
 
 def persist_approval(local: str, period: str, approved_by: str) -> None:
-    """Persist the approval to Aurora `rate_periods` via the RDS Data API."""
+    """Persist the approval to Aurora `rate_periods` + audit_log via RDS Data API."""
     import boto3
 
-    sql = (
-        "UPDATE rate_periods SET approval_state='approved', approved_by=:by, "
-        "approved_at=NOW() "
-        "WHERE union_id = (SELECT id FROM unions WHERE local = :local) "
-        "AND start_date = :period"
-    )
-    boto3.client("rds-data").execute_statement(
-        resourceArn=os.environ["AURORA_CLUSTER_ARN"],
-        secretArn=os.environ["AURORA_SECRET_ARN"],
-        database="laboraid",
-        sql=sql,
+    rds = boto3.client("rds-data")
+    common = {
+        "resourceArn": os.environ["AURORA_CLUSTER_ARN"],
+        "secretArn": os.environ["AURORA_SECRET_ARN"],
+        "database": "laboraid",
+    }
+    # 1. Update rate_periods
+    rds.execute_statement(
+        **common,
+        sql=(
+            "UPDATE rate_periods SET approval_state='approved', approved_by=:by, "
+            "approved_at=NOW() "
+            "WHERE union_id = (SELECT id FROM unions WHERE local = :local::int) "
+            "AND start_date = :period::date"
+        ),
         parameters=[
             {"name": "by", "value": {"stringValue": approved_by}},
-            {"name": "local", "value": {"longValue": int(local)}},
-            {"name": "period", "value": {"stringValue": period}, "typeHint": "DATE"},
+            {"name": "local", "value": {"stringValue": str(local)}},
+            {"name": "period", "value": {"stringValue": period}},
+        ],
+    )
+    # 2. Append to audit_log so the Business activity tab sees it
+    rds.execute_statement(
+        **common,
+        sql=(
+            "INSERT INTO audit_log (tenant, actor, action, details) "
+            "VALUES ('laboraid', :actor, 'approve', :details::jsonb)"
+        ),
+        parameters=[
+            {"name": "actor", "value": {"stringValue": approved_by}},
+            {
+                "name": "details",
+                "value": {
+                    "stringValue": json.dumps({"local": str(local), "period": period})
+                },
+            },
         ],
     )
 

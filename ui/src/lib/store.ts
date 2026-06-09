@@ -30,16 +30,26 @@ export const useUserStore = create<UserState>((set) => ({
 
 interface OverrideDraft {
   cellId: string | null;
+  cellLabel: string;
+  currentValue: string;
   value: string;
-  open: (cellId: string) => void;
+  justification: string;
+  open: (cellId: string, label: string, currentValue: string) => void;
   close: () => void;
   setValue: (v: string) => void;
+  setJustification: (v: string) => void;
 }
 
 export const useOverrideStore = create<OverrideDraft>((set) => ({
   cellId: null,
+  cellLabel: "",
+  currentValue: "",
   value: "",
-  open: (cellId) => set({ cellId, value: "" }),
-  close: () => set({ cellId: null, value: "" }),
+  justification: "",
+  open: (cellId, cellLabel, currentValue) =>
+    set({ cellId, cellLabel, currentValue, value: currentValue, justification: "" }),
+  close: () =>
+    set({ cellId: null, cellLabel: "", currentValue: "", value: "", justification: "" }),
   setValue: (value) => set({ value }),
+  setJustification: (justification) => set({ justification }),
 }));
