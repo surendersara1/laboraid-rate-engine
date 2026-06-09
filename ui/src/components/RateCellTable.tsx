@@ -115,24 +115,38 @@ export function RateCellTable({
         ))}
       </thead>
       <tbody className="divide-y divide-slate-100">
-        {table.getRowModel().rows.map((row) => (
-          <tr
-            key={row.id}
-            className="cursor-pointer transition hover:bg-amber-50"
-            onClick={() => onSelect(row.original)}
-          >
-            {row.getVisibleCells().map((c, i) => (
-              <td
-                key={c.id}
-                className={`px-3 py-2 align-middle ${
-                  i === 2 || i === 3 ? "text-right" : ""
-                } ${i === 1 ? "truncate" : ""}`}
-              >
-                {flexRender(c.column.columnDef.cell, c.getContext())}
-              </td>
-            ))}
-          </tr>
-        ))}
+        {table.getRowModel().rows.map((row) => {
+          // Tier 3: rows whose values were changed by a human override during
+          // rework get a left border + amber tint so the reviewer can see at
+          // a glance what changed between versions.
+          const prov = row.original.provenance as Record<string, unknown> | null;
+          const reworked = Boolean(
+            prov && typeof prov === "object" && "rework" in prov,
+          );
+          return (
+            <tr
+              key={row.id}
+              className={`cursor-pointer transition hover:bg-amber-50 ${
+                reworked
+                  ? "border-l-4 border-amber-400 bg-amber-50/40"
+                  : ""
+              }`}
+              onClick={() => onSelect(row.original)}
+              title={reworked ? "Changed in this version (rework)" : undefined}
+            >
+              {row.getVisibleCells().map((c, i) => (
+                <td
+                  key={c.id}
+                  className={`px-3 py-2 align-middle ${
+                    i === 2 || i === 3 ? "text-right" : ""
+                  } ${i === 1 ? "truncate" : ""}`}
+                >
+                  {flexRender(c.column.columnDef.cell, c.getContext())}
+                </td>
+              ))}
+            </tr>
+          );
+        })}
       </tbody>
     </table>
   );

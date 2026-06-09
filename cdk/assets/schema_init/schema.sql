@@ -29,11 +29,16 @@ CREATE TABLE IF NOT EXISTS rate_periods (
   published_at TIMESTAMPTZ,
   canonical_json JSONB,
   source_files JSONB,
+  version INT NOT NULL DEFAULT 1,
+  parent_version INT,
+  rework_context JSONB,
   CONSTRAINT publish_requires_approval
     CHECK (approval_state IN ('pending_review','approved','rejected','published'))
 );
 
 CREATE INDEX IF NOT EXISTS idx_periods_inbox ON rate_periods (approval_state, start_date DESC);
+
+CREATE INDEX IF NOT EXISTS idx_periods_versions ON rate_periods (union_id, start_date, version DESC);
 
 CREATE TABLE IF NOT EXISTS rate_cells (
   id UUID PRIMARY KEY,

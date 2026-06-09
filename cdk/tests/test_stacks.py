@@ -144,6 +144,17 @@ def _synth_api() -> Template:
     bus_stack = cdk.Stack(app, "BusStack")
     engine_bus = events.EventBus(bus_stack, "EngineBus", event_bus_name="laboraid-dev-l3-eb-engine")
 
+    from aws_cdk import aws_lambda as lambda_
+
+    renderer_stack = cdk.Stack(app, "RendererStack")
+    xlsx_renderer = lambda_.Function(
+        renderer_stack,
+        "XlsxFn",
+        runtime=lambda_.Runtime.PYTHON_3_12,
+        handler="handler.handler",
+        code=lambda_.Code.from_inline("def handler(e,c):\n    return {}\n"),
+    )
+
     assert storage.aurora.secret is not None
     api = ApiStack(
         app,
@@ -158,13 +169,15 @@ def _synth_api() -> Template:
         aurora=storage.aurora,
         aurora_secret=storage.aurora.secret,
         engine_bus=engine_bus,
+        xlsx_renderer=xlsx_renderer,
+        outputs_bucket=storage.outputs_bucket,
     )
     return Template.from_stack(api)
 
 
 def test_api_stack() -> None:
     api = _synth_api()
-    api.resource_count_is("AWS::Lambda::Function", 19)  # 19 API Lambdas
+    api.resource_count_is("AWS::Lambda::Function", 20)  # 19 API Lambdas + 1 added (rework)
     api.resource_count_is("AWS::ApiGatewayV2::Api", 1)
     api.resource_count_is("AWS::ApiGatewayV2::Authorizer", 1)
     api.resource_count_is("AWS::WAFv2::WebACL", 1)

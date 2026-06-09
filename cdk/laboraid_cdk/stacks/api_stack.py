@@ -51,6 +51,7 @@ ROUTES: list[tuple[str, str, str]] = [
     ("POST", "/v1/unions/{local}/rate-sheets/{period}/unapprove", "ratesheet-unapprove"),
     ("POST", "/v1/unions/{local}/rate-sheets/{period}/publish", "ratesheet-publish"),
     ("GET", "/v1/unions/{local}/rate-sheets/{period}/audit", "ratesheet-audit"),
+    ("POST", "/v1/unions/{local}/rate-sheets/{period}/rework", "ratesheet-rework"),
     ("POST", "/v1/cells/{cell_id}/override", "cell-override"),
     ("POST", "/v1/cells/{cell_id}/comment", "cell-comment"),
     ("GET", "/v1/audit", "audit-list"),
@@ -77,6 +78,11 @@ GRANTS: dict[str, set[str]] = {
     "ratesheet-unapprove": {"aurora", "events"},
     "ratesheet-publish": {"aurora"},
     "ratesheet-audit": {"aurora"},
+    # Rework needs Aurora (rate_periods + rate_cells + audit_log), the
+    # overrides DDB table (read the user's manual overrides), events (emit
+    # the lifecycle event), and invoke permission on the xlsx renderer to
+    # regenerate the v2 spreadsheet.
+    "ratesheet-rework": {"aurora", "overrides", "events", "invoke-renderers"},
     "cell-override": {"overrides"},
     "cell-comment": {"aurora"},
 }
@@ -100,6 +106,8 @@ class ApiStack(Stack):
         aurora: rds.IDatabaseCluster,
         aurora_secret: secretsmanager.ISecret,
         engine_bus: events.IEventBus,
+        xlsx_renderer: lambda_.IFunction,
+        outputs_bucket: s3.IBucket,
         **kwargs: Any,
     ) -> None:
         super().__init__(scope, construct_id, **kwargs)
@@ -125,6 +133,8 @@ class ApiStack(Stack):
             "AURORA_CLUSTER_ARN": aurora.cluster_arn,
             "AURORA_SECRET_ARN": aurora_secret.secret_arn,
             "ENGINE_BUS_NAME": engine_bus.event_bus_name,
+            "OUTPUTS_BUCKET": outputs_bucket.bucket_name,
+            "XLSX_RENDERER_FN": xlsx_renderer.function_name,
         }
 
         # --- Create one Lambda per unique dir, applying its grants -------------
@@ -155,6 +165,12 @@ class ApiStack(Stack):
                 aurora_secret.grant_read(fn)
             if "events" in cats:
                 engine_bus.grant_put_events_to(fn)
+            if "invoke-renderers" in cats:
+                xlsx_renderer.grant_invoke(fn)
+                # Rework also HEAD-checks the new artifact in the outputs
+                # bucket to confirm the re-render landed before updating
+                # source_files.
+                outputs_bucket.grant_read(fn)
             self.functions[key] = fn
 
         # --- HTTP API + Cognito authorizer ------------------------------------

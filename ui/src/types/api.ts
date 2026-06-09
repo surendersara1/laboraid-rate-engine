@@ -61,6 +61,18 @@ export interface RateSheetDetail {
   artifacts: JobArtifact[];
   job_meta?: RateSheetJobMeta;
   counts?: { classifications?: number; cells?: number; gaps?: number };
+  // Tier 3: versioning
+  version?: number;
+  parent_version?: number | null;
+  versions?: RateSheetVersionSummary[];
+}
+
+export interface RateSheetVersionSummary {
+  period_id: string;
+  version: number;
+  parent_version?: number | null;
+  approval_state: string;
+  rework_context?: Record<string, unknown> | null;
 }
 
 export interface JobDetail {

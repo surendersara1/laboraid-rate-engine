@@ -117,6 +117,8 @@ api = ApiStack(
     aurora=storage.aurora,
     aurora_secret=storage.aurora.secret,
     engine_bus=validation.engine_bus,
+    xlsx_renderer=validation.xlsx,
+    outputs_bucket=storage.outputs_bucket,
 )
 api.add_dependency(security)
 api.add_dependency(storage)

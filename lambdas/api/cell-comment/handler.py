@@ -34,13 +34,15 @@ def _resp(body: dict[str, Any], status: int = 200) -> dict[str, Any]:
     }
 
 
-def _sub(event: dict[str, Any]) -> str:
+def _actor(event: dict[str, Any]) -> str:
+    """Return a human-recognizable actor string from the JWT claims, preferring
+    email > cognito:username > sub. The activity timeline renders this verbatim;
+    plain UUIDs are useless to a Business reviewer."""
+    claims = (
+        event.get("requestContext", {}).get("authorizer", {}).get("jwt", {}).get("claims", {})
+    )
     return (
-        event.get("requestContext", {})
-        .get("authorizer", {})
-        .get("jwt", {})
-        .get("claims", {})
-        .get("sub", "unknown")
+        claims.get("email") or claims.get("cognito:username") or claims.get("sub") or "unknown"
     )
 
 
@@ -94,7 +96,7 @@ def handler(event: dict[str, Any], _context: Any) -> dict[str, Any]:
                 "VALUES ('laboraid', :actor, 'comment', :details::jsonb)"
             ),
             parameters=[
-                {"name": "actor", "value": {"stringValue": _sub(event)}},
+                {"name": "actor", "value": {"stringValue": _actor(event)}},
                 {"name": "details", "value": {"stringValue": json.dumps(details)}},
             ],
         )

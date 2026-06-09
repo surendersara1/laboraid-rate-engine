@@ -1,11 +1,12 @@
-import { useEffect, useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { useCallback, useEffect, useState } from "react";
+import { Link, useParams, useSearchParams } from "react-router-dom";
 import { ActivityTimeline } from "../components/ActivityTimeline";
 import { ApproveRejectBar } from "../components/ApproveRejectBar";
 import { CellCommentModal } from "../components/CellCommentModal";
 import { CellOverrideModal } from "../components/CellOverrideModal";
 import { ProvenancePanel } from "../components/ProvenancePanel";
 import { RateCellTable } from "../components/RateCellTable";
+import { ReworkBar } from "../components/ReworkBar";
 import { api } from "../lib/api";
 import type { JobArtifact, RateCell, RateSheetDetail } from "../types/api";
 
@@ -101,6 +102,8 @@ function ArtifactCard({ a }: { a: JobArtifact }): JSX.Element {
 
 export function RateSheetReview(): JSX.Element {
   const { union = "", period = "" } = useParams();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const versionParam = searchParams.get("version");
   const [selected, setSelected] = useState<RateCell | null>(null);
   const [detail, setDetail] = useState<RateSheetDetail | null>(null);
   const [state, setState] = useState("pending_review");
@@ -110,25 +113,51 @@ export function RateSheetReview(): JSX.Element {
 
   const local = unionLocal(union);
 
-  useEffect(() => {
+  const loadDetail = useCallback(() => {
     setSelected(null);
     setError("");
+    const qs = versionParam ? `?version=${encodeURIComponent(versionParam)}` : "";
     api
-      .get<RateSheetDetail>(`/v1/unions/${local}/rate-sheets/${period}`)
+      .get<RateSheetDetail>(`/v1/unions/${local}/rate-sheets/${period}${qs}`)
       .then((r) => {
         setDetail(r);
         setState(r.approval_state ?? "pending_review");
       })
       .catch((e) => setError(String(e)));
-  }, [local, period]);
+  }, [local, period, versionParam]);
+
+  useEffect(() => {
+    loadDetail();
+  }, [loadDetail]);
 
   // After any state-changing action, refresh both the detail (for approval pill)
   // and the activity timeline by bumping its key.
   const onActionChanged = (next: string) => {
     setState(next);
     setActivityKey((k) => k + 1);
+    loadDetail();
   };
   const onCellActionSaved = () => setActivityKey((k) => k + 1);
+
+  // Tier 3: switching the version dropdown re-loads via ?version=N.
+  const onVersionSwitch = (v: number) => {
+    if (v === detail?.versions?.[0]?.version) {
+      // selecting the latest = no query param
+      const next = new URLSearchParams(searchParams);
+      next.delete("version");
+      setSearchParams(next, { replace: true });
+    } else {
+      setSearchParams({ version: String(v) }, { replace: true });
+    }
+    setActivityKey((k) => k + 1);
+  };
+
+  // Called after a successful rework — bump to the new version and refresh.
+  const onReworked = (toVersion: number) => {
+    setSearchParams({ version: String(toVersion) }, { replace: true });
+    setActivityKey((k) => k + 1);
+    loadDetail();
+  };
 
   const cells = detail?.cells ?? [];
   const artifacts = detail?.artifacts ?? [];
@@ -202,6 +231,46 @@ export function RateSheetReview(): JSX.Element {
             >
               {state.replace("_", " ")}
             </span>
+            {/* Tier 3 — version pill + dropdown (only when there's more than
+                one version in the chain). */}
+            {detail && (detail.versions?.length ?? 0) > 0 && (
+              <div className="flex items-center gap-1">
+                <span
+                  className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ring-1 ring-inset ${
+                    detail.version === detail.versions?.[0]?.version
+                      ? "bg-slate-100 text-slate-700 ring-slate-200"
+                      : "bg-amber-50 text-amber-800 ring-amber-200"
+                  }`}
+                  title={
+                    detail.version === detail.versions?.[0]?.version
+                      ? "Latest version"
+                      : "Viewing a historical version"
+                  }
+                >
+                  v{detail.version}
+                  {detail.version === detail.versions?.[0]?.version
+                    ? " · current"
+                    : " · historical"}
+                </span>
+                {(detail.versions?.length ?? 0) > 1 && (
+                  <select
+                    value={String(detail.version ?? "")}
+                    onChange={(e) => onVersionSwitch(Number(e.target.value))}
+                    className="rounded-md border border-slate-200 bg-white px-2 py-0.5 text-xs text-slate-700 focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand"
+                    title="Switch version"
+                  >
+                    {detail.versions?.map((v) => (
+                      <option key={v.version} value={v.version}>
+                        v{v.version}
+                        {v.parent_version
+                          ? ` ← v${v.parent_version}`
+                          : " (original)"}
+                      </option>
+                    ))}
+                  </select>
+                )}
+              </div>
+            )}
             {job?.status && (
               <span
                 className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ring-1 ring-inset ${
@@ -214,6 +283,18 @@ export function RateSheetReview(): JSX.Element {
           </div>
         </div>
       </div>
+
+      {/* Tier 3 — rework action bar; visible only when the sheet is rejected
+          on its latest version. Submits to POST /…/rework which creates v+1,
+          applies overrides, regenerates the xlsx, and audit-logs the event. */}
+      <ReworkBar
+        union={union}
+        period={period}
+        approvalState={state}
+        version={detail?.version}
+        parentVersion={detail?.parent_version ?? null}
+        onReworked={onReworked}
+      />
 
       {/* ARTIFACT CARDS — prominent at top so the reviewer always knows what's
           downloadable. Clicking opens in a new tab; we don't auto-load any of

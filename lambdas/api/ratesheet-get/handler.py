@@ -101,11 +101,56 @@ def _head_size(s3: Any, bucket: str, key: str) -> int | None:
 def handler(event: dict[str, Any], _context: Any) -> dict[str, Any]:
     try:
         p = event["pathParameters"]
+        qs = event.get("queryStringParameters") or {}
+        requested_version = qs.get("version")  # optional ?version=2
         import boto3
 
         data = boto3.client("rds-data")
         s3 = boto3.client("s3")
         sfn = boto3.client("stepfunctions")
+
+        # Pull every version for this {local, period} so the UI can render a
+        # version pill / switcher. Newest version is the default selection.
+        versions_resp = data.execute_statement(
+            resourceArn=os.environ["AURORA_CLUSTER_ARN"],
+            secretArn=os.environ["AURORA_SECRET_ARN"],
+            database="laboraid",
+            sql=(
+                "SELECT rp.id::text, rp.version, rp.parent_version, "
+                "       rp.approval_state, "
+                "       COALESCE(rp.rework_context::text,'null') "
+                "  FROM rate_periods rp "
+                "  JOIN unions u ON u.id = rp.union_id "
+                " WHERE u.local = :local::int AND rp.start_date = :period::date "
+                " ORDER BY rp.version DESC"
+            ),
+            parameters=[
+                {"name": "local", "value": {"stringValue": str(p["local"])}},
+                {"name": "period", "value": {"stringValue": p["period"]}},
+            ],
+        )
+        all_versions = []
+        for vrow in versions_resp.get("records", []):
+            all_versions.append({
+                "period_id": vrow[0].get("stringValue"),
+                "version": vrow[1].get("longValue") or 1,
+                "parent_version": vrow[2].get("longValue"),
+                "approval_state": vrow[3].get("stringValue"),
+                "rework_context": json.loads(vrow[4].get("stringValue", "null") or "null"),
+            })
+        if not all_versions:
+            return _resp({"error": "not_found"}, 404)
+
+        # Pick the version to render: caller-specified, else newest.
+        selected = all_versions[0]
+        if requested_version is not None:
+            try:
+                want = int(requested_version)
+                match = next((v for v in all_versions if v["version"] == want), None)
+                if match is not None:
+                    selected = match
+            except ValueError:
+                pass
 
         head = data.execute_statement(
             resourceArn=os.environ["AURORA_CLUSTER_ARN"],
@@ -115,14 +160,13 @@ def handler(event: dict[str, Any], _context: Any) -> dict[str, Any]:
                 "SELECT rp.id::text, rp.approval_state, "
                 "       COALESCE(rp.source_files::text, '{}') AS source_files, "
                 "       COALESCE(rp.canonical_json::text, '{}') AS canonical_json, "
-                "       u.local, u.trade "
+                "       u.local, u.trade, rp.version, rp.parent_version "
                 "  FROM rate_periods rp "
                 "  JOIN unions u ON rp.union_id = u.id "
-                " WHERE u.local = :local::int AND rp.start_date = :period::date"
+                " WHERE rp.id = :pid::uuid"
             ),
             parameters=[
-                {"name": "local", "value": {"stringValue": str(p["local"])}},
-                {"name": "period", "value": {"stringValue": p["period"]}},
+                {"name": "pid", "value": {"stringValue": selected["period_id"]}},
             ],
         )
         rows = head.get("records", [])
@@ -134,6 +178,8 @@ def handler(event: dict[str, Any], _context: Any) -> dict[str, Any]:
         canonical_summary = json.loads(rows[0][3].get("stringValue", "{}"))
         local = rows[0][4].get("longValue")
         trade = rows[0][5].get("stringValue") or ""
+        version = rows[0][6].get("longValue") or 1
+        parent_version = rows[0][7].get("longValue")
 
         # Pull every cell. Order by package then column_name for deterministic UI.
         cells_resp = data.execute_statement(
@@ -227,6 +273,12 @@ def handler(event: dict[str, Any], _context: Any) -> dict[str, Any]:
             "job_meta": job_meta,
             "counts": counts,
             "canonical_summary": canonical_summary,
+            # Tier 3: versioning. `version` is which one we just returned, and
+            # `versions` is the full list (newest first) so the UI can offer a
+            # switcher. `parent_version` is non-null only for rework children.
+            "version": version,
+            "parent_version": parent_version,
+            "versions": all_versions,
         })
     except Exception:
         logger.exception("ratesheet-get failed")
