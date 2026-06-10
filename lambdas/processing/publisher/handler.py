@@ -184,7 +184,31 @@ def _publish(
         return first[idx].strip() if idx is not None and idx < len(first) else default
 
     local = (col("Union Local") or str(classify.get("local") or "")).strip()
-    trade = col("Trade") or (classify.get("union") or "").split("_")[-1].title()
+    # Trade source-of-truth priority:
+    #   1. Upload folder structure (laboraid/<Trade>/<Local>/...) — what the
+    #      customer organizes by. Most reliable for unknown unions where the
+    #      LLM might guess wrong (UA Local 120 covers Plumbers/Pipefitters AND
+    #      Sprinkler Fitters; the folder picks the right one).
+    #   2. Whatever the LLM/kernel put in the CSV's Trade column.
+    #   3. Fallback derived from the kernel union name.
+    pdf_key = classify.get("s3_key") or ""
+    pdf_parts = pdf_key.split("/")
+    folder_trade = ""
+    # Only use the path's 2nd segment as trade when it looks like a real
+    # trade name. The Admin upload Lambda dumps files at
+    # `laboraid/uploads/<filename>` for ad-hoc uploads — "uploads" is a
+    # storage convention, not a trade. When the path segment is a reserved
+    # storage word, defer to whatever Claude/kernel wrote in the CSV.
+    _RESERVED_PATH_SEGMENTS = {"uploads", "tmp", "scratch", "unknown"}
+    if len(pdf_parts) >= 3 and pdf_parts[0] == "laboraid":
+        cand = pdf_parts[1]
+        if cand.lower() not in _RESERVED_PATH_SEGMENTS:
+            folder_trade = cand
+    trade = (
+        folder_trade
+        or col("Trade")
+        or (classify.get("union") or "").split("_")[-1].title()
+    )
     parent_intl = col("Union Group") or "UA"
     start_date = _normalize_date(col("Start Date")) or classify.get("period")
     end_date = _normalize_date(col("End Date"))
@@ -211,63 +235,105 @@ def _publish(
             {"name": "sd", "value": {"stringValue": start_date}},
         ],
     )
-    if existing.get("records"):
-        existing_id = existing["records"][0][0]["stringValue"]
-        existing_v = existing["records"][0][1].get("longValue") or 1
-        logger.info(
-            "publisher: rate_period already exists for union=%s period=%s "
-            "(v%d, id=%s) — skipping insert; use the rework loop to revise",
-            local, start_date, existing_v, existing_id,
-        )
-        return {
-            "published": False,
-            "reason": "already_exists",
-            "rate_period_id": existing_id,
-            "version": existing_v,
-            "union_id": union_id,
-            "local": local,
-            "period": start_date,
-        }
+    # Derive the source PDF basename — every cell carries it in
+    # provenance.source_pdf so reviewers see exactly which uploaded file
+    # produced each value (matters when N PDFs for the same period are
+    # merged via the multi-PDF flow).
+    source_pdf_key = classify.get("s3_key") or ""
+    source_pdf_name = source_pdf_key.rsplit("/", 1)[-1] if source_pdf_key else ""
 
-    # 3) Insert the rate_period.
-    period_id = str(uuid.uuid4())
-    source_files = {
-        "rate_notice": classify.get("s3_key") or "",
-        "output_csv": csv_key,
-    }
-    canonical_json = {
-        "rows": canonical.get("rows"),
-        "extracted_rows": canonical.get("extracted_rows"),
-        "gaps": canonical.get("gap_count"),
-        "checksum": canonical.get("checksum"),
-        "extracted_at": canonical.get("extracted_at"),
-        "doc_type": classify.get("doc_type"),
-    }
-    rds.execute_statement(
-        **common,
-        sql=(
-            "INSERT INTO rate_periods "
-            "  (id, union_id, start_date, end_date, status, approval_state, "
-            "   canonical_json, source_files, version) "
-            "VALUES (:id::uuid, :uid::uuid, :sd::date, :ed::date, 'extracted', "
-            "        'pending_review', :cj::jsonb, :sf::jsonb, 1)"
-        ),
-        parameters=[
-            {"name": "id", "value": {"stringValue": period_id}},
-            {"name": "uid", "value": {"stringValue": union_id}},
-            {"name": "sd", "value": {"stringValue": start_date}},
-            {
-                "name": "ed",
-                "value": (
-                    {"stringValue": end_date}
-                    if end_date
-                    else {"isNull": True}
-                ),
-            },
-            {"name": "cj", "value": {"stringValue": json.dumps(canonical_json)}},
-            {"name": "sf", "value": {"stringValue": json.dumps(source_files)}},
-        ],
-    )
+    merge_mode = False
+    if existing.get("records"):
+        period_id = existing["records"][0][0]["stringValue"]
+        existing_v = existing["records"][0][1].get("longValue") or 1
+        merge_mode = True
+        logger.info(
+            "publisher: rate_period exists for union=%s period=%s (v%d, id=%s) "
+            "— MERGE MODE: appending cells from %s",
+            local, start_date, existing_v, period_id, source_pdf_name,
+        )
+        # Append the new PDF to rate_periods.source_files. Both old and new
+        # shapes are tolerated: legacy single-PDF rows wrote a dict
+        # {"rate_notice": "...", "output_csv": "..."}; merge mode promotes
+        # rate_notice to a list (preserves the original) and adds new PDFs
+        # under source_files.uploads[].
+        ex_sf = rds.execute_statement(
+            **common,
+            sql=(
+                "SELECT COALESCE(source_files::text, '{}') FROM rate_periods "
+                " WHERE id = :pid::uuid"
+            ),
+            parameters=[{"name": "pid", "value": {"stringValue": period_id}}],
+        )
+        try:
+            prior_sf = json.loads(
+                ex_sf["records"][0][0].get("stringValue") or "{}"
+            )
+        except Exception:
+            prior_sf = {}
+        uploads = prior_sf.get("uploads") or []
+        # Promote any legacy single rate_notice into uploads[] so the
+        # provenance chain is uniform from this point forward.
+        legacy_rn = prior_sf.get("rate_notice")
+        if legacy_rn and legacy_rn not in uploads and isinstance(legacy_rn, str):
+            uploads.append(legacy_rn)
+        if source_pdf_key and source_pdf_key not in uploads:
+            uploads.append(source_pdf_key)
+        prior_sf["uploads"] = uploads
+        prior_sf.setdefault("rate_notice", legacy_rn or source_pdf_key)
+        prior_sf["output_csv"] = csv_key  # last writer wins for the CSV ptr
+        rds.execute_statement(
+            **common,
+            sql=(
+                "UPDATE rate_periods SET source_files = :sf::jsonb "
+                " WHERE id = :pid::uuid"
+            ),
+            parameters=[
+                {"name": "pid", "value": {"stringValue": period_id}},
+                {"name": "sf", "value": {"stringValue": json.dumps(prior_sf)}},
+            ],
+        )
+    else:
+        # 3) Insert a new rate_period (first PDF for this union/period).
+        period_id = str(uuid.uuid4())
+        source_files = {
+            "rate_notice": classify.get("s3_key") or "",
+            "output_csv": csv_key,
+            "uploads": [source_pdf_key] if source_pdf_key else [],
+        }
+        canonical_json = {
+            "rows": canonical.get("rows"),
+            "extracted_rows": canonical.get("extracted_rows"),
+            "gaps": canonical.get("gap_count"),
+            "checksum": canonical.get("checksum"),
+            "extracted_at": canonical.get("extracted_at"),
+            "doc_type": classify.get("doc_type"),
+        }
+        rds.execute_statement(
+            **common,
+            sql=(
+                "INSERT INTO rate_periods "
+                "  (id, union_id, start_date, end_date, status, approval_state, "
+                "   canonical_json, source_files, version) "
+                "VALUES (:id::uuid, :uid::uuid, :sd::date, :ed::date, 'extracted', "
+                "        'pending_review', :cj::jsonb, :sf::jsonb, 1)"
+            ),
+            parameters=[
+                {"name": "id", "value": {"stringValue": period_id}},
+                {"name": "uid", "value": {"stringValue": union_id}},
+                {"name": "sd", "value": {"stringValue": start_date}},
+                {
+                    "name": "ed",
+                    "value": (
+                        {"stringValue": end_date}
+                        if end_date
+                        else {"isNull": True}
+                    ),
+                },
+                {"name": "cj", "value": {"stringValue": json.dumps(canonical_json)}},
+                {"name": "sf", "value": {"stringValue": json.dumps(source_files)}},
+            ],
+        )
 
     # 4) Insert all rate_cells. Skip blank/null rate values — they go in as
     #    NULL so the UI can show them as gaps. Provenance carries the agent's
@@ -287,16 +353,46 @@ def _publish(
         if (classify.get("union") or "").lower() in _KERNEL_UNIONS
         else "llm_claude"
     )
+    # In merge mode, pre-load every (zone, package, column_name) triple
+    # already present at this period so we can first-write-wins skip
+    # collisions without N round-trips to the DB.
+    existing_triples: set[tuple[str, str, str]] = set()
+    if merge_mode:
+        ex = rds.execute_statement(
+            **common,
+            sql=(
+                "SELECT COALESCE(zone,''), COALESCE(package,''), "
+                "       COALESCE(column_name,'') "
+                "  FROM rate_cells WHERE period_id = :pid::uuid"
+            ),
+            parameters=[{"name": "pid", "value": {"stringValue": period_id}}],
+        )
+        for row in ex.get("records") or []:
+            existing_triples.add(
+                (
+                    row[0].get("stringValue") or "",
+                    row[1].get("stringValue") or "",
+                    row[2].get("stringValue") or "",
+                )
+            )
+
     inserted = 0
-    skipped = 0
+    skipped_no_package = 0
+    skipped_collision = 0
     for row in data_rows:
         zone = row[meta_idx["Zone"]] if "Zone" in meta_idx and meta_idx["Zone"] < len(row) else ""
         package = row[meta_idx["Package"]] if meta_idx["Package"] < len(row) else ""
         if not package:
-            skipped += 1
+            skipped_no_package += 1
             continue
         for col_idx, col_name in rate_cols:
             if col_idx >= len(row):
+                continue
+            triple = (zone, package, col_name)
+            if triple in existing_triples:
+                # First-write wins: an earlier upload for this same period
+                # already populated this cell. Reviewer can override via UI.
+                skipped_collision += 1
                 continue
             raw = row[col_idx]
             value = _coerce_float(raw)
@@ -305,6 +401,7 @@ def _publish(
             prov = {
                 "source": csv_key,
                 "method": method,
+                "source_pdf": source_pdf_name,
                 "row_raw": str(raw)[:80],
             }
             rds.execute_statement(
@@ -338,17 +435,21 @@ def _publish(
                     },
                 ],
             )
+            existing_triples.add(triple)  # for any future PDFs in this same Lambda invocation
             inserted += 1
 
     return {
         "published": True,
+        "merge_mode": merge_mode,
         "rate_period_id": period_id,
         "union_id": union_id,
         "local": local,
         "period": start_date,
         "method": method,
+        "source_pdf": source_pdf_name,
         "cells_inserted": inserted,
-        "rows_skipped_no_package": skipped,
+        "cells_skipped_collision": skipped_collision,
+        "rows_skipped_no_package": skipped_no_package,
     }
 
 

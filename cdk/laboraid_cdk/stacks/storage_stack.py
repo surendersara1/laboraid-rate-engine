@@ -110,6 +110,26 @@ class StorageStack(Stack):
             object_lock=True,
             event_bridge=True,
         )
+        # Browser CORS for the Admin Uploads page. Without PUT in
+        # AllowedMethods the browser blocks the presigned-PUT and the upload
+        # silently fails (UI gets stuck on "uploading..."). Caught 2026-06-10
+        # when a real UI upload of 692 Journeymen Rates didn't reach S3.
+        self.inputs_bucket.add_cors_rule(
+            allowed_methods=[
+                s3.HttpMethods.GET,
+                s3.HttpMethods.HEAD,
+                s3.HttpMethods.PUT,
+                s3.HttpMethods.POST,
+            ],
+            allowed_origins=[
+                # The CloudFront SPA origin + local Vite dev.
+                "https://d3ggwschjt81wu.cloudfront.net",
+                "http://localhost:5173",
+            ],
+            allowed_headers=["*"],
+            exposed_headers=["ETag", "Content-Length", "Content-Range"],
+            max_age=3600,
+        )
         self.processed_bucket = _bucket(
             "ProcessedBucket",
             "processed",
