@@ -114,9 +114,24 @@ PDF (which the kernel reads deterministically — you must NOT duplicate that
 work). Your job here is ONLY the Residential Foreman + Journeyman package
 that the Rate Notice doesn't carry.
 
-SCOPE — you emit EXACTLY 2 ROWS and nothing else:
-  Row 1: zone="Residential", classification="Foreman"
-  Row 2: zone="Residential", classification="Journeyman"
+SCOPE — emit Residential Foreman + Journeyman rows IF AND ONLY IF this
+CBA actually contains a Residential Sprinkler / Residential Fire
+Protection section with EXPLICIT wage values. Read the document first.
+Two cases:
+
+  CASE A — CBA HAS a Residential section with stated wage figures
+  (e.g., "RESIDENTIAL SPRINKLER FITTER — Wage Rate $47.82 per hour"):
+    → emit exactly 2 rows:
+       Row 1: zone="Residential", classification="Foreman"
+       Row 2: zone="Residential", classification="Journeyman"
+
+  CASE B — CBA does NOT have a Residential section, OR mentions
+  "Residential" only in scope/jurisdiction text without dollar values:
+    → emit ZERO rows. Return {"rows": []}.
+
+Many unions (e.g. 704) work only on Building/Commercial — their CBAs
+have no Residential package. For those unions, emitting empty rows
+creates phantom NULL cells the reviewer must then dismiss. Don't do it.
 
 DO NOT EMIT APPRENTICE ROWS UNDER ANY CIRCUMSTANCES. Apprentice rates
 come from a dedicated Wage Rate Sheet PDF that supersedes whatever the

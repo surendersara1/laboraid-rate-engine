@@ -596,6 +596,22 @@ def _publish(
         )
         derived_filled += r.get("numberOfRecordsUpdated", 0) or 0
 
+    # Drop columns that don't belong in a numeric rate_cells table.
+    # The 821 kernel emits "Indentured Date is Before" / "Indentured Date
+    # is After" — these are dates, not currency, so the value column
+    # can't hold them. Filter them out before the gap-count recount;
+    # the reviewer should only see real numeric gaps.
+    rds.execute_statement(
+        **common,
+        sql=(
+            "DELETE FROM rate_cells "
+            " WHERE period_id = :pid::uuid "
+            "   AND column_name IN ('Indentured Date is Before', "
+            "                       'Indentured Date is After')"
+        ),
+        parameters=[{"name": "pid", "value": {"stringValue": period_id}}],
+    )
+
     # Zero-by-rule: Residential Apprentice * Pension = 0 (Local 483
     # convention; no pension allocation for residential trainees).
     r = rds.execute_statement(
@@ -611,6 +627,26 @@ def _publish(
             "   AND zone = 'Residential' "
             "   AND column_name = 'Pension' "
             "   AND package ILIKE 'Apprentice%' "
+            "   AND value IS NULL"
+        ),
+        parameters=[{"name": "pid", "value": {"stringValue": period_id}}],
+    )
+    derived_filled += r.get("numberOfRecordsUpdated", 0) or 0
+
+    # Zero-by-rule: PAC (Political Action Committee) is opt-in $0 by
+    # convention when the source doesn't specify. Applies to any union's
+    # PAC fund column (PAC 821, PAC 704, etc.).
+    r = rds.execute_statement(
+        **common,
+        sql=(
+            "UPDATE rate_cells SET value = 0, value_type = 'currency', "
+            "       provenance = jsonb_set("
+            "         jsonb_set(COALESCE(provenance, '{}'::jsonb), "
+            "                   '{method}', '\"zero_by_rule\"'::jsonb), "
+            "         '{rule}', '\"PAC contribution is opt-in; $0 by Local convention when source unspecified\"'::jsonb, true), "
+            "       confidence = 1.0 "
+            " WHERE period_id = :pid::uuid "
+            "   AND column_name ILIKE 'PAC%' "
             "   AND value IS NULL"
         ),
         parameters=[{"name": "pid", "value": {"stringValue": period_id}}],
@@ -843,8 +879,117 @@ def _publish(
     except Exception:  # pragma: no cover
         logger.exception("publisher: gap_report generation failed (non-fatal)")
 
+    # Generate a customer-format CSV + xlsx from the FINAL Aurora state
+    # (post-derived, post-zero-by-rule, post-phantom-row-delete). This is
+    # the artifact the reviewer downloads and diffs against the customer's
+    # existing rate sheet — the canonical output of the whole pipeline.
+    final_csv_key = None
+    final_xlsx_key = None
+    try:
+        import csv as _csv
+        import io as _io
+        import boto3 as _boto3_x
+
+        # Pull every cell for this period, ordered for a stable layout.
+        cells_q = rds.execute_statement(
+            **common,
+            sql=(
+                "SELECT zone, package, column_name, value::text "
+                "  FROM rate_cells "
+                " WHERE period_id = :pid::uuid "
+                " ORDER BY zone, package, column_name"
+            ),
+            parameters=[{"name": "pid", "value": {"stringValue": period_id}}],
+        )
+        rows_by_key: dict[tuple[str, str], dict[str, str]] = {}
+        all_columns: list[str] = []
+        seen_cols: set[str] = set()
+        for r2 in cells_q.get("records") or []:
+            zone = r2[0].get("stringValue") or ""
+            pkg = r2[1].get("stringValue") or ""
+            col = r2[2].get("stringValue") or ""
+            val = r2[3].get("stringValue", "")
+            rows_by_key.setdefault((zone, pkg), {})[col] = val
+            if col not in seen_cols:
+                seen_cols.add(col)
+                all_columns.append(col)
+
+        # Trade / Union Local from the unions row (drive the leading columns
+        # so the output matches the customer's existing xlsx layout).
+        meta_q = rds.execute_statement(
+            **common,
+            sql=(
+                "SELECT u.trade, u.local FROM unions u "
+                "  JOIN rate_periods rp ON rp.union_id = u.id "
+                " WHERE rp.id = :pid::uuid"
+            ),
+            parameters=[{"name": "pid", "value": {"stringValue": period_id}}],
+        )
+        trade_val, local_val = "", local or ""
+        if meta_q.get("records"):
+            r3 = meta_q["records"][0]
+            trade_val = r3[0].get("stringValue") or ""
+            local_val = r3[1].get("stringValue") or local_val
+
+        header = [
+            "Union Group", "Trade", "Union Local",
+            "Zone", "Package", "Start Date", "End Date",
+            *all_columns,
+        ]
+        end_date_str = end_date or ""
+        buf = _io.StringIO()
+        writer = _csv.writer(buf, lineterminator="\n")
+        writer.writerow(header)
+        for (zone, pkg), cells_dict in sorted(rows_by_key.items()):
+            row_out = [
+                "UA", trade_val, local_val,
+                zone, pkg, start_date, end_date_str,
+                *[cells_dict.get(col, "") for col in all_columns],
+            ]
+            writer.writerow(row_out)
+        final_csv_text = buf.getvalue()
+
+        batch_dir = source_pdf_key.rsplit("/", 1)[0] if "/" in source_pdf_key else ""
+        if batch_dir:
+            outputs_bucket = os.environ.get(
+                "OUTPUTS_BUCKET", "laboraid-dev-l3-bucket-outputs"
+            )
+            final_csv_key = f"{batch_dir}/final_ratesheet.csv"
+            s3_x = _boto3_x.client("s3")
+            s3_x.put_object(
+                Bucket=outputs_bucket,
+                Key=final_csv_key,
+                Body=final_csv_text.encode("utf-8"),
+                ContentType="text/csv",
+                ServerSideEncryption="aws:kms",
+            )
+
+            # Invoke xlsx-renderer Lambda (already in the repo with
+            # openpyxl) to convert the CSV to xlsx, same column order.
+            xlsx_renderer = os.environ.get(
+                "XLSX_RENDERER_FN", "laboraid-dev-l7-fn-renderer-xlsx"
+            )
+            final_xlsx_key = f"{batch_dir}/final_ratesheet.xlsx"
+            try:
+                lc_x = _boto3_x.client("lambda")
+                lc_x.invoke(
+                    FunctionName=xlsx_renderer,
+                    InvocationType="RequestResponse",
+                    Payload=json.dumps({
+                        "csv_s3_key": final_csv_key,
+                        "out_s3_key": final_xlsx_key,
+                    }).encode("utf-8"),
+                )
+            except Exception:
+                logger.exception(
+                    "publisher: xlsx-renderer invoke failed (csv still produced)"
+                )
+                final_xlsx_key = None
+    except Exception:  # pragma: no cover
+        logger.exception("publisher: final xlsx generation failed (non-fatal)")
+
     # Persist source_files.gap_report so ratesheet-get can find the artifact.
-    if gap_report_key_json:
+    if gap_report_key_json or final_xlsx_key or final_csv_key:
         try:
             sf_now_q = rds.execute_statement(
                 **common,
@@ -859,8 +1004,17 @@ def _publish(
             )
         except Exception:
             sf_now = {}
-        sf_now["gap_report"] = gap_report_key_json
-        sf_now["gap_report_md"] = gap_report_key_md
+        if gap_report_key_json:
+            sf_now["gap_report"] = gap_report_key_json
+        if gap_report_key_md:
+            sf_now["gap_report_md"] = gap_report_key_md
+        if final_csv_key:
+            # The "output_csv" slot drives the "Canonical CSV" artifact card.
+            # Override the per-run CSV with the final pivoted version — that's
+            # what the reviewer wants to download (matches what's in Aurora).
+            sf_now["output_csv"] = final_csv_key
+        if final_xlsx_key:
+            sf_now["output_xlsx"] = final_xlsx_key
         rds.execute_statement(
             **common,
             sql=(
