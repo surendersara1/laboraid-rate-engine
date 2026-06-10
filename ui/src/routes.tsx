@@ -10,6 +10,7 @@ import { Agents } from "./admin/Agents";
 import { Profiles } from "./admin/Profiles";
 import { Audit } from "./admin/Audit";
 import { Costs } from "./admin/Costs";
+import { Onboard } from "./admin/Onboard";
 import { Inbox } from "./business/Inbox";
 import { RateSheetReview } from "./business/RateSheetReview";
 import { ByUnion } from "./business/ByUnion";
@@ -41,6 +42,7 @@ export function AppRoutes(): JSX.Element {
         <Route path="agents" element={<Agents />} />
         <Route path="profiles" element={<Profiles />} />
         <Route path="audit" element={<Audit />} />
+        <Route path="onboard/:local" element={<Onboard />} />
         <Route
           path="costs"
           element={

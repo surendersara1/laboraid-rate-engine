@@ -21,12 +21,16 @@ export function ApproveRejectBar({
   period,
   approvalState,
   reviewQueueEmpty,
+  reviewedBy,
+  currentUser,
   onChanged,
 }: {
   union: string;
   period: string;
   approvalState: string;
   reviewQueueEmpty: boolean;
+  reviewedBy?: string | null;
+  currentUser?: string | null;
   onChanged: (state: string) => void;
 }): JSX.Element {
   const [reason, setReason] = useState("");
@@ -38,6 +42,13 @@ export function ApproveRejectBar({
   const local = unionLocal(union);
   const base = `/v1/unions/${local}/rate-sheets/${period}`;
   const isTerminal = approvalState === "approved" || approvalState === "published";
+  const isReviewStage = approvalState === "pending_review" || approvalState === "rejected";
+  const isApproveStage = approvalState === "pending_approval";
+  // Dual-control: the reviewer cannot also be the approver (SOP §6).
+  const sameActorAsReviewer =
+    isApproveStage && !!reviewedBy && !!currentUser && reviewedBy === currentUser;
+  const actionLabel = isReviewStage ? "Mark Reviewed" : "Approve";
+  const nextState = isReviewStage ? "pending_approval" : "approved";
 
   const approve = async () => {
     setBusy(true);
@@ -48,8 +59,8 @@ export function ApproveRejectBar({
         approval_state: approvalState,
         review_queue_empty: reviewQueueEmpty,
       });
-      onChanged("approved");
-      setOk("Approved.");
+      onChanged(nextState);
+      setOk(isReviewStage ? "Marked reviewed — awaiting approver." : "Approved.");
     } catch (e) {
       setError(String(e));
     } finally {
@@ -94,19 +105,28 @@ export function ApproveRejectBar({
         </span>
         <button
           type="button"
-          disabled={busy || isTerminal || !reviewQueueEmpty}
+          disabled={busy || isTerminal || !reviewQueueEmpty || sameActorAsReviewer}
           onClick={approve}
           className="rounded-md bg-emerald-600 px-4 py-1.5 text-sm font-medium text-white shadow-sm transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-slate-300"
           title={
             isTerminal
               ? `Already ${approvalState}`
-              : reviewQueueEmpty
-                ? ""
-                : "Review queue is not empty"
+              : !reviewQueueEmpty
+                ? "Review queue is not empty"
+                : sameActorAsReviewer
+                  ? `Dual-control: you reviewed this sheet as ${reviewedBy}; a different actor must approve.`
+                  : isReviewStage
+                    ? "Stage 1 of 2: mark this sheet reviewed; a different actor will approve."
+                    : `Stage 2 of 2: approve this sheet (reviewed by ${reviewedBy ?? "—"}).`
           }
         >
-          {busy ? "…" : "Approve"}
+          {busy ? "…" : actionLabel}
         </button>
+        {isApproveStage && reviewedBy && (
+          <span className="text-xs text-slate-500">
+            reviewed by <span className="font-mono">{reviewedBy}</span>
+          </span>
+        )}
         <input
           type="text"
           value={reason}

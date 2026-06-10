@@ -19,6 +19,8 @@ CREATE TABLE IF NOT EXISTS rate_periods (
   end_date DATE,
   status TEXT,
   approval_state TEXT NOT NULL DEFAULT 'pending_review',
+  reviewed_by TEXT,
+  reviewed_at TIMESTAMPTZ,
   approved_by TEXT,
   approved_at TIMESTAMPTZ,
   rejected_by TEXT,
@@ -33,7 +35,9 @@ CREATE TABLE IF NOT EXISTS rate_periods (
   parent_version INT,
   rework_context JSONB,
   CONSTRAINT publish_requires_approval
-    CHECK (approval_state IN ('pending_review','approved','rejected','published'))
+    CHECK (approval_state IN ('pending_review','pending_approval','approved','rejected','published')),
+  CONSTRAINT dual_control_required
+    CHECK (approval_state <> 'approved' OR (reviewed_by IS NOT NULL AND approved_by IS NOT NULL AND reviewed_by <> approved_by))
 );
 
 CREATE INDEX IF NOT EXISTS idx_periods_inbox ON rate_periods (approval_state, start_date DESC);

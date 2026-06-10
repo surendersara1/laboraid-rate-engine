@@ -413,8 +413,30 @@ rows from your memory of typical layouts. Use null for the rest.
 SYSTEM_PROMPT = _RATE_NOTICE_PROMPT
 
 
-def _prompt_for_doc_type(doc_type: str) -> tuple[str, str]:
-    """Return (system_prompt, user_instruction) for the given doc type."""
+def _prompt_for_doc_type(
+    doc_type: str, local: str | int | None = None
+) -> tuple[str, str]:
+    """Return (system_prompt, user_instruction) for the given doc type.
+
+    When `local` is provided, the system prompt is built via the SOP
+    framework (Dan's SOP §2 + §4 + per-doc-type body + per-union master
+    list context) — see lambdas/shared/sop_prompt.py. When `local` is
+    None we fall back to the legacy hand-tuned prompts for back-compat.
+    """
+    if local is not None:
+        try:
+            import sop_prompt
+
+            return (
+                sop_prompt.build_system_prompt(doc_type, local),
+                sop_prompt.build_user_instruction(doc_type),
+            )
+        except ImportError:
+            logger.warning(
+                "sop_prompt not importable (Lambda layer missing?) — falling "
+                "back to legacy doc-type prompts"
+            )
+    # Legacy fallback (pre-SOP prompts) — kept for back-compat only.
     dt = (doc_type or "").lower()
     if dt == "cba":
         return (
@@ -443,7 +465,11 @@ def _prompt_for_doc_type(doc_type: str) -> tuple[str, str]:
     )
 
 
-def _invoke_bedrock(pdf_bytes: bytes, doc_type: str = "") -> dict[str, Any]:
+def _invoke_bedrock(
+    pdf_bytes: bytes,
+    doc_type: str = "",
+    local: str | int | None = None,
+) -> dict[str, Any]:
     """Call Bedrock Claude with the PDF and parse its JSON response.
 
     boto3's default read_timeout on bedrock-runtime is 60s, but a 3MB PDF +
@@ -462,7 +488,7 @@ def _invoke_bedrock(pdf_bytes: bytes, doc_type: str = "") -> dict[str, Any]:
             retries={"max_attempts": 1},
         ),
     )
-    system_prompt, user_instruction = _prompt_for_doc_type(doc_type)
+    system_prompt, user_instruction = _prompt_for_doc_type(doc_type, local)
     body: dict[str, Any] = {
         "anthropic_version": "bedrock-2023-05-31",
         "max_tokens": 16000,
@@ -698,12 +724,14 @@ def handler(event: dict[str, Any], _context: Any) -> dict[str, Any]:
         logger.info("llm-extractor: downloaded %d bytes from %s", len(pdf_bytes), s3_key)
 
         doc_type = (classify.get("doc_type") or "").lower()
+        local = classify.get("local")
         logger.info(
-            "llm-extractor: invoking Bedrock with doc_type=%s for key=%s",
+            "llm-extractor: invoking Bedrock with doc_type=%s local=%s for key=%s",
             doc_type or "(none, rate_notice prompt)",
+            local,
             s3_key,
         )
-        payload = _invoke_bedrock(pdf_bytes, doc_type=doc_type)
+        payload = _invoke_bedrock(pdf_bytes, doc_type=doc_type, local=local)
         if payload.get("_parse_error"):
             logger.warning(
                 "llm-extractor: Claude returned malformed JSON — see _raw"

@@ -24,6 +24,25 @@ export async function getJwt(): Promise<string | null> {
   return session.tokens?.idToken?.toString() ?? null;
 }
 
+// The string the backend writes into reviewed_by/approved_by — must match the
+// _actor() resolution in the approve Lambda (email > cognito:username > sub).
+// Used by the UI to enforce dual-control: a user who reviewed a sheet must NOT
+// see an enabled Approve button on the same sheet (SOP §6).
+export async function getCurrentActor(): Promise<string | null> {
+  try {
+    const session = await fetchAuthSession();
+    const c: Record<string, unknown> = session.tokens?.idToken?.payload ?? {};
+    return (
+      (c["email"] as string | undefined) ||
+      (c["cognito:username"] as string | undefined) ||
+      (c["sub"] as string | undefined) ||
+      null
+    );
+  } catch {
+    return null;
+  }
+}
+
 export async function isAuthenticated(): Promise<boolean> {
   try {
     await getCurrentUser();

@@ -160,7 +160,8 @@ def handler(event: dict[str, Any], _context: Any) -> dict[str, Any]:
                 "SELECT rp.id::text, rp.approval_state, "
                 "       COALESCE(rp.source_files::text, '{}') AS source_files, "
                 "       COALESCE(rp.canonical_json::text, '{}') AS canonical_json, "
-                "       u.local, u.trade, rp.version, rp.parent_version "
+                "       u.local, u.trade, rp.version, rp.parent_version, "
+                "       rp.reviewed_by, rp.approved_by "
                 "  FROM rate_periods rp "
                 "  JOIN unions u ON rp.union_id = u.id "
                 " WHERE rp.id = :pid::uuid"
@@ -180,6 +181,12 @@ def handler(event: dict[str, Any], _context: Any) -> dict[str, Any]:
         trade = rows[0][5].get("stringValue") or ""
         version = rows[0][6].get("longValue") or 1
         parent_version = rows[0][7].get("longValue")
+        reviewed_by = (
+            rows[0][8].get("stringValue") if not rows[0][8].get("isNull") else None
+        )
+        approved_by = (
+            rows[0][9].get("stringValue") if not rows[0][9].get("isNull") else None
+        )
 
         # Pull every cell. Order by package then column_name for deterministic UI.
         cells_resp = data.execute_statement(
@@ -367,6 +374,8 @@ def handler(event: dict[str, Any], _context: Any) -> dict[str, Any]:
             "local": local,
             "period": p["period"],
             "approval_state": approval_state,
+            "reviewed_by": reviewed_by,
+            "approved_by": approved_by,
             "cells": cells,
             "source_pdf_url": source_pdf_url,
             "source_files": source_files,
@@ -375,6 +384,10 @@ def handler(event: dict[str, Any], _context: Any) -> dict[str, Any]:
             "counts": counts,
             "sources_contrib": sources_contrib,
             "gaps_detail": gaps_detail,
+            "master_dispositions": canonical_summary.get("master_dispositions") or [],
+            "master_disposition_summary": canonical_summary.get(
+                "master_disposition_summary"
+            ) or {},
             "canonical_summary": canonical_summary,
             # Tier 3: versioning. `version` is which one we just returned, and
             # `versions` is the full list (newest first) so the UI can offer a

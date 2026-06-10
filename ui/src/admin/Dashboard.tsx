@@ -32,6 +32,39 @@ function fmtDuration(ms?: number | null): string {
   return `${m}m ${s}s`;
 }
 
+function OnboardLauncher(): JSX.Element {
+  const [local, setLocal] = useState("");
+  return (
+    <form
+      className="flex items-center gap-2"
+      onSubmit={(e) => {
+        e.preventDefault();
+        const v = local.trim();
+        if (/^\d{2,4}$/.test(v)) window.location.assign(`/admin/onboard/${v}`);
+      }}
+    >
+      <label className="text-xs font-medium text-slate-600">
+        Onboard new union
+      </label>
+      <input
+        type="text"
+        inputMode="numeric"
+        value={local}
+        onChange={(e) => setLocal(e.target.value)}
+        placeholder="local #"
+        className="w-24 rounded-md border border-slate-200 px-2 py-1 text-sm focus:border-emerald-400 focus:outline-none focus:ring-1 focus:ring-emerald-300"
+      />
+      <button
+        type="submit"
+        disabled={!/^\d{2,4}$/.test(local.trim())}
+        className="rounded-md bg-emerald-600 px-3 py-1 text-sm font-medium text-white shadow-sm transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-slate-300"
+      >
+        Start checklist
+      </button>
+    </form>
+  );
+}
+
 export function Dashboard(): JSX.Element {
   const [jobs, setJobs] = useState<Job[]>([]);
   const [pending, setPending] = useState<RateSheetSummary[]>([]);
@@ -105,11 +138,14 @@ export function Dashboard(): JSX.Element {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h2 className="text-2xl font-semibold text-slate-900">Dashboard</h2>
-        <p className="text-sm text-slate-500">
-          LaborAid Rate Engine · pipeline health at a glance
-        </p>
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <h2 className="text-2xl font-semibold text-slate-900">Dashboard</h2>
+          <p className="text-sm text-slate-500">
+            LaborAid Rate Engine · pipeline health at a glance
+          </p>
+        </div>
+        <OnboardLauncher />
       </div>
 
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-5">

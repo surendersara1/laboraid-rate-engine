@@ -804,6 +804,49 @@ def _publish(
     prior_cj["gap_count"] = null_now
     prior_cj["gaps_detail"] = still_null_gaps
 
+    # Move 3 — Deterministic Rule 1-12 validation against the customer's
+    # Master Fund / Package / Zone lists. Emits a dispositions array
+    # (OK / DRIFT / NOT_FOUND per fund column, package, zone) that the
+    # gap_report.json + Inbox banner surface to the reviewer.
+    dispositions = []
+    try:
+        import master_validation
+
+        cells_q = rds.execute_statement(
+            **common,
+            sql=(
+                "SELECT zone, package, column_name, value::text, "
+                "       COALESCE(provenance::text, '{}') "
+                "  FROM rate_cells WHERE period_id = :pid::uuid"
+            ),
+            parameters=[{"name": "pid", "value": {"stringValue": period_id}}],
+        )
+        cells_for_val = []
+        for r2 in cells_q.get("records") or []:
+            cells_for_val.append(
+                {
+                    "zone": r2[0].get("stringValue") or "",
+                    "package": r2[1].get("stringValue") or "",
+                    "column_name": r2[2].get("stringValue") or "",
+                    "value": r2[3].get("stringValue"),
+                    "provenance": json.loads(r2[4].get("stringValue") or "{}"),
+                }
+            )
+        dispositions = master_validation.validate_rate_period(local, cells_for_val)
+        prior_cj["master_dispositions"] = dispositions
+        prior_cj["master_disposition_summary"] = master_validation.summarize(
+            dispositions
+        )
+        logger.info(
+            "publisher: master validation — %d dispositions (%d OK / %d DRIFT / %d NOT_FOUND)",
+            len(dispositions),
+            prior_cj["master_disposition_summary"]["ok"],
+            prior_cj["master_disposition_summary"]["drift"],
+            prior_cj["master_disposition_summary"]["not_found"],
+        )
+    except Exception:  # pragma: no cover
+        logger.exception("publisher: master validation failed (non-fatal)")
+
     # Generate gap_report.json + gap_report.md artifacts. The JSON is for
     # API consumers; the .md is what the reviewer downloads + reads.
     # Both live in the outputs bucket under the batch directory so the
@@ -1047,6 +1090,7 @@ def _publish(
                     Payload=json.dumps({
                         "csv_s3_key": final_csv_key,
                         "out_s3_key": final_xlsx_key,
+                        "local": local,
                     }).encode("utf-8"),
                 )
             except Exception:

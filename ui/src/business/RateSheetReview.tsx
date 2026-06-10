@@ -8,10 +8,12 @@ import { ProvenancePanel } from "../components/ProvenancePanel";
 import { RateCellTable } from "../components/RateCellTable";
 import { ReworkBar } from "../components/ReworkBar";
 import { api } from "../lib/api";
+import { getCurrentActor } from "../lib/auth";
 import type { JobArtifact, RateCell, RateSheetDetail } from "../types/api";
 
 const APPROVAL_PILL: Record<string, string> = {
   pending_review: "bg-amber-100 text-amber-800 ring-amber-200",
+  pending_approval: "bg-sky-100 text-sky-800 ring-sky-200",
   approved: "bg-emerald-100 text-emerald-800 ring-emerald-200",
   rejected: "bg-rose-100 text-rose-800 ring-rose-200",
   published: "bg-indigo-100 text-indigo-800 ring-indigo-200",
@@ -110,6 +112,16 @@ export function RateSheetReview(): JSX.Element {
   const [error, setError] = useState("");
   const [commentCell, setCommentCell] = useState<RateCell | null>(null);
   const [activityKey, setActivityKey] = useState(0);
+  const [currentActor, setCurrentActor] = useState<string | null>(null);
+  useEffect(() => {
+    let live = true;
+    getCurrentActor().then((a) => {
+      if (live) setCurrentActor(a);
+    });
+    return () => {
+      live = false;
+    };
+  }, []);
 
   const local = unionLocal(union);
 
@@ -170,6 +182,22 @@ export function RateSheetReview(): JSX.Element {
     cells_contributed: number;
     share_pct: number;
   }> = (detail as any)?.sources_contrib ?? [];
+  const masterDispositions: Array<{
+    kind: string;
+    extracted: string;
+    match_id: string | null;
+    match_name: string | null;
+    status: "OK" | "DRIFT" | "NOT_FOUND";
+    rule: string;
+    note: string;
+    suggestion: string | null;
+  }> = (detail as any)?.master_dispositions ?? [];
+  const masterSummary: {
+    total?: number;
+    ok?: number;
+    drift?: number;
+    not_found?: number;
+  } = (detail as any)?.master_disposition_summary ?? {};
   // POC: there's no review-queue gate wired yet, so Approve is enabled as long
   // as we have cells. Tier 3 will tie this to unresolved comments/overrides.
   const reviewQueueEmpty = cells.length > 0;
@@ -354,6 +382,82 @@ export function RateSheetReview(): JSX.Element {
         </div>
       )}
 
+      {/* MASTER LIST DISPOSITIONS — Rule 1-12 validation against the
+          customer's Master Fund / Package / Zone lists (Dan's SOP §5.2
+          + MASTER_DATA_REVIEW_RULES.md). Surfaces drift + NEW MASTER
+          ROW dispositions per Rule 10. */}
+      {masterDispositions.length > 0 && (masterSummary.drift! > 0 || masterSummary.not_found! > 0) && (
+        <div className="rounded-lg border border-indigo-300 bg-indigo-50 p-4 shadow-sm">
+          <div className="flex items-start gap-3">
+            <span className="mt-0.5 inline-flex h-6 w-6 flex-none items-center justify-center rounded-full bg-indigo-100 text-indigo-800 ring-1 ring-indigo-300">
+              M
+            </span>
+            <div className="flex-1">
+              <p className="text-sm font-semibold text-indigo-900">
+                Master List dispositions — {masterSummary.ok} OK ·{" "}
+                <span className="text-amber-800">
+                  {masterSummary.drift} DRIFT
+                </span>{" "}
+                ·{" "}
+                <span className="text-rose-800">
+                  {masterSummary.not_found} NOT_FOUND
+                </span>
+              </p>
+              <p className="mt-1 text-xs text-indigo-800">
+                Per Dan's SOP §5.2, every fund / package / zone name on
+                the sheet must resolve to a Master List entry. Each
+                disposition below is a Rule 10 action item.
+              </p>
+              <ul className="mt-3 space-y-1.5">
+                {masterDispositions
+                  .filter((d) => d.status !== "OK")
+                  .slice(0, 25)
+                  .map((d, i) => {
+                    const tone =
+                      d.status === "DRIFT"
+                        ? "bg-amber-50 text-amber-800 ring-amber-200"
+                        : "bg-rose-50 text-rose-800 ring-rose-200";
+                    return (
+                      <li
+                        key={i}
+                        className="flex flex-wrap items-baseline gap-2 text-xs"
+                      >
+                        <span
+                          className={`inline-flex items-center rounded-full px-2 py-0.5 font-mono text-[10px] font-semibold ring-1 ring-inset ${tone}`}
+                        >
+                          {d.status}
+                        </span>
+                        <span className="text-indigo-700">{d.kind}</span>
+                        <span className="font-mono font-semibold text-indigo-900">
+                          {d.extracted}
+                        </span>
+                        {d.suggestion && (
+                          <span className="text-indigo-700">
+                            → suggests{" "}
+                            <span className="font-mono font-semibold">
+                              {d.suggestion}
+                            </span>
+                          </span>
+                        )}
+                        <span className="text-indigo-600">— {d.rule}</span>
+                      </li>
+                    );
+                  })}
+                {masterDispositions.filter((d) => d.status !== "OK").length >
+                  25 && (
+                  <li className="text-xs text-indigo-700">
+                    …{" "}
+                    {masterDispositions.filter((d) => d.status !== "OK").length -
+                      25}{" "}
+                    more (download gap report JSON for the full list)
+                  </li>
+                )}
+              </ul>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Tier 3 — rework action bar; visible only when the sheet is rejected
           on its latest version. Submits to POST /…/rework which creates v+1,
           applies overrides, regenerates the xlsx, and audit-logs the event. */}
@@ -480,6 +584,8 @@ export function RateSheetReview(): JSX.Element {
         period={period}
         approvalState={state}
         reviewQueueEmpty={reviewQueueEmpty}
+        reviewedBy={(detail as any)?.reviewed_by ?? null}
+        currentUser={currentActor}
         onChanged={onActionChanged}
       />
 
