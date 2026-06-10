@@ -211,39 +211,64 @@ exactly like:
 }
 """
 
-_APPRENTICE_SCALE_PROMPT = """You extract a Residential Sprinkler Apprentice/Trainee
-wage scale from a PDF.
+_APPRENTICE_SCALE_PROMPT = """You extract an Apprentice / Trainee wage scale
+from a PDF. The PDF typically lists Apprentice Class 1..N (or Year 1..N,
+or Period 1..N) with dollar wages + benefit fund line items per class.
 
-The PDF typically lists Apprentice Class 1..5 (or Trainee Year 1..5) with
-either dollar wages or percentages of the Journeyman rate. We need the
-dollar wage per class for the rate-effective date in the document.
+ZONE DETECTION — read the document title and any narrative:
+  - If the title or narrative says "RESIDENTIAL" or "Residential
+    Sprinkler" or "Residential Apprentice" → emit rows with
+    zone="Residential".
+  - If the title or narrative says "COMMERCIAL" or no zone qualifier
+    and the rates appear to be the union's general-purpose apprentices
+    (often split by indenture date, like "Indentured After 7/1/2020")
+    → emit rows with zone="Building" (our canonical name for Commercial).
+  - If the document covers multiple zones, emit rows per zone, setting
+    "zone" on each row.
+
+INDENTURE DATE COHORTS — many unions (e.g. Sprinkler 281) split their
+Apprentice Wage Sheets into separate PDFs by indenture date (one PDF
+for apprentices indentured before a cutoff, another for after). Each
+PDF carries a different scale. The filename will hint at which cohort
+("Indentured After 07 2020", "Indentured Prior to 07 2020"). Emit one
+set of rows per PDF; do NOT try to merge cohorts — each cohort's rows
+go to its own (zone, package) tuple where the package name embeds the
+cohort, e.g. "Apprentice Class 1 (indentured after 07/2020)".
 
 PRIME DIRECTIVE — NEVER FABRICATE: source every cell from the PDF.
 
-OUTPUT — same canonical shape as the Rate Notice prompt:
+OUTPUT — same canonical shape as the Rate Notice prompt. Set zone per
+row:
 
 {
   "union_local": "<local>",
-  "trade": "Sprinkler",
+  "trade": "Sprinkler" | "Pipefitter" | ...,
   "parent_intl": "UA",
   "start_date": "YYYY-MM-DD",
   "end_date": "YYYY-MM-DD" or null,
-  "zone": "Residential",
-  "columns": ["Wage", "Wage 1.5x", "Wage 2.0x"],
+  "zone": "Building",
+  "columns": ["Wage", "Wage 1.5x", "Wage 2.0x", "Health & Welfare", ...],
   "rows": [
-    {"classification": "Apprentice Class 1", "cells": {"Wage": 21.96, ...}},
-    {"classification": "Apprentice Class 2", "cells": {"Wage": 24.24, ...}},
+    {"zone": "<Building|Residential>", "classification": "Apprentice Class 1", "cells": {"Wage": 21.96, ...}},
+    {"zone": "<Building|Residential>", "classification": "Apprentice Class 2", "cells": {"Wage": 24.24, ...}},
     ...
   ]
 }
 
 RULES:
 1. If the PDF expresses wages as a percentage of Journeyman, emit the
-   percentage in a "Wage %" column and leave "Wage" null — the Publisher
-   merge step will resolve the dollar value once it joins with the
-   Residential Journeyman row from the CBA.
+   percentage in a "Wage %" column and leave "Wage" null — Publisher's
+   merge step will resolve the dollar value from a sibling Wage Sheet's
+   Journeyman row.
 2. If both percentage AND a separate dollar table are present, prefer
    the dollar table and put it in "Wage".
+3. Extract ALL the benefit columns that appear (Health & Welfare,
+   Pension, HRA, Vacation, Industry Promotion, training funds, etc.)
+   using the customer's canonical column names with the local suffix
+   substituted (e.g. "J&A Training 281", "S&E 537").
+4. If the PDF has no extractable apprentice rates (e.g. the document
+   only references a separate scale), return {"rows": []} rather than
+   inventing values.
 """
 
 _WAGE_RATE_SHEET_PROMPT = """You extract a COMPLETE union rate sheet from a multi-page

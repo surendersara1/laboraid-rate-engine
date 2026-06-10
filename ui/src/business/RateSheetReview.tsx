@@ -165,6 +165,11 @@ export function RateSheetReview(): JSX.Element {
   const counts = detail?.counts ?? {};
   const gapsDetail: Array<[string, string, string, string]> =
     (detail as any)?.gaps_detail ?? [];
+  const sourcesContrib: Array<{
+    source_pdf: string;
+    cells_contributed: number;
+    share_pct: number;
+  }> = (detail as any)?.sources_contrib ?? [];
   // POC: there's no review-queue gate wired yet, so Approve is enabled as long
   // as we have cells. Tier 3 will tie this to unresolved comments/overrides.
   const reviewQueueEmpty = cells.length > 0;
@@ -408,6 +413,64 @@ export function RateSheetReview(): JSX.Element {
               </Link>
             )}
           </div>
+        </div>
+      )}
+
+      {/* SOURCE CONTRIBUTION — F2: shows the reviewer at-a-glance which
+          PDF filled how many cells, plus derived / zero-by-rule shares.
+          This is the audit story: every cell traces to a source. */}
+      {sourcesContrib.length > 0 && (
+        <div className="rounded-lg border border-slate-200 bg-white shadow-sm">
+          <div className="border-b border-slate-100 px-5 py-3">
+            <h3 className="text-sm font-semibold uppercase tracking-wide text-slate-500">
+              Source contribution
+            </h3>
+            <p className="mt-1 text-xs text-slate-500">
+              Per-source count of cells in this period.
+            </p>
+          </div>
+          <ul className="divide-y divide-slate-100">
+            {sourcesContrib.map((s) => {
+              const isDerived =
+                s.source_pdf === "(derived)" ||
+                s.source_pdf === "(zero-by-rule)";
+              const filename = s.source_pdf.includes("/")
+                ? s.source_pdf.split("/").slice(-1)[0]
+                : s.source_pdf;
+              return (
+                <li
+                  key={s.source_pdf}
+                  className="flex items-center gap-3 px-5 py-2.5"
+                >
+                  <span
+                    className={`inline-flex h-6 items-center rounded-full px-2 text-xs font-medium ring-1 ring-inset ${
+                      isDerived
+                        ? "bg-violet-50 text-violet-700 ring-violet-200"
+                        : "bg-sky-50 text-sky-700 ring-sky-200"
+                    }`}
+                    title={isDerived ? "Computed by Publisher post-step" : "Extracted from PDF"}
+                  >
+                    {isDerived ? "rule" : "PDF"}
+                  </span>
+                  <span className="flex-1 truncate text-sm text-slate-700">
+                    {filename}
+                  </span>
+                  <span className="font-mono text-xs text-slate-600">
+                    {s.cells_contributed} cells
+                  </span>
+                  <span className="w-12 text-right font-mono text-xs text-slate-500">
+                    {s.share_pct}%
+                  </span>
+                  <div className="hidden h-2 w-24 overflow-hidden rounded-full bg-slate-100 sm:block">
+                    <div
+                      className={`h-full ${isDerived ? "bg-violet-400" : "bg-sky-400"}`}
+                      style={{ width: `${Math.min(100, s.share_pct)}%` }}
+                    />
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
         </div>
       )}
 

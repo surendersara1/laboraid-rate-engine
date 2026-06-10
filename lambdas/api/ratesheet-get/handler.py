@@ -279,6 +279,30 @@ def handler(event: dict[str, Any], _context: Any) -> dict[str, Any]:
         }
         gaps_detail = canonical_summary.get("gaps_detail") or []
 
+        # F2: per-source contribution — for each PDF that fed cells into
+        # this period, count how many cells it filled and what fraction
+        # of the total it represents. Lets the reviewer see at-a-glance
+        # which doc did which job.
+        from collections import Counter as _Counter
+
+        per_source = _Counter()
+        for c in cells:
+            src = (c.get("provenance") or {}).get("source_pdf") or "(unknown)"
+            if (c.get("provenance") or {}).get("method") == "derived":
+                src = "(derived)"
+            elif (c.get("provenance") or {}).get("method") == "zero_by_rule":
+                src = "(zero-by-rule)"
+            per_source[src] += 1
+        total_cells = max(len(cells), 1)
+        sources_contrib = [
+            {
+                "source_pdf": k,
+                "cells_contributed": v,
+                "share_pct": round(100 * v / total_cells, 1),
+            }
+            for k, v in per_source.most_common()
+        ]
+
         return _resp({
             "id": period_id,
             "union": f"{trade} {local}".strip() if local else trade,
@@ -292,6 +316,7 @@ def handler(event: dict[str, Any], _context: Any) -> dict[str, Any]:
             "artifacts": artifacts,
             "job_meta": job_meta,
             "counts": counts,
+            "sources_contrib": sources_contrib,
             "gaps_detail": gaps_detail,
             "canonical_summary": canonical_summary,
             # Tier 3: versioning. `version` is which one we just returned, and

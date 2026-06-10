@@ -178,7 +178,23 @@ def _publish(
     body = s3.get_object(Bucket=OUTPUTS_BUCKET, Key=csv_key)["Body"].read()
     header, data_rows = _parse_csv(body.decode("utf-8"))
     if not header or not data_rows:
-        raise RuntimeError(f"publisher: empty CSV at s3://{OUTPUTS_BUCKET}/{csv_key}")
+        # Empty CSV is a legitimate "I found nothing to extract from
+        # this PDF" result — e.g. a CBA with no Residential section,
+        # or an Apprentice Scale PDF where the LLM correctly refused
+        # to fabricate. Log + succeed gracefully; don't fail the SFN
+        # run. The reviewer will see the source PDF was uploaded but
+        # produced no cells (visible in the source-contribution panel).
+        logger.info(
+            "publisher: empty CSV at s3://%s/%s — no cells to insert (PDF "
+            "produced no extractable data). Skipping cleanly.",
+            OUTPUTS_BUCKET, csv_key,
+        )
+        return {
+            "published": True,
+            "empty": True,
+            "csv_key": csv_key,
+            "source_pdf": classify.get("s3_key", ""),
+        }
 
     meta_idx = _metadata_column_indices(header)
     rate_cols = _rate_column_indices(header)
@@ -192,7 +208,14 @@ def _publish(
         idx = meta_idx.get(name)
         return first[idx].strip() if idx is not None and idx < len(first) else default
 
-    local = (col("Union Local") or str(classify.get("local") or "")).strip()
+    # LLM sometimes returns "UA Local 281" or "Local 281" in the Union
+    # Local column instead of just "281". Strip the prose so the int
+    # coercion downstream doesn't blow up.
+    raw_local = col("Union Local") or str(classify.get("local") or "")
+    import re as _re
+
+    _local_digits = _re.search(r"\d{3,4}", raw_local)
+    local = _local_digits.group(0) if _local_digits else raw_local.strip()
     # Date source-of-truth: the classifier's filename-derived period beats
     # Claude's PDF-content date. Reason: Journeymen Rates PDFs often print
     # a full step schedule (multiple effective dates) and Claude picks the
