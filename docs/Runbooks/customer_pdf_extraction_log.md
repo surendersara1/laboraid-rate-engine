@@ -17,6 +17,74 @@ PDF -> S3 inputs -> EventBridge -> Step Functions
 
 ---
 
+## 2026-06-10 (late PM) — 3-PDF batch for 483: Rate Notice + Wage Rate Sheet + CBA → 97% coverage
+
+Deep dive on the customer's 483 source folder
+(`E:\NBS_LaborAid\From Customer\CBAs\Sprinkler\483\`) found the missing
+piece: the **Wage Rate Sheet** is the 4-page complete baseline document
+that carries the Residential Apprentice scale on page 4. The 1/1/2026
+Rate Notice is just an update document (page 1 is literally blank,
+page 2 is Commercial Apprentices only).
+
+### Pipeline changes shipped (commit `2ff87b5`)
+
+1. **llm-extractor** — new `_WAGE_RATE_SHEET_PROMPT` that handles
+   4-page Wage Rate Sheets, emits both Building and Residential rows
+   with per-row `zone`, uses kernel-matching classification names, and
+   applies Residential-specific Work Assessment + Vacation rules.
+2. **llm-extractor** — tightened `_CBA_PROMPT` to FORBID Apprentice
+   rows entirely (was still hallucinating $22.48 etc. from Article 15
+   Building percentages). CBA now emits exactly 2 rows: Foreman +
+   Journeyman.
+3. **extractor-invoker** — route `doc_type=rate_sheet` to LLM (was
+   kernel for kernel unions). The hand-coded kernels don't handle
+   4-page multi-section docs.
+
+### Smoke result — Sprinkler 483 / 2026-01-01
+
+Uploaded 3 PDFs in one batch:
+- `2026.01.01.483 Rate Notice.pdf` → kernel (Building deterministic)
+- `2024.08.01.483 Wage Rate Sheet.pdf` → LLM with Wage Rate Sheet prompt
+- `2024.08.01-2030.07.31.483 CBA.pdf` → LLM with tightened CBA prompt
+
+All three SUCCEEDED in parallel. Aurora state:
+
+| Metric | Value |
+|---|---|
+| `rate_periods` rows | **1** (merged from 3 PDFs) |
+| `rate_cells` total | 378 |
+| `rate_cells` filled | **368 (97%)** |
+| NULL cells remaining | **10** (Apprentice Wage Diff + Apprentice Pension) |
+| Residential Apprentice Class 1 / Wage | **$21.96** ✓ (matches customer xlsx exactly) |
+| Residential Apprentice Class 2 / Wage | **$24.24** ✓ |
+| Residential Apprentice Class 3 / Wage | **$31.05** ✓ |
+| Residential Apprentice Class 4 / Wage | **$35.60** ✓ |
+| Residential Apprentice Class 5 / Wage | **$42.43** ✓ |
+| Source attribution | All 5 Apprentice Wages → 2024.08.01 Wage Rate Sheet |
+| CBA hallucinations | **0** (CBA emitted only Foreman + Journeyman) |
+
+### Remaining 10 NULL cells (not extraction defects)
+
+- 5 cells — Residential Apprentice 1-5 / Wage Differential. Not stated
+  in any source PDF; customer xlsx computes as Wage × 1.15. Fix:
+  Publisher post-step to compute derived columns.
+- 5 cells — Residential Apprentice 1-5 / Pension. Customer xlsx has
+  $0 (zero-by-rule). Fix: Wage Rate Sheet prompt should emit explicit
+  0 for these per Local 483 convention.
+
+### Open: customer xlsx may be stale
+
+The 8/4/2025 Rate Notice (in the customer's folder) shows Residential
+Fitter $49.82 (up $2.00 per CBA escalator), but the customer's xlsx
+for 1/1/2026 still has $47.82. Either customer hasn't applied the
+escalator or there's a 1/1/2026 Residential reset notice we don't
+have. System can extract either correctly; reviewer is the authority.
+
+See [gap_report_483_2026-01-01.md](./gap_report_483_2026-01-01.md) for
+the full plain-English breakdown.
+
+---
+
 ## 2026-06-10 (PM) — Batched CBA + Rate Notice merge into one rate_period (483)
 
 Customer's stated workflow is "always send CBA + Rate Notice together"
