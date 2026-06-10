@@ -127,21 +127,22 @@ def _upsert_union(
     trade: str,
     parent_intl: str,
 ) -> str:
-    """Return the UUID of the unions row for (local). Inserts if missing."""
-    r = rds.execute_statement(
-        **common,
-        sql="SELECT id::text FROM unions WHERE local = :local::int",
-        parameters=[{"name": "local", "value": {"stringValue": str(local)}}],
-    )
-    records = r.get("records") or []
-    if records:
-        return records[0][0]["stringValue"]
+    """Return the UUID of the unions row for (local). Race-safe: uses
+    INSERT ... ON CONFLICT (local) backed by a UNIQUE(local) constraint, so
+    two parallel Publisher invocations on the same local don't both create
+    a row. Without this fix, N parallel uploads for a previously-unseen
+    local produced N separate unions rows — and the unique constraint on
+    rate_periods (union_id, start_date, version) couldn't catch the
+    downstream duplicate rate_periods.
+    """
     new_id = str(uuid.uuid4())
-    rds.execute_statement(
+    ins = rds.execute_statement(
         **common,
         sql=(
             "INSERT INTO unions (id, local, trade, parent_intl) "
-            "VALUES (:id::uuid, :local::int, :trade, :parent)"
+            "VALUES (:id::uuid, :local::int, :trade, :parent) "
+            "ON CONFLICT (local) DO NOTHING "
+            "RETURNING id::text"
         ),
         parameters=[
             {"name": "id", "value": {"stringValue": new_id}},
@@ -150,8 +151,16 @@ def _upsert_union(
             {"name": "parent", "value": {"stringValue": parent_intl}},
         ],
     )
-    logger.info("publisher: created unions row local=%s trade=%s", local, trade)
-    return new_id
+    if ins.get("records"):
+        logger.info("publisher: created unions row local=%s trade=%s", local, trade)
+        return ins["records"][0][0]["stringValue"]
+    # ON CONFLICT skipped the insert — someone else won the race. Read back.
+    sel = rds.execute_statement(
+        **common,
+        sql="SELECT id::text FROM unions WHERE local = :local::int",
+        parameters=[{"name": "local", "value": {"stringValue": str(local)}}],
+    )
+    return sel["records"][0][0]["stringValue"]
 
 
 def _publish(
@@ -184,6 +193,14 @@ def _publish(
         return first[idx].strip() if idx is not None and idx < len(first) else default
 
     local = (col("Union Local") or str(classify.get("local") or "")).strip()
+    # Date source-of-truth: the classifier's filename-derived period beats
+    # Claude's PDF-content date. Reason: Journeymen Rates PDFs often print
+    # a full step schedule (multiple effective dates) and Claude picks the
+    # latest visible step — landing N PDFs at the same wrong period instead
+    # of at their filename dates. Filename dates are explicit and authoritative
+    # to the customer who named the file. Caught 2026-06-10 on a 6-file 692
+    # upload where 3 Journeymen files all collided at 2025-01-01.
+    classify_period = classify.get("period")
     # Trade source-of-truth priority:
     #   1. Upload folder structure (laboraid/<Trade>/<Local>/...) — what the
     #      customer organizes by. Most reliable for unknown unions where the
@@ -210,7 +227,14 @@ def _publish(
         or (classify.get("union") or "").split("_")[-1].title()
     )
     parent_intl = col("Union Group") or "UA"
-    start_date = _normalize_date(col("Start Date")) or classify.get("period")
+    # Prefer classifier's filename-derived period (see comment above on
+    # local). Falls back to CSV Start Date only when filename gave us
+    # nothing — e.g. the CBA case where the filename is `2019-2024.<local>
+    # CBA.pdf` without a YYYY.MM.DD prefix.
+    start_date = (
+        _normalize_date(classify_period)
+        or _normalize_date(col("Start Date"))
+    )
     end_date = _normalize_date(col("End Date"))
 
     if not local or not start_date:
@@ -294,7 +318,13 @@ def _publish(
             ],
         )
     else:
-        # 3) Insert a new rate_period (first PDF for this union/period).
+        # 3) Try to insert a new rate_period. Use INSERT ... ON CONFLICT to
+        #    race-safely handle the case where another concurrent Publisher
+        #    invocation just created the same (union_id, start_date, version).
+        #    The DB has a UNIQUE(union_id, start_date, version) constraint
+        #    that backs this; without it, parallel uploads of N PDFs for the
+        #    same period would race past the SELECT-then-INSERT pattern and
+        #    we'd end up with duplicate rate_periods rows.
         period_id = str(uuid.uuid4())
         source_files = {
             "rate_notice": classify.get("s3_key") or "",
@@ -309,14 +339,16 @@ def _publish(
             "extracted_at": canonical.get("extracted_at"),
             "doc_type": classify.get("doc_type"),
         }
-        rds.execute_statement(
+        ins = rds.execute_statement(
             **common,
             sql=(
                 "INSERT INTO rate_periods "
                 "  (id, union_id, start_date, end_date, status, approval_state, "
                 "   canonical_json, source_files, version) "
                 "VALUES (:id::uuid, :uid::uuid, :sd::date, :ed::date, 'extracted', "
-                "        'pending_review', :cj::jsonb, :sf::jsonb, 1)"
+                "        'pending_review', :cj::jsonb, :sf::jsonb, 1) "
+                "ON CONFLICT (union_id, start_date, version) DO NOTHING "
+                "RETURNING id::text"
             ),
             parameters=[
                 {"name": "id", "value": {"stringValue": period_id}},
@@ -334,6 +366,29 @@ def _publish(
                 {"name": "sf", "value": {"stringValue": json.dumps(source_files)}},
             ],
         )
+        # If ON CONFLICT skipped the insert, look up the winning row's id
+        # and switch into merge mode for the cell-insertion loop below.
+        if not ins.get("records"):
+            existing2 = rds.execute_statement(
+                **common,
+                sql=(
+                    "SELECT id::text FROM rate_periods "
+                    " WHERE union_id = :uid::uuid AND start_date = :sd::date "
+                    " ORDER BY version DESC LIMIT 1"
+                ),
+                parameters=[
+                    {"name": "uid", "value": {"stringValue": union_id}},
+                    {"name": "sd", "value": {"stringValue": start_date}},
+                ],
+            )
+            if existing2.get("records"):
+                period_id = existing2["records"][0][0]["stringValue"]
+                merge_mode = True
+                logger.info(
+                    "publisher: lost INSERT race for union=%s period=%s — "
+                    "switching to merge mode against existing row %s",
+                    local, start_date, period_id,
+                )
 
     # 4) Insert all rate_cells. Skip blank/null rate values — they go in as
     #    NULL so the UI can show them as gaps. Provenance carries the agent's

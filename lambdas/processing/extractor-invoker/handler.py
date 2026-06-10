@@ -112,13 +112,28 @@ def invoke_runtime(event: dict[str, Any]) -> dict[str, Any]:
 def _invoke_llm_extractor(event: dict[str, Any]) -> dict[str, Any]:
     """Call the LLM extractor Lambda synchronously for unions without a
     kernel profile. Returns the same canonical shape AgentCore direct mode
-    does so the downstream Publisher consumes both identically."""
+    does so the downstream Publisher consumes both identically.
+
+    Retries up to 3 times on transient Lambda errors (e.g.
+    TooManyRequestsException when N parallel uploads hit the LLM extractor
+    concurrency limit). The boto3 default backoff is appropriate here —
+    this is internal Lambda-to-Lambda so a retry can't cause double-
+    extraction at API Gateway.
+    """
     import boto3
     from botocore.config import Config
 
     lc = boto3.client(
         "lambda",
-        config=Config(read_timeout=900, connect_timeout=10, retries={"max_attempts": 1}),
+        config=Config(
+            read_timeout=900,
+            connect_timeout=10,
+            # Adaptive backoff handles long throttle storms — 6+ parallel
+            # uploads can pile up on the llm-extractor concurrency, and the
+            # default standard retries (3 attempts in ~14s) aren't enough.
+            # Adaptive keeps backing off until the rate limit clears.
+            retries={"max_attempts": 8, "mode": "adaptive"},
+        ),
     )
     classify = event.get("classify") or {}
     out_s3_key = _default_llm_out_key(classify.get("s3_key") or "")
