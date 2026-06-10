@@ -328,7 +328,7 @@ export function RateSheetReview(): JSX.Element {
               </p>
               <p className="mt-1 text-xs text-amber-800">
                 The extractor knew it couldn't fill these from the uploaded
-                PDF{detail?.source_files?.uploads && detail.source_files.uploads.length > 1 ? "s" : ""}. Upload the supporting document(s) listed below
+                PDF{(detail as any)?.source_files?.uploads && ((detail as any).source_files.uploads as unknown[]).length > 1 ? "s" : ""}. Upload the supporting document(s) listed below
                 into this period to fill the gaps automatically.
               </p>
               <ul className="mt-3 space-y-1.5">

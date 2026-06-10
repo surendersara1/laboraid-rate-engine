@@ -134,13 +134,12 @@ def _key_from_event_input(raw_input: str) -> tuple[str, str, str, str | None]:
             union = f"Local {local}"
             if not period:
                 period = m.group("date").replace(".", "-")
-            else:
-                # For Rate Notice files the filename date IS the period;
-                # for any other doc-shape in the same batch (CBA/scale) the
-                # batch_period from the key already wins, so leave `period`.
-                doc = m.group("doc").lower()
-                if "rate notice" in doc or "rate sheet" in doc or "wage sheet" in doc:
-                    period = m.group("date").replace(".", "-")
+            # When the S3 key carries an explicit batch_period segment, that
+            # segment IS the rate period the Publisher used — show it in
+            # the Jobs page exactly as the user staged it. Don't override
+            # with the filename's nominal date (a Wage Rate Sheet dated
+            # 8/1/2024 uploaded into a 2026-01-01 batch should display as
+            # 2026-01-01, matching what Aurora actually stored).
         else:
             rm = _FILENAME_RANGE_RE.search(filename)
             if rm:

@@ -86,6 +86,63 @@ def _batch_period_from_key(key: str) -> str | None:
     return None
 
 
+def _batch_period_from_siblings(key: str) -> str | None:
+    """Fallback when the browser didn't put a batch_period segment in the
+    key (e.g., reviewer's browser cached the pre-update bundle).
+
+    For ``laboraid/uploads/<batch_id>/<filename>`` we list S3 siblings
+    under the same batch_id prefix and look for a Rate Notice / Rate
+    Sheet with a single ``YYYY.MM.DD.<local>`` filename. If exactly one
+    qualifying anchor exists, that file's date is the batch's anchor
+    period.
+
+    Returns None when there are no batched siblings, when the only
+    sibling is a CBA range-date file, or when multiple distinct anchor
+    dates exist (ambiguous — let each file use its own filename date).
+    """
+    parts = key.split("/")
+    if not (
+        len(parts) >= 4
+        and parts[0] == "laboraid"
+        and parts[1] == "uploads"
+        and _UUID_RE.match(parts[2] or "")
+    ):
+        return None
+    prefix = "/".join(parts[:3]) + "/"
+    bucket = os.environ.get("INPUTS_BUCKET", "laboraid-dev-l3-bucket-inputs")
+    try:
+        import boto3
+
+        s3 = boto3.client("s3")
+        resp = s3.list_objects_v2(Bucket=bucket, Prefix=prefix)
+    except Exception as e:  # pragma: no cover
+        logger.warning("classifier: sibling lookup failed: %s", e)
+        return None
+    anchors: set[str] = set()
+    for obj in resp.get("Contents") or []:
+        sib_key = obj["Key"]
+        if sib_key == key:
+            continue
+        sib_name = os.path.basename(sib_key)
+        m = _FILENAME.search(sib_name)
+        if not m:
+            continue
+        doc = m.group("doc").lower()
+        # Only Rate Notice / Rate Sheet / Wage Sheet anchor the batch.
+        # Apprentice Scales typically have their own non-anchor dates.
+        if not any(k in doc for k in ("rate notice", "rate sheet", "wage sheet")):
+            continue
+        anchors.add(m.group("date").replace(".", "-"))
+    if len(anchors) == 1:
+        return next(iter(anchors))
+    if len(anchors) > 1:
+        # Multiple anchors → use the most recent one (matches the browser's
+        # tie-break heuristic). If the reviewer truly meant separate periods,
+        # they should upload in separate batches.
+        return sorted(anchors)[-1]
+    return None
+
+
 def _doc_type_from_name(name: str) -> str:
     s = name.strip().lower()
     # Longest-keyword-wins so "apprentice wage sheet" doesn't collide with
@@ -109,6 +166,17 @@ def _classify_by_filename(key: str) -> dict[str, Any] | None:
     """
     filename = os.path.basename(key)
     batch_period = _batch_period_from_key(key)
+    # Fallback: browser cache may be serving the pre-batch_period bundle.
+    # If the S3 key has a batch_id but no period segment, list siblings to
+    # infer the anchor. Same UX outcome (CBA + Wage Rate Sheet merge into
+    # the Rate Notice's period) without depending on browser code.
+    if batch_period is None:
+        batch_period = _batch_period_from_siblings(key)
+        if batch_period:
+            logger.info(
+                "classifier: inferred batch_period=%s from S3 siblings (browser sent old key shape)",
+                batch_period,
+            )
 
     match = _FILENAME.search(filename)
     if match:

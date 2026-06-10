@@ -539,10 +539,114 @@ def _publish(
             existing_triples.add(triple)  # for any future PDFs in this same Lambda invocation
             inserted += 1
 
+    # Post-step (derived cells): some columns are deterministically
+    # derivable from another column in the same row — no source PDF
+    # carries them explicitly because they follow a CBA-stated formula.
+    # Fill them from the row's other cells, stamping provenance.method =
+    # "derived" + provenance.derived_from so the reviewer can see how
+    # the value was computed.
+    #
+    # 1) Wage Differential = Wage × 1.15  (CBA shift-work multiplier;
+    #    applies to BOTH Building and Residential).
+    # 2) Wage 1.5x  = Wage × 1.5  (time-and-one-half).
+    # 3) Wage 2.0x  = Wage × 2.0  (double-time).
+    # 4) Residential Apprentice Pension = 0 (zero-by-rule per Local 483:
+    #    Residential apprentices have no pension allocation).
+    derived_rules = [
+        # (target_col, source_col, multiplier, optional package-filter SQL)
+        ("Wage Differential", "Wage", 1.15, None),
+        ("Wage 1.5x",         "Wage", 1.5,  None),
+        ("Wage 2.0x",         "Wage", 2.0,  None),
+    ]
+    derived_filled = 0
+    for target, source, mult, pkg_filter in derived_rules:
+        sql = (
+            "WITH src AS ("
+            "  SELECT zone, package, value AS source_value "
+            "    FROM rate_cells "
+            "   WHERE period_id = :pid::uuid "
+            "     AND column_name = :src "
+            "     AND value IS NOT NULL"
+            ") "
+            "UPDATE rate_cells rc "
+            "   SET value = ROUND(src.source_value * :mult::numeric, 2), "
+            "       value_type = 'currency', "
+            "       provenance = jsonb_set("
+            "         jsonb_set(COALESCE(provenance, '{}'::jsonb), "
+            "                   '{method}', '\"derived\"'::jsonb), "
+            "         '{derived_from}', "
+            "         to_jsonb(:src || ' x ' || :mult::text), true), "
+            "       confidence = 1.0 "
+            "  FROM src "
+            " WHERE rc.period_id = :pid::uuid "
+            "   AND rc.column_name = :tgt "
+            "   AND rc.value IS NULL "
+            "   AND COALESCE(rc.zone,'') = COALESCE(src.zone,'') "
+            "   AND COALESCE(rc.package,'') = COALESCE(src.package,'')"
+        )
+        r = rds.execute_statement(
+            **common,
+            sql=sql,
+            parameters=[
+                {"name": "pid", "value": {"stringValue": period_id}},
+                {"name": "tgt", "value": {"stringValue": target}},
+                {"name": "src", "value": {"stringValue": source}},
+                {"name": "mult", "value": {"stringValue": str(mult)}},
+            ],
+        )
+        derived_filled += r.get("numberOfRecordsUpdated", 0) or 0
+
+    # Zero-by-rule: Residential Apprentice * Pension = 0 (Local 483
+    # convention; no pension allocation for residential trainees).
+    r = rds.execute_statement(
+        **common,
+        sql=(
+            "UPDATE rate_cells SET value = 0, value_type = 'currency', "
+            "       provenance = jsonb_set("
+            "         jsonb_set(COALESCE(provenance, '{}'::jsonb), "
+            "                   '{method}', '\"zero_by_rule\"'::jsonb), "
+            "         '{rule}', '\"Residential apprentices have no pension allocation\"'::jsonb, true), "
+            "       confidence = 1.0 "
+            " WHERE period_id = :pid::uuid "
+            "   AND zone = 'Residential' "
+            "   AND column_name = 'Pension' "
+            "   AND package ILIKE 'Apprentice%' "
+            "   AND value IS NULL"
+        ),
+        parameters=[{"name": "pid", "value": {"stringValue": period_id}}],
+    )
+    derived_filled += r.get("numberOfRecordsUpdated", 0) or 0
+    logger.info("publisher: derived/zero-by-rule filled %d cells", derived_filled)
+
     # Post-step: recount actual NULL cells in Aurora for this period. In
     # merge mode an earlier PDF may have flagged 7 gaps; a follow-up PDF
     # might have filled some of them. The kernel's `gaps` list was for
     # THIS run only — Aurora is the source of truth.
+    # Drop (zone, package) rows whose every cell is NULL. These are
+    # phantom rows the LLM emitted with row structure but no extractable
+    # values — e.g., the 483-tuned CBA prompt emits a Residential
+    # Foreman + Journeyman pair for 704, but 704 has no Residential
+    # section so all cells come back NULL. Such rows show up as gaps
+    # for cells that legitimately shouldn't exist. Filter them out
+    # before we recount; the reviewer should only see real gaps.
+    rds.execute_statement(
+        **common,
+        sql=(
+            "DELETE FROM rate_cells rc "
+            "  USING ("
+            "    SELECT zone, COALESCE(package,'') AS package "
+            "      FROM rate_cells "
+            "     WHERE period_id = :pid::uuid "
+            "     GROUP BY zone, COALESCE(package,'') "
+            "    HAVING bool_and(value IS NULL)"
+            "  ) empties "
+            " WHERE rc.period_id = :pid::uuid "
+            "   AND COALESCE(rc.zone,'') = COALESCE(empties.zone,'') "
+            "   AND COALESCE(rc.package,'') = empties.package"
+        ),
+        parameters=[{"name": "pid", "value": {"stringValue": period_id}}],
+    )
+
     null_count_r = rds.execute_statement(
         **common,
         sql=(
@@ -594,6 +698,181 @@ def _publish(
             still_null_gaps.append([zone, package, column, *rest])
     prior_cj["gap_count"] = null_now
     prior_cj["gaps_detail"] = still_null_gaps
+
+    # Generate gap_report.json + gap_report.md artifacts. The JSON is for
+    # API consumers; the .md is what the reviewer downloads + reads.
+    # Both live in the outputs bucket under the batch directory so the
+    # UI's artifact-card slot can presign them.
+    gap_report_key_json = None
+    gap_report_key_md = None
+    try:
+        import boto3 as _boto3
+
+        s3_out = _boto3.client("s3")
+        # Per-period gap details from rate_cells (the authoritative view)
+        all_nulls_q = rds.execute_statement(
+            **common,
+            sql=(
+                "SELECT zone, package, column_name "
+                "  FROM rate_cells "
+                " WHERE period_id = :pid::uuid AND value IS NULL "
+                " ORDER BY zone, package, column_name"
+            ),
+            parameters=[{"name": "pid", "value": {"stringValue": period_id}}],
+        )
+        all_nulls = [
+            {
+                "zone": r[0].get("stringValue") or "",
+                "package": r[1].get("stringValue") or "",
+                "column_name": r[2].get("stringValue") or "",
+            }
+            for r in (all_nulls_q.get("records") or [])
+        ]
+        # Reason map from still_null_gaps (kernel/LLM-emitted)
+        reason_for = {}
+        for g in still_null_gaps:
+            if isinstance(g, (list, tuple)) and len(g) >= 4:
+                reason_for[(g[0] or "", g[1] or "", g[2] or "")] = g[3]
+
+        gap_payload = {
+            "rate_period_id": period_id,
+            "union_local": local,
+            "start_date": start_date,
+            "total_cells": null_now + (
+                rds.execute_statement(
+                    **common,
+                    sql=(
+                        "SELECT COUNT(*) FROM rate_cells "
+                        "WHERE period_id = :pid::uuid AND value IS NOT NULL"
+                    ),
+                    parameters=[{"name": "pid", "value": {"stringValue": period_id}}],
+                )["records"][0][0].get("longValue", 0)
+            ),
+            "null_cells": null_now,
+            "coverage_pct": None,  # filled below
+            "sources": (prior_sf.get("uploads") if prior_sf else []) or [],
+            "gaps": [
+                {
+                    "zone": n["zone"],
+                    "package": n["package"],
+                    "column": n["column_name"],
+                    "reason": reason_for.get(
+                        (n["zone"], n["package"], n["column_name"]),
+                        "value not present in any provided document",
+                    ),
+                }
+                for n in all_nulls
+            ],
+        }
+        if gap_payload["total_cells"]:
+            gap_payload["coverage_pct"] = round(
+                100 * (gap_payload["total_cells"] - null_now)
+                / gap_payload["total_cells"],
+                1,
+            )
+
+        # Markdown — plain English. Group by reason for the reviewer.
+        from collections import defaultdict as _dd
+
+        by_reason: dict[str, list[dict[str, str]]] = _dd(list)
+        for g in gap_payload["gaps"]:
+            by_reason[g["reason"]].append(g)
+        md = [
+            f"# Gap Report — Local {local} · {start_date}",
+            "",
+            f"**Coverage:** {gap_payload['coverage_pct']}%"
+            f" ({gap_payload['total_cells'] - null_now}/{gap_payload['total_cells']} filled, "
+            f"{null_now} blank).",
+            "",
+            f"**Sources merged into this period:**",
+        ]
+        for u in gap_payload["sources"]:
+            md.append(f"- `{u.rsplit('/', 1)[-1] if u else '?'}`")
+        md.append("")
+        if not gap_payload["gaps"]:
+            md.append("## ✓ No blank cells")
+            md.append("")
+            md.append(
+                "Every cell in this rate sheet is filled. "
+                "Sources covered the full schema, or derived/zero-by-rule rules "
+                "filled the remainder."
+            )
+        else:
+            md.append(f"## {null_now} blank cells, grouped by reason")
+            md.append("")
+            for reason, items in sorted(
+                by_reason.items(), key=lambda kv: -len(kv[1])
+            ):
+                md.append(f"### {len(items)} cell(s) — {reason}")
+                md.append("")
+                for g in items:
+                    pkg = g["package"] or "*"
+                    md.append(
+                        f"- `{g['zone']} · {pkg} · {g['column']}`"
+                    )
+                md.append("")
+        md_text = "\n".join(md)
+
+        # S3 keys live alongside the source PDFs in the batch dir.
+        batch_dir = source_pdf_key.rsplit("/", 1)[0] if "/" in source_pdf_key else ""
+        if batch_dir:
+            gap_report_key_json = f"{batch_dir}/gap_report.json"
+            gap_report_key_md = f"{batch_dir}/gap_report.md"
+            s3_out.put_object(
+                Bucket=os.environ.get(
+                    "OUTPUTS_BUCKET", "laboraid-dev-l3-bucket-outputs"
+                ),
+                Key=gap_report_key_json,
+                Body=json.dumps(gap_payload, indent=2).encode("utf-8"),
+                ContentType="application/json",
+                ServerSideEncryption="aws:kms",
+            )
+            s3_out.put_object(
+                Bucket=os.environ.get(
+                    "OUTPUTS_BUCKET", "laboraid-dev-l3-bucket-outputs"
+                ),
+                Key=gap_report_key_md,
+                Body=md_text.encode("utf-8"),
+                ContentType="text/markdown",
+                ServerSideEncryption="aws:kms",
+            )
+            logger.info(
+                "publisher: wrote gap_report.json + .md (%d gaps) to %s",
+                len(gap_payload["gaps"]), batch_dir,
+            )
+    except Exception:  # pragma: no cover
+        logger.exception("publisher: gap_report generation failed (non-fatal)")
+
+    # Persist source_files.gap_report so ratesheet-get can find the artifact.
+    if gap_report_key_json:
+        try:
+            sf_now_q = rds.execute_statement(
+                **common,
+                sql=(
+                    "SELECT COALESCE(source_files::text, '{}') "
+                    "  FROM rate_periods WHERE id = :pid::uuid"
+                ),
+                parameters=[{"name": "pid", "value": {"stringValue": period_id}}],
+            )
+            sf_now = json.loads(
+                sf_now_q["records"][0][0].get("stringValue") or "{}"
+            )
+        except Exception:
+            sf_now = {}
+        sf_now["gap_report"] = gap_report_key_json
+        sf_now["gap_report_md"] = gap_report_key_md
+        rds.execute_statement(
+            **common,
+            sql=(
+                "UPDATE rate_periods SET source_files = :sf::jsonb "
+                " WHERE id = :pid::uuid"
+            ),
+            parameters=[
+                {"name": "pid", "value": {"stringValue": period_id}},
+                {"name": "sf", "value": {"stringValue": json.dumps(sf_now)}},
+            ],
+        )
+
     rds.execute_statement(
         **common,
         sql=(
