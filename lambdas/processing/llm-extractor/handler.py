@@ -114,31 +114,34 @@ PDF (which the kernel reads deterministically — you must NOT duplicate that
 work). Your job here is ONLY the Residential Foreman + Journeyman package
 that the Rate Notice doesn't carry.
 
+SCOPE — you emit EXACTLY 2 ROWS and nothing else:
+  Row 1: zone="Residential", classification="Foreman"
+  Row 2: zone="Residential", classification="Journeyman"
+
+DO NOT EMIT APPRENTICE ROWS UNDER ANY CIRCUMSTANCES. Apprentice rates
+come from a dedicated Wage Rate Sheet PDF that supersedes whatever the
+CBA might suggest. Even if the CBA contains:
+  - Article 15 Building apprentice percentages (Class 1 = 40%, ..., Class
+    10 = 90%) — those are BUILDING only, and apprentices come from the
+    Wage Rate Sheet anyway.
+  - A statement like "rates for Residential Trainees shall be based on
+    the Residential Fitters Rate".
+  - An explicit dollar table for Residential apprentices.
+…in EVERY case: emit ZERO Apprentice rows. The Wage Rate Sheet wins.
+
+DO NOT EMIT BUILDING ROWS. Building comes from the Rate Notice (kernel).
+
 PRIME DIRECTIVE — NEVER FABRICATE:
 - Every numeric cell you emit MUST come VERBATIM from text in this PDF.
 - If a cell is not stated in the PDF, emit null (not 0).
-- The CBA's BUILDING apprentice percentage schedule (Class 1 = 40%, etc.,
-  typically in Article 15) is for BUILDING/COMMERCIAL only. It does NOT
-  apply to Residential. Do NOT use it to compute Residential apprentice
-  wages.
-- If the CBA only mentions "Trainee rates shall be based on the Residential
-  Fitters rate" without giving the specific percentages or dollar amounts,
-  emit ZERO Apprentice rows. Do not guess. Do not interpolate.
 - Pension/Vacation allocations frequently depend on a separate package-
   reallocation notice that is NOT in this CBA. If the CBA states a base
   pension at one date and the user wants a different effective date, use
   null unless an explicit escalator is written.
 
-ZONE: every row you emit MUST be in zone "Residential". If the section
-isn't clearly the Residential Sprinkler section, do not emit it.
-
-CLASSIFICATION NAMES — use EXACTLY these (no other variants):
-  - "Foreman"  (NOT "Residential Foreman")
-  - "Journeyman"  (NOT "Residential Sprinkler Fitter")
-  - "Apprentice Class 1", "Apprentice Class 2", ..., "Apprentice Class N"
-    (only emit these if the CBA gives an explicit Residential apprentice
-    dollar table — DO NOT emit them if the apprentice scale is missing or
-    only stated as "based on the Fitters rate")
+CLASSIFICATION NAMES — use EXACTLY these:
+  - "Foreman"     (NOT "Residential Foreman", NOT "General Foreman")
+  - "Journeyman"  (NOT "Residential Sprinkler Fitter", NOT "Fitter")
 
 COLUMN NAMES — use the customer's canonical names (adapt the local suffix):
   Wage, Wage Differential, Wage 1.5x, Wage 2.0x, Health & Welfare,
@@ -228,6 +231,131 @@ RULES:
    the dollar table and put it in "Wage".
 """
 
+_WAGE_RATE_SHEET_PROMPT = """You extract a COMPLETE union rate sheet from a multi-page
+"Wage Rate Sheet" PDF. These are issued at major contract changes (e.g.,
+new CBA effective date) and contain the FULL rate package — Building +
+Residential, all classifications + apprentice tables — for one effective
+date in a single document.
+
+PRIME DIRECTIVE — NEVER FABRICATE: every numeric cell you emit MUST be
+present in the PDF. Use null if not stated. The deterministic kernel may
+also run on this same period; Publisher's merge mode will prefer the
+kernel's values when they conflict, and use yours for cells the kernel
+couldn't extract. Your job is to maximize COVERAGE without inventing.
+
+TYPICAL LAYOUT (the 483 Wage Rate Sheet is the canonical example):
+
+  Page 1 — Building/Commercial Foreman + Journeyman, As-Per-Contract list:
+    GENERAL FOREMAN $XX.XX  / FOREMAN 2 $XX.XX  / FOREMAN 1 $XX.XX  /
+    JOURNEYMAN $XX.XX  / SUPPLEMENTAL PENSION  / NASI PENSION  /
+    NASI HEALTH & WELFARE  / LOCAL 483 TRAINING FUND (J&A) / HRA / INTL
+    TRAINING FUND / NO. CA FIRE PROT INDUSTRY FUND / INDUSTRY PROMOTION /
+    INDUSTRY PROMOTION (Bay Area)
+    Plus Work Assessment + Vacation rules in narrative form.
+
+  Page 2 — Commercial Apprentice Classification table (Class 1..10 + Fitter)
+    With columns: Rate/HR, Shift Work 15%, Vac. W/H, Work Asses,
+    Work Asses II, H&W, HRA, PENS, S.I.S., *I.P., Int. Trng. Fund,
+    **NCFPCG, J&A Trng. Cont., Total Package.
+
+  Page 3 — Residential Foreman + Journeyman with benefit list (similar
+    to Page 1 but for Residential), plus Residential-specific Work
+    Assessment + Vacation rules.
+
+  Page 4 — Residential Apprentice 1..5 individual rate blocks (NOT a
+    tabular grid — each apprentice is its own labeled paragraph with
+    Wage + benefit list).
+
+OUTPUT — return ONLY a single JSON object (no prose, no markdown). The
+key difference from other prompts: rows can have DIFFERENT zones in the
+same response. Set zone PER ROW.
+
+{
+  "union_local": "<local>",
+  "trade": "Sprinkler",
+  "parent_intl": "UA",
+  "start_date": "YYYY-MM-DD",
+  "end_date": "YYYY-MM-DD" or null,
+  "zone": "Building",   /* default zone for rows that don't override */
+  "columns": [
+    "Wage", "Wage Differential", "Wage 1.5x", "Wage 2.0x",
+    "Health & Welfare", "Health & Welfare Metal", "RESA", "Pension",
+    "SIS", "UA International Training",
+    "Industry Promotion National Use",
+    "J&A Training <local>", "NCFPCG <local>", "Bay Area IP Fund <local>",
+    "HRA <local>", "Vacation <local>",
+    "Union Dues 1 <local>", "Union Dues 2 <local>"
+  ],
+  "rows": [
+    /* === Building zone === */
+    {"zone": "Building", "classification": "General Foreman", "cells": {...}},
+    {"zone": "Building", "classification": "Foreman 2",       "cells": {...}},
+    {"zone": "Building", "classification": "Foreman 1",       "cells": {...}},
+    {"zone": "Building", "classification": "Journeyman",      "cells": {...}},
+    {"zone": "Building", "classification": "Apprentice Class 10", "cells": {...}},
+    /* ... Apprentice Class 9..1 ... */
+    /* === Residential zone === */
+    {"zone": "Residential", "classification": "Foreman",    "cells": {...}},
+    {"zone": "Residential", "classification": "Journeyman", "cells": {...}},
+    {"zone": "Residential", "classification": "Apprentice Class 5", "cells": {...}},
+    /* ... Apprentice Class 4..1 ... */
+  ]
+}
+
+CLASSIFICATION NAMES — use EXACTLY these, no other variants:
+  Building   → "General Foreman", "Foreman 2", "Foreman 1", "Journeyman",
+               "Apprentice Class 10" .. "Apprentice Class 1"
+  Residential→ "Foreman", "Journeyman",
+               "Apprentice Class 5" .. "Apprentice Class 1"
+  (Note: page 2 calls the top row "Fitter" — map it to "Journeyman".
+   Page 4's "RESIDENTIAL APPRENTICE N" → "Apprentice Class N".)
+
+CANONICAL COLUMN MAPPINGS (PDF label → canonical column):
+  Rate/HR              → Wage
+  Shift Work 15%       → Wage Differential
+  H&W / NASI Health & Welfare         → Health & Welfare  (Building zone only)
+  NASI HEALTH & WELFARE (Residential) → Health & Welfare Metal
+  PENS / NASI Pension  → Pension
+  S.I.S. / SIS Pension → SIS
+  HRA / HRA Contribution → HRA <local>
+  Int. Trng. Fund / INTL Training Fund → UA International Training
+  NCFPCG / No. CA Fire Prot Industry Fund → NCFPCG <local>
+  J&A Trng. Cont. / Local 483 Training Fund → J&A Training <local>
+  *I.P. / Industry Promotion → Industry Promotion National Use
+  Industry Promotion (Bay Area) → Bay Area IP Fund <local>
+  Vac. W/H + Vacation Withholding narrative → Vacation <local>
+  Work Asses (6%, written as "6%") → Union Dues 1 <local>: 0.06
+  Work Asses II ($1.05) → Union Dues 2 <local>: 1.05
+
+RESIDENTIAL-SPECIFIC RULES (from the narrative on page 3 of typical sheets):
+  - Work Assessment #1 for Residential Foreman/Journeyman = 6% of wage
+    → Union Dues 1 <local>: 0.06
+  - Work Assessment #1 for Apprentice 3, 4, 5 = $0.50/hr
+    → Union Dues 1 <local>: 0.5  (for Apprentice 3, 4, 5)
+    → Union Dues 1 <local>: 0    (for Apprentice 1, 2)
+  - Work Assessment #2 ONLY applies to Residential Foreman/Journeyman = $1.05
+    → Union Dues 2 <local>: 1.05 for Foreman/Journeyman, 0 for all Apprentices
+  - Vacation Withholding ONLY for Residential Foreman/Journeyman = $0.50
+    → Vacation <local>: 0.50 for Foreman/Journeyman, 0 for Apprentices
+
+WAGE DIFFERENTIAL — for Residential Foreman/Journeyman set Wage
+Differential = Wage (no shift premium per Local 483 standard).
+For Building it's typically Wage × 1.15 (shown explicitly as the
+"Shift Work 15%" column).
+
+WAGE 1.5x AND 2.0x — compute as Wage × 1.5 and Wage × 2.0 respectively
+ONLY when the PDF states the multipliers somewhere (typical: "time and
+one half" / "double time"). The 483 Wage Rate Sheet establishes these
+implicitly through the Building Apprentice table where you can read
+Rate/HR vs Shift Work 15% — the same multipliers apply across all
+classifications. Compute them; do NOT leave them null when you have
+a Wage value.
+
+If the PDF only contains a partial subset (e.g., just Commercial
+Apprentices), still emit the rows you can read — do NOT add Residential
+rows from your memory of typical 483 layouts. Use null for the rest.
+"""
+
 # Shape kept for backward compatibility — anything calling SYSTEM_PROMPT
 # directly gets the rate-notice prompt.
 SYSTEM_PROMPT = _RATE_NOTICE_PROMPT
@@ -247,6 +375,14 @@ def _prompt_for_doc_type(doc_type: str) -> tuple[str, str]:
             _APPRENTICE_SCALE_PROMPT,
             "Extract the Apprentice/Trainee wage scale from this PDF. "
             "Return the JSON exactly as specified.",
+        )
+    if dt == "rate_sheet":
+        return (
+            _WAGE_RATE_SHEET_PROMPT,
+            "Extract EVERY classification (Building + Residential, "
+            "Foreman/Journeyman + every Apprentice Class) from this "
+            "multi-page Wage Rate Sheet. Return the JSON exactly as "
+            "specified, with zone set per row.",
         )
     return (
         _RATE_NOTICE_PROMPT,

@@ -176,7 +176,14 @@ def _route(event: dict[str, Any]) -> dict[str, Any]:
     classify = event.get("classify") or {}
     union = (classify.get("union") or "").lower()
     doc_type = (classify.get("doc_type") or "").lower()
-    if doc_type in {"cba", "apprentice_scale"}:
+    # Doc types the kernel can't read: CBAs are prose, Apprentice Scales
+    # are formatted differently per union, and Wage Rate Sheets are
+    # 4-page multi-section docs (Building + Residential together) that
+    # the hand-coded kernels don't handle. For kernel unions, the
+    # Building Rate Notice already provides deterministic Building rates;
+    # the Wage Rate Sheet's value is its Residential section. Route all
+    # three to the LLM with doc-type-specific prompts.
+    if doc_type in {"cba", "apprentice_scale", "rate_sheet"}:
         logger.info(
             "extractor-invoker: doc_type=%s union=%s -> LLM (kernel doesn't read this shape)",
             doc_type, union,
