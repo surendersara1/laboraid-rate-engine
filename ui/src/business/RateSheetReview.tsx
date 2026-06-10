@@ -163,6 +163,8 @@ export function RateSheetReview(): JSX.Element {
   const artifacts = detail?.artifacts ?? [];
   const job = detail?.job_meta;
   const counts = detail?.counts ?? {};
+  const gapsDetail: Array<[string, string, string, string]> =
+    (detail as any)?.gaps_detail ?? [];
   // POC: there's no review-queue gate wired yet, so Approve is enabled as long
   // as we have cells. Tier 3 will tie this to unresolved comments/overrides.
   const reviewQueueEmpty = cells.length > 0;
@@ -307,6 +309,45 @@ export function RateSheetReview(): JSX.Element {
           </div>
         </div>
       </div>
+
+      {/* Gap warning — surfaces kernel-flagged cells the extractor knew it
+          couldn't fill. The reviewer needs the per-cell reasons so they
+          know what additional document to upload. Without this the sheet
+          looks "complete with blanks" and the reviewer has no signal. */}
+      {gapsDetail.length > 0 && (
+        <div className="rounded-lg border border-amber-300 bg-amber-50 p-4 shadow-sm">
+          <div className="flex items-start gap-3">
+            <span className="mt-0.5 inline-flex h-6 w-6 flex-none items-center justify-center rounded-full bg-amber-100 text-amber-800 ring-1 ring-amber-300">
+              !
+            </span>
+            <div className="flex-1">
+              <p className="text-sm font-semibold text-amber-900">
+                Extraction left {counts.gaps ?? 0} cell
+                {(counts.gaps ?? 0) === 1 ? "" : "s"} blank — additional
+                source documents needed
+              </p>
+              <p className="mt-1 text-xs text-amber-800">
+                The extractor knew it couldn't fill these from the uploaded
+                PDF{detail?.source_files?.uploads && detail.source_files.uploads.length > 1 ? "s" : ""}. Upload the supporting document(s) listed below
+                into this period to fill the gaps automatically.
+              </p>
+              <ul className="mt-3 space-y-1.5">
+                {gapsDetail.map(([zone, pkg, col, reason], i) => (
+                  <li
+                    key={i}
+                    className="flex flex-wrap items-baseline gap-2 text-xs text-amber-900"
+                  >
+                    <span className="font-mono font-semibold">
+                      {zone || "*"} · {pkg || "*"} · {col}
+                    </span>
+                    <span className="text-amber-700">— {reason}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Tier 3 — rework action bar; visible only when the sheet is rejected
           on its latest version. Submits to POST /…/rework which creates v+1,

@@ -253,11 +253,21 @@ def handler(event: dict[str, Any], _context: Any) -> dict[str, Any]:
         job_meta = _latest_job_for_source(sfn, source_key)
 
         # Pull counts from canonical_json if present (extractor writes them).
+        # gap_count = total NULL cells; gaps_detail = kernel-emitted
+        # [zone, package, column, reason] tuples explaining why each was
+        # left blank. The UI uses gaps_detail to render the "needs more
+        # input" banner with actionable reasons.
+        gap_count = (
+            canonical_summary.get("gap_count")
+            if canonical_summary.get("gap_count") is not None
+            else canonical_summary.get("gaps")
+        )
         counts = {
             "classifications": canonical_summary.get("rows"),
             "cells": len(cells),
-            "gaps": canonical_summary.get("gaps", 0),
+            "gaps": gap_count or 0,
         }
+        gaps_detail = canonical_summary.get("gaps_detail") or []
 
         return _resp({
             "id": period_id,
@@ -272,6 +282,7 @@ def handler(event: dict[str, Any], _context: Any) -> dict[str, Any]:
             "artifacts": artifacts,
             "job_meta": job_meta,
             "counts": counts,
+            "gaps_detail": gaps_detail,
             "canonical_summary": canonical_summary,
             # Tier 3: versioning. `version` is which one we just returned, and
             # `versions` is the full list (newest first) so the UI can offer a

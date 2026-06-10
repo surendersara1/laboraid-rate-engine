@@ -331,14 +331,28 @@ def _publish(
             "output_csv": csv_key,
             "uploads": [source_pdf_key] if source_pdf_key else [],
         }
+        # Preserve the FULL gap list with reasons (kernel emits
+        # [zone, package, column, reason] tuples). Reviewers need the
+        # reasons to know what supporting doc to upload — a bare count
+        # is useless. gap_count is kept for back-compat dashboards.
+        gaps_list = canonical.get("gaps") or []
+        gap_count = canonical.get("gap_count")
+        if gap_count is None:
+            gap_count = len(gaps_list)
         canonical_json = {
             "rows": canonical.get("rows"),
             "extracted_rows": canonical.get("extracted_rows"),
-            "gaps": canonical.get("gap_count"),
+            "gap_count": gap_count,
+            "gaps_detail": gaps_list,
             "checksum": canonical.get("checksum"),
             "extracted_at": canonical.get("extracted_at"),
             "doc_type": classify.get("doc_type"),
         }
+        # When gap_count > 0 the period is technically not review-ready,
+        # but the approval_state CHECK constraint only allows
+        # pending_review/approved/rejected/published — we surface the
+        # "needs more input" treatment in the UI via canonical_json.gap_count
+        # without a schema migration.
         ins = rds.execute_statement(
             **common,
             sql=(
@@ -493,6 +507,77 @@ def _publish(
             existing_triples.add(triple)  # for any future PDFs in this same Lambda invocation
             inserted += 1
 
+    # Post-step: recount actual NULL cells in Aurora for this period. In
+    # merge mode an earlier PDF may have flagged 7 gaps; a follow-up PDF
+    # might have filled some of them. The kernel's `gaps` list was for
+    # THIS run only — Aurora is the source of truth.
+    null_count_r = rds.execute_statement(
+        **common,
+        sql=(
+            "SELECT COUNT(*) FROM rate_cells "
+            "WHERE period_id = :pid::uuid AND value IS NULL"
+        ),
+        parameters=[{"name": "pid", "value": {"stringValue": period_id}}],
+    )
+    null_now = null_count_r["records"][0][0].get("longValue") or 0
+    # Pull canonical_json so we can refresh gap_count + optionally append
+    # this run's gaps_detail to the merged set.
+    cj_r = rds.execute_statement(
+        **common,
+        sql=(
+            "SELECT COALESCE(canonical_json::text, '{}'), approval_state "
+            "FROM rate_periods WHERE id = :pid::uuid"
+        ),
+        parameters=[{"name": "pid", "value": {"stringValue": period_id}}],
+    )
+    try:
+        prior_cj = json.loads(cj_r["records"][0][0].get("stringValue") or "{}")
+    except Exception:
+        prior_cj = {}
+    prior_state = cj_r["records"][0][1].get("stringValue") or "pending_review"
+    run_gaps = canonical.get("gaps") or []
+    # Merge gap lists from prior + this run; cells now non-null get
+    # filtered out so the list stays actionable.
+    prior_gaps = prior_cj.get("gaps_detail") or []
+    merged_gaps = list({tuple(g) for g in (prior_gaps + run_gaps) if isinstance(g, (list, tuple)) and len(g) >= 3})
+    # Filter merged_gaps to only those that are STILL null in Aurora.
+    still_null_gaps: list[list[str]] = []
+    for zone, package, column, *rest in merged_gaps:
+        check = rds.execute_statement(
+            **common,
+            sql=(
+                "SELECT 1 FROM rate_cells "
+                " WHERE period_id = :pid::uuid AND zone = :z "
+                "   AND COALESCE(package,'') = :pk AND column_name = :col "
+                "   AND value IS NULL LIMIT 1"
+            ),
+            parameters=[
+                {"name": "pid", "value": {"stringValue": period_id}},
+                {"name": "z", "value": {"stringValue": zone or ""}},
+                {"name": "pk", "value": {"stringValue": package or ""}},
+                {"name": "col", "value": {"stringValue": column or ""}},
+            ],
+        )
+        if check.get("records"):
+            still_null_gaps.append([zone, package, column, *rest])
+    prior_cj["gap_count"] = null_now
+    prior_cj["gaps_detail"] = still_null_gaps
+    rds.execute_statement(
+        **common,
+        sql=(
+            "UPDATE rate_periods SET canonical_json = :cj::jsonb "
+            " WHERE id = :pid::uuid"
+        ),
+        parameters=[
+            {"name": "pid", "value": {"stringValue": period_id}},
+            {"name": "cj", "value": {"stringValue": json.dumps(prior_cj)}},
+        ],
+    )
+    logger.info(
+        "publisher: period=%s null_cells=%d gaps_remaining=%d (approval_state=%s, unchanged)",
+        period_id, null_now, len(still_null_gaps), prior_state,
+    )
+
     return {
         "published": True,
         "merge_mode": merge_mode,
@@ -505,6 +590,8 @@ def _publish(
         "cells_inserted": inserted,
         "cells_skipped_collision": skipped_collision,
         "rows_skipped_no_package": skipped_no_package,
+        "null_cells_after": null_now,
+        "gaps_remaining": len(still_null_gaps),
     }
 
 
