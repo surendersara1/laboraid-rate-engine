@@ -17,6 +17,115 @@ PDF -> S3 inputs -> EventBridge -> Step Functions
 
 ---
 
+## 2026-06-10 (PM) — Batched CBA + Rate Notice merge into one rate_period (483)
+
+Customer's stated workflow is "always send CBA + Rate Notice together"
+because the Rate Notice carries only the Building/Commercial zone and
+the Residential package lives in the CBA. Today's work fixes the
+pipeline so both PDFs land in the SAME `rate_period` and cooperate on
+filling cells rather than racing or overwriting. Commit `e971a18`.
+
+### What changed (one Lambda+UI patch chain)
+
+1. **Browser** (`ui/src/admin/Uploads.tsx`) — detects the anchor period
+   from the Rate Notice filename in a multi-select and sends it as
+   `batch_period` on every `/v1/uploads` call. Without this a CBA with
+   filename `2024.08.01-2030.07.31.483 CBA.pdf` would always carry its
+   own range start date as the period.
+2. **upload-presign** — encodes `batch_period` in the S3 key:
+   `laboraid/uploads/<batch_id>/<YYYY-MM-DD>/<filename>`. Falls back to
+   the prior shape when no anchor (single-file or no Rate Notice in
+   the batch).
+3. **Classifier** — reads `batch_period` out of the S3 key; recognizes
+   CBA range-date filenames; inherits the period from the batch so the
+   CBA classifies as `doc_type=cba, period=2026-01-01` instead of
+   landing at 2024-08-01.
+4. **ExtractorInvoker** — routes `doc_type=cba` (and `apprentice_scale`)
+   to the LLM regardless of kernel union. The hand-coded kernel reads
+   tabular Rate Notices; the CBA is prose so the LLM is the right tool.
+5. **LLM extractor** — branches its system prompt on `doc_type`. The
+   new CBA prompt: extract ONLY Residential Foreman + Journeyman, do
+   NOT apply the CBA's Building Article 15 apprentice percentages to
+   Residential, use kernel-matching classification names so Publisher
+   merges across PDFs.
+6. **Publisher** — merge mode now allows **NULL → value upgrades** in
+   addition to first-write-wins on value collisions. The kernel leaves
+   Residential Pension / Vacation NULL on Foreman/Journeyman; the CBA's
+   LLM run then fills them. Without this fix the fills were silently
+   dropped on collision.
+7. **Output CSV path** — per-source-PDF (`<batch>/<stem>.csv`) instead
+   of shared `output.csv` so two PDFs in the same batch dir don't
+   overwrite each other's canonical CSV.
+8. **job-list** — handles the new key shape so the Jobs page renders
+   the right union + period for batched CBA uploads.
+
+### Smoke result — Sprinkler 483 / 2026-01-01
+
+Uploaded both PDFs in one batch:
+- `2026.01.01.483 Rate Notice.pdf` — Building zone, kernel path
+- `2024.08.01-2030.07.31.483 CBA.pdf` — Residential package, LLM path
+
+S3 keys both landed under
+`laboraid/uploads/<batch_id>/2026-01-01/...`. Both SFN runs SUCCEEDED.
+Publisher ran twice into the SAME `rate_period` (id=0f207243):
+
+| Metric | Before this batch | After this batch |
+|---|---|---|
+| `rate_cells` rows | 252 | 336 (+84) |
+| NULL cells | 0 (rows were missing) | 42 |
+| Residential Foreman cells filled | — | 18/18 |
+| Residential Journeyman cells filled | — | 18/18 |
+| Residential Apprentice Class 1-5 cells filled | — | 9-10/18 each |
+
+Key cells, with source attribution from `provenance.source_pdf`:
+
+| Package | Column | Value | Source |
+|---|---|---|---|
+| Residential Foreman | Wage | $50.82 | Rate Notice (kernel) |
+| Residential Foreman | Pension | $7.30 | CBA (LLM) — was NULL |
+| Residential Foreman | Vacation 483 | $2.00 | CBA (LLM) — was NULL |
+| Residential Journeyman | Wage | $47.82 | Rate Notice (kernel) |
+| Residential Journeyman | Pension | $7.30 | CBA (LLM) — was NULL |
+| Residential Apprentice Class 1-5 | Pension | $7.30 | CBA (LLM) |
+| Residential Apprentice Class 1-5 | J&A Training 483 | $0.80 | CBA (LLM) |
+| Residential Apprentice Class 1-5 | **Wage** | **NULL** | (correctly refused) |
+
+### What's still missing (the genuine gaps)
+
+The 42 remaining NULL cells are NOT extraction defects — they're
+documents the customer hasn't provided yet:
+
+1. **Residential Apprentice Scale (5 wage cells + dependent multipliers)**
+   The CBA contains a Building Article 15 % schedule (Class 1=40%,
+   Class 2=42.5%, …) but explicitly states "rates for Residential
+   Trainees shall be based on the Residential Fitters Rate" without
+   giving Residential percentages or dollars. The prompt now correctly
+   refuses to interpolate.
+
+   Customer groundtruth (`2024-2029.483 Rate Sheet.xlsx`, sheet
+   `2026.07.31`) has these as $21.96 / $24.24 / $31.05 / $35.60 / $42.43.
+   Those don't match any clean % of $47.82 (Journeyman) — they come from
+   a Residential Trainee Scale document Local 483 maintains separately.
+   Adding `doc_type=apprentice_scale` support is on Friday's list.
+
+2. **1/1/2026 Package Reallocation (Pension + Vacation)**
+   CBA gives 8/1/2024 base: Pension=$7.30, Vacation=$2.00. Customer
+   groundtruth for 1/1/2026: Pension=$7.45, Vacation=$0.50. The CBA
+   itself says "the Union shall have the right to reallocate the
+   Residential Sprinkler Package" — i.e., the 1/1/2026 allocation
+   lives in a separate notice we don't have. Currently we're storing
+   CBA's 8/1/2024 values; reviewer will need to override or upload the
+   reallocation notice. Monday's work item.
+
+### Verdict
+The system now correctly merges batched CBA + Rate Notice into one
+period, fills cells from each source per its strength (kernel for
+tables, LLM for prose), and **does not fabricate** the values it can't
+source. Friday: run the same test on the other 4 kernel unions
+(537/704/281/821); design `apprentice_scale` doc-type handling.
+
+---
+
 ## 2026-06-10 — Pattern-C multi-PDF merge shipped + smoked on 692
 
 Implementation of the design in [docs/design_multipdf_merge.md](./design_multipdf_merge.md).
