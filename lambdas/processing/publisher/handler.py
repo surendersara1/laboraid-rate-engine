@@ -573,6 +573,55 @@ def handler(event: dict[str, Any], _context: Any) -> dict[str, Any]:
             canonical=canonical,
         )
         logger.info("publisher: %s", json.dumps(result))
+
+        # Back-fill the file_hashes row that upload-presign pre-wrote at
+        # presign time (keyed by content_hash, value points at s3_key). We
+        # don't know the hash here, but we can scan-by-s3_key with a GSI...
+        # or simpler: skip the back-fill if we can't find a row to update.
+        # The existing row (if any) keeps its `first_seen_at` and gets
+        # period_id populated so future dedup lookups return the existing
+        # period.
+        #
+        # Implementation: query the table by s3_key via filter expression.
+        # The table is tiny so a scan is fine for the POC. Update by PK
+        # (content_hash) using returned value.
+        hashes_table = os.environ.get("FILE_HASHES_TABLE") or ""
+        if hashes_table and result.get("published"):
+            try:
+                pdf_key = classify.get("s3_key") or ""
+                if pdf_key:
+                    table = boto3.resource("dynamodb").Table(hashes_table)
+                    scan = table.scan(
+                        FilterExpression="s3_key = :sk",
+                        ExpressionAttributeValues={":sk": pdf_key},
+                        ProjectionExpression="content_hash",
+                    )
+                    items = scan.get("Items") or []
+                    for it in items:
+                        ch = it.get("content_hash")
+                        if not ch:
+                            continue
+                        table.update_item(
+                            Key={"content_hash": ch},
+                            UpdateExpression=(
+                                "SET period_id = :pid, "
+                                "    union_local = :loc, "
+                                "    period_date = :pd"
+                            ),
+                            ExpressionAttributeValues={
+                                ":pid": result.get("rate_period_id"),
+                                ":loc": result.get("local"),
+                                ":pd": result.get("period"),
+                            },
+                        )
+                        logger.info(
+                            "publisher: back-filled file_hashes for %s -> period %s",
+                            ch[:12],
+                            result.get("rate_period_id"),
+                        )
+            except Exception as e:  # pragma: no cover
+                logger.warning("publisher: file_hashes back-fill failed: %s", e)
+
         # Emit a lifecycle event so anything observing the bus learns about it.
         bus_name = os.environ.get("ENGINE_BUS_NAME") or ""
         if bus_name and result.get("published"):

@@ -9,9 +9,22 @@ from __future__ import annotations
 
 import json
 import os
+import re
 from typing import Any
 
 import authz  # shared Lambda layer (/opt/python/authz.py)
+
+# Same filename regex the classifier uses. Lets us recover (local, period)
+# for UI-uploaded files whose S3 key is the flat `laboraid/uploads/...`
+# layout instead of the canonical `laboraid/<Trade>/<Local>/...`.
+_FILENAME_RE = re.compile(
+    r"(?P<date>\d{4}\.\d{2}\.\d{2})\.(?P<local>\d{3})\s+(?P<doc>.+?)\.pdf$",
+    re.IGNORECASE,
+)
+_BATCH_ID_RE = re.compile(
+    r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+    re.IGNORECASE,
+)
 
 try:  # pragma: no cover - present in the Lambda runtime
     from aws_lambda_powertools import Logger, Tracer
@@ -48,25 +61,62 @@ STATE_MACHINE_ARN = os.environ.get(
 )
 
 
-def _key_from_event_input(raw_input: str) -> tuple[str, str, str]:
-    """Pull (s3_key, union_local, period) out of the SFN execution input.
+def _key_from_event_input(raw_input: str) -> tuple[str, str, str, str | None]:
+    """Pull (s3_key, union_local, period, batch_id) out of the SFN execution
+    input.
 
-    Best-effort: the input is the EventBridge S3-Object-Created payload; if
-    the shape differs we return empty strings rather than crashing the list.
+    Handles three layouts:
+    - `laboraid/<Trade>/<Local>/<Period>/<file>` — canonical kernel path.
+    - `laboraid/uploads/<batch_id>/<file>` — multi-file Admin uploads (new).
+    - `laboraid/uploads/<file>` — single-file Admin uploads (legacy).
+
+    For the uploads layouts the union/period come from the filename via the
+    same regex the classifier uses, so the Jobs page columns stop showing
+    "—" for UI-uploaded jobs.
     """
     try:
         evt = json.loads(raw_input)
         s3_key = evt.get("detail", {}).get("object", {}).get("key", "") or ""
         union = period = ""
-        if s3_key:
-            parts = s3_key.split("/")
-            # laboraid/<Trade>/<Local>/<Period>/<file>
-            if len(parts) >= 5 and parts[0] == "laboraid":
-                union = f"{parts[1]} {parts[2]}"
-                period = parts[3]
-        return s3_key, union, period
+        batch_id: str | None = None
+        if not s3_key:
+            return "", "", "", None
+        parts = s3_key.split("/")
+
+        # Canonical kernel path
+        if (
+            len(parts) >= 5
+            and parts[0] == "laboraid"
+            and parts[1].lower() != "uploads"
+        ):
+            union = f"{parts[1]} {parts[2]}"
+            period = parts[3]
+            return s3_key, union, period, None
+
+        # uploads/ path — pull batch_id from the 3rd segment if it's a UUID
+        if (
+            len(parts) >= 4
+            and parts[0] == "laboraid"
+            and parts[1] == "uploads"
+            and _BATCH_ID_RE.match(parts[2] or "")
+        ):
+            batch_id = parts[2]
+            filename = parts[3]
+        elif len(parts) >= 3 and parts[0] == "laboraid" and parts[1] == "uploads":
+            filename = parts[2]
+        else:
+            filename = parts[-1]
+
+        m = _FILENAME_RE.search(filename)
+        if m:
+            period = m.group("date").replace(".", "-")
+            local = m.group("local")
+            # Trade isn't available from the filename — leave it implicit
+            # and show "Local NNN" so the column has something.
+            union = f"Local {local}"
+        return s3_key, union, period, batch_id
     except Exception:
-        return "", "", ""
+        return "", "", "", None
 
 
 @_instrument
@@ -92,9 +142,12 @@ def handler(event: dict[str, Any], _context: Any) -> dict[str, Any]:
         for e in execs:
             try:
                 desc = sfn.describe_execution(executionArn=e["executionArn"])
-                s3_key, union, period = _key_from_event_input(desc.get("input", "{}"))
+                s3_key, union, period, batch_id = _key_from_event_input(
+                    desc.get("input", "{}")
+                )
             except Exception:
                 s3_key = union = period = ""
+                batch_id = None
             start = e.get("startDate")
             stop = e.get("stopDate")
             duration_ms = (
@@ -110,6 +163,7 @@ def handler(event: dict[str, Any], _context: Any) -> dict[str, Any]:
                 "union": union,
                 "period": period,
                 "source_s3_key": s3_key,
+                "batch_id": batch_id,
             })
 
         return _resp({"jobs": jobs, "count": len(jobs)})

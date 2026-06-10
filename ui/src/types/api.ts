@@ -16,6 +16,7 @@ export interface Job {
   stopped_at?: string;
   duration_ms?: number | null;
   source_s3_key?: string;
+  batch_id?: string | null;
 }
 
 export interface JobTimelineStep {

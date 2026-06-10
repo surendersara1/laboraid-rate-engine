@@ -103,6 +103,7 @@ export function Jobs(): JSX.Element {
                 <th className="px-4 py-3">Period</th>
                 <th className="px-4 py-3">Started</th>
                 <th className="px-4 py-3 text-right">Duration</th>
+                <th className="px-4 py-3">Batch</th>
                 <th className="px-4 py-3">Job ID</th>
                 <th className="px-4 py-3"></th>
               </tr>
@@ -126,6 +127,18 @@ export function Jobs(): JSX.Element {
                   <td className="px-4 py-3 text-slate-600">{fmtTime(j.started_at)}</td>
                   <td className="px-4 py-3 text-right font-mono tabular-nums text-slate-700">
                     {fmtDuration(j.duration_ms)}
+                  </td>
+                  <td className="px-4 py-3 font-mono text-xs">
+                    {j.batch_id ? (
+                      <span
+                        className="rounded bg-indigo-50 px-2 py-0.5 text-indigo-700 ring-1 ring-inset ring-indigo-200"
+                        title={`Upload batch ${j.batch_id}`}
+                      >
+                        {j.batch_id.slice(0, 8)}…
+                      </span>
+                    ) : (
+                      <span className="text-slate-400">—</span>
+                    )}
                   </td>
                   <td className="px-4 py-3 font-mono text-xs text-slate-500">
                     {j.job_id.slice(0, 16)}…

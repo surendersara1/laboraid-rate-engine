@@ -164,3 +164,70 @@ C/D/E only fire after a human action in the UI.
 | C (merge) | 2-5 s | ~$0.0001 (Lambda only) | Yes |
 | D (rework AI) | 30-90 s | ~$0.10-$0.30 | No |
 | E (override) | <1 s | negligible (DDB write) | Yes |
+
+---
+
+## Versioning + history (how we avoid silent overwrites)
+
+The Publisher is **not** an upsert on rate cells. The path a PDF takes
+through history is:
+
+### 1. Multi-PDF uploads belonging to one period
+
+A union may send their next year's rate sheet split across several PDFs —
+one per classification (Apprentice, Journeyman, Foreman). When the
+reviewer multi-selects in Admin → Uploads, the browser stamps a single
+`batch_id` (UUID) on the whole group and sends it on each presign call.
+
+The batch_id rides through:
+- the S3 key: `laboraid/uploads/<batch_id>/<filename>`
+- the Step Functions input
+- the Publisher's audit_log + rate_periods row
+- the Jobs UI (visible as a small Batch pill)
+
+Reviewers can see at-a-glance which jobs belong to the same intent. If
+later parts of a batch arrive (a forgotten Foreman PDF), the Publisher
+detects `(union, start_date)` already exists for that union and **merges
+the new cells in with `provenance.source_pdf = <new filename>`** — never
+overwriting the cells from the prior PDF.
+
+### 2. Same PDF uploaded twice (idempotency)
+
+Browser computes SHA256 of the file bytes before requesting a presign.
+The /v1/uploads Lambda checks `file_hashes` DDB:
+
+- **Hash already processed** (`period_id` is populated): Lambda returns
+  `{status: "duplicate", existing_period_id, existing_s3_key,
+  first_seen_at}` immediately — no PUT, no Bedrock invocation, no
+  duplicate Aurora row, no extra Lambda cost. UI surfaces "already
+  processed → see Inbox" with a link to the existing period.
+- **Fresh hash**: a row is written *before* the PUT URL is returned with
+  `{content_hash, s3_key, first_seen_at}`. After Publisher commits the
+  Aurora period, it scans `file_hashes` by `s3_key` and back-fills
+  `period_id`. From that moment on, any re-upload of the same bytes is
+  deduped.
+
+### 3. Different content, same period (reviewer-driven rework)
+
+If the union sends an *amended* version of the same period — different
+PDF bytes, same `(union, start_date)` — we don't auto-version. Instead:
+
+- The new upload publishes alongside the existing period (cells merged
+  with their own `provenance.source_pdf`).
+- The reviewer sees both sets of cells in the Inbox and decides
+  whether to **approve as-is**, **override** specific cells, or
+  **reject + rework** the period into v2 (Path C or D).
+- Approval ratchets the period from `pending_review → approved`. We
+  never silently overwrite an approved period — a new version row is
+  written and the old one is archived for audit.
+
+### 4. What this gives the customer
+
+- **No silent data loss.** A duplicate PDF is told it's a duplicate.
+- **No surprise overwrites.** Cells from different PDFs in the same
+  period each carry the filename they came from in `provenance.source_pdf`.
+- **Traceable batches.** The Batch pill in the Jobs UI lets a reviewer
+  click through and see all PDFs that were intended to land together.
+- **Audit-friendly history.** Every published period has a hash trail
+  in `file_hashes` and a per-cell `provenance.source_pdf` — answering
+  "where did this rate come from" without git-archaeology.
