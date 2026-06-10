@@ -208,6 +208,63 @@ def handler(event: dict[str, Any], _context: Any) -> dict[str, Any]:
                 "provenance": json.loads(row[6].get("stringValue", "{}")),
             })
 
+        # Apply reviewer overrides on top of raw cell values. Overrides
+        # live in the overrides DDB table partitioned by
+        # `tenant#union#period`, sort key `cell_id#timestamp` — newest
+        # entry per cell wins.
+        try:
+            import boto3 as _b
+            ddb = _b.client("dynamodb", region_name=os.environ.get("AWS_REGION", "us-east-2"))
+            overrides_table = os.environ.get(
+                "OVERRIDES_TABLE", "laboraid-dev-l3-ddb-overrides"
+            )
+            pk = f"laboraid#{local}#{p.get('period') or ''}"
+            paginator = ddb.get_paginator("query")
+            latest_per_cell: dict[str, dict[str, Any]] = {}
+            for page in paginator.paginate(
+                TableName=overrides_table,
+                KeyConditionExpression="#pk = :pk",
+                ExpressionAttributeNames={"#pk": "tenant#union#period"},
+                ExpressionAttributeValues={":pk": {"S": pk}},
+                ScanIndexForward=False,  # newest first
+            ):
+                for item in page.get("Items") or []:
+                    sk = item.get("cell_id#timestamp", {}).get("S", "")
+                    if "#" not in sk:
+                        continue
+                    cell_id, ts = sk.split("#", 1)
+                    if cell_id in latest_per_cell:
+                        continue  # already have newer
+                    raw_val = item.get("value", {})
+                    v = raw_val.get("S") or raw_val.get("N")
+                    if v is None:
+                        continue
+                    try:
+                        vf = float(v)
+                    except ValueError:
+                        continue
+                    latest_per_cell[cell_id] = {
+                        "value": vf,
+                        "justification": item.get("justification", {}).get("S", ""),
+                        "actor": item.get("actor", {}).get("S", ""),
+                        "at": item.get("created_at", {}).get("N", ts),
+                    }
+            for c in cells:
+                ov = latest_per_cell.get(c["cell_id"])
+                if ov is None:
+                    continue
+                # Only treat as override if it actually differs from the
+                # underlying source value — a rollback to the original is
+                # effectively a no-op and shouldn't relabel provenance.
+                if abs(ov["value"] - c["value"]) > 1e-9:
+                    c["provenance"]["pre_override_value"] = c["value"]
+                    c["provenance"]["override"] = ov
+                    c["provenance"]["method"] = "override"
+                    c["value"] = ov["value"]
+                    c["confidence"] = 1.0
+        except Exception:
+            logger.exception("ratesheet-get: override join failed (non-fatal)")
+
         # Build the full artifact list. Source PDF is the input; output_csv,
         # output_xlsx, gap_report_json may be present in source_files JSON. We
         # presign + size each one that's actually in S3 so the UI can render
