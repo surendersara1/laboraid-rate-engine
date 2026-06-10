@@ -4,7 +4,7 @@ Architectural decision for the **pattern-C** problem identified in the
 customer folder: several unions split a single rate sheet across multiple
 PDFs for the same effective date.
 
-Examples (see [docs/customer_pdf_extraction_log.md](./customer_pdf_extraction_log.md)):
+Examples (see [docs/Runbooks/customer_pdf_extraction_log.md](../Runbooks/customer_pdf_extraction_log.md)):
 
 - **Sprinkler 692** — `2024.01.01.692 Apprentice Rates.pdf` + `2024.01.01.692 Journeymen Rates.pdf` for the same `2024-01-01`.
 - **Sprinkler 183** — `Apprentice SIS` + `Apprentice Wages` + `Total Package` per period.

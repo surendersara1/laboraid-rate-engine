@@ -69,7 +69,7 @@ async function sha256Hex(file: File): Promise<string> {
 // per multi-select click so the pipeline can group related uploads
 // downstream. Each file's content is hashed (SHA-256) so the server can
 // dedup identical re-uploads (skip the Bedrock cost).
-// See docs/design_upload_grouping_and_idempotency.md for the rationale.
+// See docs/Design/design_upload_grouping_and_idempotency.md for the rationale.
 export function Uploads(): JSX.Element {
   const [files, setFiles] = useState<FileStatus[]>([]);
   const [lastBatchId, setLastBatchId] = useState<string | null>(null);

@@ -128,7 +128,7 @@ source. Friday: run the same test on the other 4 kernel unions
 
 ## 2026-06-10 — Pattern-C multi-PDF merge shipped + smoked on 692
 
-Implementation of the design in [docs/design_multipdf_merge.md](./design_multipdf_merge.md).
+Implementation of the design in [docs/Design/design_multipdf_merge.md](../Design/design_multipdf_merge.md).
 
 ### Changes shipped
 
@@ -299,7 +299,7 @@ per period), **692** (Apprentice / Journeyman split), **696** (Building /
 Residential split), **669** (Addenda D/E/F/G/H carry different fund tables).
 
 ### Direction (decided 2026-06-10 — full write-up in
-[docs/design_multipdf_merge.md](./design_multipdf_merge.md))
+[docs/Design/design_multipdf_merge.md](../Design/design_multipdf_merge.md))
 
 - Pattern A: nothing to do, works.
 - Pattern B: nothing to do, works.

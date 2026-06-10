@@ -154,7 +154,7 @@ echo "    Verify end-to-end — upload a Rate Notice to the inputs bucket:"
 echo "      aws s3 cp 'kernel/data/sprinkler_fitters_704/cba/2026.01.01.704 Rate Notice.pdf' \\"
 echo "        s3://laboraid-${ENVIRONMENT}-l3-bucket-inputs/laboraid/Sprinkler/704/2026-01-01/ --region ${REGION}"
 echo "    then watch the Step Functions execution; the rendered xlsx/csv land in the outputs bucket"
-echo "    and a rate_periods row + rate_cells appear in Aurora. See docs/DEPLOY.md."
+echo "    and a rate_periods row + rate_cells appear in Aurora. See docs/Runbooks/DEPLOY.md."
 
 if [[ "${RUN_SMOKE}" -eq 1 ]]; then
   log "Local kernel smoke (deterministic, no AWS)"

@@ -1708,9 +1708,9 @@ These tracks converge in the integration phase (deploy + end-to-end test).
 ## 13. Documentation deliverables (per SOW)
 
 Per SOW Page 6, these are required:
-- ✅ Architecture diagrams → `docs/ARCHITECTURE.md` + drawing
+- ✅ Architecture diagrams → `docs/Design/ARCHITECTURE.md` + drawing
 - ✅ Infrastructure and configuration documentation → this doc + `cdk/` source
-- ✅ Onboarding and admin documentation → `docs/ONBOARDING.md` + Admin UI in-app help
+- ✅ Onboarding and admin documentation → `docs/Runbooks/ONBOARDING.md` + Admin UI in-app help
 - ✅ Test and validation reports → `docs/UAT_RESULTS.md` (produced at end of UAT)
 
 ---

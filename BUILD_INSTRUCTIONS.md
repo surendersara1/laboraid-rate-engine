@@ -133,7 +133,7 @@ CDK is **Python**, not TypeScript. Package is `aws-cdk-lib` (Python). App entry 
 |---|---|---|---|---|
 | F.1 | Step Function state machine | `cdk/laboraid_cdk/stacks/orchestration_stack.py`, `cdk/laboraid_cdk/sfn/main_pipeline.py` | Spec/09 §4 L3 (§3.4) + §5 end-to-end flow | Standard workflow defined via CDK `aws_stepfunctions` (Python); wires Stages 1-6; retries + DLQ; S3 ObjectCreated trigger |
 | F.2 | Observability stack | `cdk/laboraid_cdk/stacks/observability_stack.py` | Spec/09 §8 | 5 CloudWatch dashboards + 6 named alarms; X-Ray + CloudTrail enabled |
-| F.3 | Operational docs | `docs/RUNBOOK.md`, `docs/ARCHITECTURE.md`, `docs/ONBOARDING.md` | Spec/09 §13 | Each follows the structure described in the spec |
+| F.3 | Operational docs | `docs/Runbooks/RUNBOOK.md`, `docs/Design/ARCHITECTURE.md`, `docs/Runbooks/ONBOARDING.md` | Spec/09 §13 | Each follows the structure described in the spec |
 
 ### Group G — Missing kernel pieces (281 + 821 extractors)
 

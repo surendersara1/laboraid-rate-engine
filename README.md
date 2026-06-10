@@ -17,7 +17,7 @@ world (single source of truth).
 - Pipeline **validated blind** against 4 customer rate sheets; correctness bugs
   found there (multiplier rounding, 537 wage source, evaluator tolerance) are
   fixed, plus a CI accuracy gate, kernel tests, agent hardening, and a
-  completeness-coverage critic. See [`docs/STATUS.md`](docs/STATUS.md).
+  completeness-coverage critic. See [`docs/Design/STATUS.md`](docs/Design/STATUS.md).
 - POC build complete for Groups A–F + H (CDK infra, ExtractorAgent, Lambdas,
   two-persona SPA, orchestration, observability, CI, smoke).
 - **Path C** (generic Claude extractor for unmapped unions) + **ProfileDrafterAgent**
@@ -31,17 +31,26 @@ world (single source of truth).
 
 | Audience / purpose | File |
 |---|---|
-| **Current state of the world** — coverage, accuracy, what changed, what's left | [`docs/STATUS.md`](docs/STATUS.md) |
-| **CTO / management** — layer-by-layer summary, SOW match, risks, cost | [`docs/CTO_SUMMARY.md`](docs/CTO_SUMMARY.md) |
-| **New developer** — clone-and-go setup | [`docs/ONBOARDING.md`](docs/ONBOARDING.md) |
-| **Architects** — system design + decisions | [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) |
-| **Full technical spec** — every layer, every resource, 6-pillar coverage | [`docs/09_Technical_Implementation_Spec.md`](docs/09_Technical_Implementation_Spec.md) |
+Docs are organized into two folders:
+- [`docs/Runbooks/`](docs/Runbooks/) — what the product produces (ops runbook, deploy, onboarding, client walkthrough, extraction log, per-period gap reports).
+- [`docs/Design/`](docs/Design/) — engineering specs, architecture, audits, build log, earlier design docs.
+
+| Audience / purpose | File |
+|---|---|
+| **Current state of the world** — coverage, accuracy, what changed, what's left | [`docs/Design/STATUS.md`](docs/Design/STATUS.md) |
+| **CTO / management** — layer-by-layer summary, SOW match, risks, cost | [`docs/Design/CTO_SUMMARY.md`](docs/Design/CTO_SUMMARY.md) |
+| **New developer** — clone-and-go setup | [`docs/Runbooks/ONBOARDING.md`](docs/Runbooks/ONBOARDING.md) |
+| **Architects** — system design + decisions | [`docs/Design/ARCHITECTURE.md`](docs/Design/ARCHITECTURE.md) |
+| **Full technical spec** — every layer, every resource, 6-pillar coverage | [`docs/Design/09_Technical_Implementation_Spec.md`](docs/Design/09_Technical_Implementation_Spec.md) |
 | **Build queue** — how this repo was generated (Groups A–H) | [`BUILD_INSTRUCTIONS.md`](BUILD_INSTRUCTIONS.md) |
-| **Build log** — chronological audit trail per commit | [`docs/BUILD_LOG.md`](docs/BUILD_LOG.md) |
-| **Ops** — runbook, alarms, retry/abort, incidents | [`docs/RUNBOOK.md`](docs/RUNBOOK.md) |
-| **Audit (initial)** — 8 BLOCKER + 9 DRIFT + 7 NICE-TO-HAVE findings | [`docs/AUDIT_REPORT.md`](docs/AUDIT_REPORT.md) |
-| **Audit (verification)** — independent re-check after fix passes | [`docs/AUDIT_VERIFICATION.md`](docs/AUDIT_VERIFICATION.md) |
-| **Earlier design docs** — discovery, schemas, DSL, provenance, ground truth | [`docs/00_README.md`](docs/00_README.md) through [`docs/08_*.md`](docs/) |
+| **Build log** — chronological audit trail per commit | [`docs/Design/BUILD_LOG.md`](docs/Design/BUILD_LOG.md) |
+| **Ops** — runbook, alarms, retry/abort, incidents, Q&A | [`docs/Runbooks/RUNBOOK.md`](docs/Runbooks/RUNBOOK.md) |
+| **Deploy** — CDK + UI deploy procedure | [`docs/Runbooks/DEPLOY.md`](docs/Runbooks/DEPLOY.md) |
+| **Client walkthrough** — end-to-end extraction flow | [`docs/Runbooks/extraction_flow_for_client.md`](docs/Runbooks/extraction_flow_for_client.md) |
+| **Customer PDF extraction log** — running journal of what each customer batch produced | [`docs/Runbooks/customer_pdf_extraction_log.md`](docs/Runbooks/customer_pdf_extraction_log.md) |
+| **Audit (initial)** — 8 BLOCKER + 9 DRIFT + 7 NICE-TO-HAVE findings | [`docs/Design/AUDIT_REPORT.md`](docs/Design/AUDIT_REPORT.md) |
+| **Audit (verification)** — independent re-check after fix passes | [`docs/Design/AUDIT_VERIFICATION.md`](docs/Design/AUDIT_VERIFICATION.md) |
+| **Earlier design docs** — discovery, schemas, DSL, provenance, ground truth | [`docs/Design/00_README.md`](docs/Design/00_README.md) through [`docs/Design/08_*.md`](docs/Design/) |
 
 ## Architecture
 
@@ -56,9 +65,10 @@ Business UI ── review ── Approve/Reject ──▶ Admin Publish (409 unl
 
 Nine Python CDK stacks (ARM64, `us-east-1`): Security · Storage · Ai · Processing
 · Validation · Api · Ui · Orchestration · Observability. Full design:
-[`docs/09_Technical_Implementation_Spec.md`](docs/09_Technical_Implementation_Spec.md).
-See also [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md),
-[`docs/RUNBOOK.md`](docs/RUNBOOK.md), [`docs/ONBOARDING.md`](docs/ONBOARDING.md).
+[`docs/Design/09_Technical_Implementation_Spec.md`](docs/Design/09_Technical_Implementation_Spec.md).
+See also [`docs/Design/ARCHITECTURE.md`](docs/Design/ARCHITECTURE.md),
+[`docs/Runbooks/RUNBOOK.md`](docs/Runbooks/RUNBOOK.md),
+[`docs/Runbooks/ONBOARDING.md`](docs/Runbooks/ONBOARDING.md).
 
 ## Layout
 
@@ -112,7 +122,7 @@ bash tests/e2e/smoke-test.sh
 **704 = 99.6%**, **821 = 99.7%**, **483 = 100%** (74 sourced blanks where the
 residential scale is absent from the docs — flagged, never fabricated). All five
 pass the ≥99% gate. CI runs `pytest` (13 kernel tests) + the gate on every PR.
-See [`docs/STATUS.md`](docs/STATUS.md) for the full table and the few remaining
+See [`docs/Design/STATUS.md`](docs/Design/STATUS.md) for the full table and the few remaining
 sub-cent diffs (all documented doc-vs-groundtruth divergences).
 
 ## Troubleshooting
@@ -123,7 +133,7 @@ sub-cent diffs (all documented doc-vs-groundtruth divergences).
 | `uv run cdk` not found | Use `npx cdk` — the CDK CLI is Node, not a Python package. |
 | `pnpm: command not found` | Use `corepack pnpm <cmd>` (or `corepack enable`). |
 | Aspect "infinite loop" on synth | The tag aspect tags L1 CfnResources only — keep it that way. |
-| Alarm/pipeline failures | See [`docs/RUNBOOK.md`](docs/RUNBOOK.md). |
+| Alarm/pipeline failures | See [`docs/Runbooks/RUNBOOK.md`](docs/Runbooks/RUNBOOK.md). |
 
 ## Provenance
 
