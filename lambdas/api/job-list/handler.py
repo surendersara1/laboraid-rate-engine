@@ -25,6 +25,13 @@ _BATCH_ID_RE = re.compile(
     r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
     re.IGNORECASE,
 )
+_BATCH_PERIOD_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
+# CBA range-date filename (matches classifier _FILENAME_RANGE).
+_FILENAME_RANGE_RE = re.compile(
+    r"(?P<sd>\d{4}\.\d{2}\.\d{2})[-–]"
+    r"(?P<ed>\d{4}\.\d{2}\.\d{2})\.(?P<local>\d{3})\s+(?P<doc>.+?)\.pdf$",
+    re.IGNORECASE,
+)
 
 try:  # pragma: no cover - present in the Lambda runtime
     from aws_lambda_powertools import Logger, Tracer
@@ -65,14 +72,17 @@ def _key_from_event_input(raw_input: str) -> tuple[str, str, str, str | None]:
     """Pull (s3_key, union_local, period, batch_id) out of the SFN execution
     input.
 
-    Handles three layouts:
-    - `laboraid/<Trade>/<Local>/<Period>/<file>` — canonical kernel path.
-    - `laboraid/uploads/<batch_id>/<file>` — multi-file Admin uploads (new).
-    - `laboraid/uploads/<file>` — single-file Admin uploads (legacy).
+    Handles four uploads layouts plus the canonical kernel path:
+
+    - ``laboraid/<Trade>/<Local>/<Period>/<file>`` — canonical kernel path.
+    - ``laboraid/uploads/<batch_id>/<YYYY-MM-DD>/<file>`` — multi-doc upload
+      with a browser-detected anchor period (covers CBA + Rate Notice etc.).
+    - ``laboraid/uploads/<batch_id>/<file>`` — batched, no anchor period.
+    - ``laboraid/uploads/<file>`` — single-file legacy upload.
 
     For the uploads layouts the union/period come from the filename via the
-    same regex the classifier uses, so the Jobs page columns stop showing
-    "—" for UI-uploaded jobs.
+    same regexes the classifier uses; if the filename is a CBA-style range
+    we fall back to the batch_period segment of the S3 key.
     """
     try:
         evt = json.loads(raw_input)
@@ -93,8 +103,19 @@ def _key_from_event_input(raw_input: str) -> tuple[str, str, str, str | None]:
             period = parts[3]
             return s3_key, union, period, None
 
-        # uploads/ path — pull batch_id from the 3rd segment if it's a UUID
+        # uploads/<batch_id>/<batch_period>/<file>
         if (
+            len(parts) >= 5
+            and parts[0] == "laboraid"
+            and parts[1] == "uploads"
+            and _BATCH_ID_RE.match(parts[2] or "")
+            and _BATCH_PERIOD_RE.match(parts[3] or "")
+        ):
+            batch_id = parts[2]
+            period = parts[3]  # batch-anchored period wins for non-rate-notice docs
+            filename = parts[4]
+        # uploads/<batch_id>/<file>
+        elif (
             len(parts) >= 4
             and parts[0] == "laboraid"
             and parts[1] == "uploads"
@@ -109,11 +130,26 @@ def _key_from_event_input(raw_input: str) -> tuple[str, str, str, str | None]:
 
         m = _FILENAME_RE.search(filename)
         if m:
-            period = m.group("date").replace(".", "-")
             local = m.group("local")
-            # Trade isn't available from the filename — leave it implicit
-            # and show "Local NNN" so the column has something.
             union = f"Local {local}"
+            if not period:
+                period = m.group("date").replace(".", "-")
+            else:
+                # For Rate Notice files the filename date IS the period;
+                # for any other doc-shape in the same batch (CBA/scale) the
+                # batch_period from the key already wins, so leave `period`.
+                doc = m.group("doc").lower()
+                if "rate notice" in doc or "rate sheet" in doc or "wage sheet" in doc:
+                    period = m.group("date").replace(".", "-")
+        else:
+            rm = _FILENAME_RANGE_RE.search(filename)
+            if rm:
+                local = rm.group("local")
+                union = f"Local {local}"
+                # period already set from batch_period segment if present;
+                # otherwise use the range's start date as a last resort.
+                if not period:
+                    period = rm.group("sd").replace(".", "-")
         return s3_key, union, period, batch_id
     except Exception:
         return "", "", "", None

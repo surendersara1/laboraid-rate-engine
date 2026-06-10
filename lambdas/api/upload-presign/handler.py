@@ -53,6 +53,7 @@ _UUID_RE = re.compile(
     re.IGNORECASE,
 )
 _HASH_RE = re.compile(r"^[0-9a-f]{64}$", re.IGNORECASE)
+_BATCH_PERIOD_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 
 
 def _coerce(v: Any) -> Any:
@@ -77,11 +78,29 @@ def _resp(body: dict[str, Any], status: int = 200) -> dict[str, Any]:
     }
 
 
-def build_key(filename: str, batch_id: str | None = None) -> str:
-    """Build the S3 key. With batch_id, files cluster under the batch dir;
-    without, they fall back to the original flat layout."""
+def build_key(
+    filename: str,
+    batch_id: str | None = None,
+    batch_period: str | None = None,
+) -> str:
+    """Build the S3 key. Layouts (most specific first):
+
+    - ``laboraid/uploads/<batch_id>/<batch_period>/<filename>`` — when the
+      browser detected an anchor period for the batch (Rate Notice in the
+      batch had a clean YYYY.MM.DD filename). Downstream Lambdas read
+      batch_period out of the key so multi-doc batches (CBA + Rate Notice +
+      Apprentice Scale) all land in the SAME rate_period even though only
+      one of those filenames carries the period.
+    - ``laboraid/uploads/<batch_id>/<filename>`` — batched but no anchor
+      detected (legacy multi-file shape).
+    - ``laboraid/uploads/<filename>`` — single-file upload, no batch.
+    """
     base = os.path.basename(filename)
-    if batch_id and _UUID_RE.match(batch_id):
+    bid_ok = batch_id and _UUID_RE.match(batch_id)
+    period_ok = batch_period and _BATCH_PERIOD_RE.match(batch_period)
+    if bid_ok and period_ok:
+        return f"laboraid/uploads/{batch_id}/{batch_period}/{base}"
+    if bid_ok:
         return f"laboraid/uploads/{batch_id}/{base}"
     return f"laboraid/uploads/{base}"
 
@@ -119,6 +138,7 @@ def handler(event: dict[str, Any], _context: Any) -> dict[str, Any]:
         if not filename:
             return _resp({"error": "filename_required"}, 400)
         batch_id = body.get("batch_id") or ""
+        batch_period = (body.get("batch_period") or "").strip()
         content_hash = (body.get("content_hash") or "").lower()
 
         # Content-hash dedup. If we've already seen this exact byte content
@@ -139,7 +159,7 @@ def handler(event: dict[str, Any], _context: Any) -> dict[str, Any]:
                     "first_seen_at": prior.get("first_seen_at"),
                 })
 
-        key = build_key(filename, batch_id=batch_id)
+        key = build_key(filename, batch_id=batch_id, batch_period=batch_period)
         import boto3
 
         # Record the (content_hash → s3_key) mapping NOW so downstream
@@ -191,6 +211,7 @@ def handler(event: dict[str, Any], _context: Any) -> dict[str, Any]:
             "url": url,
             "key": key,
             "batch_id": batch_id or None,
+            "batch_period": batch_period or None,
         })
     except Exception:
         logger.exception("upload-presign failed")

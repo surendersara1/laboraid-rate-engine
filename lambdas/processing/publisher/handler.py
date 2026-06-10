@@ -422,32 +422,41 @@ def _publish(
         if (classify.get("union") or "").lower() in _KERNEL_UNIONS
         else "llm_claude"
     )
-    # In merge mode, pre-load every (zone, package, column_name) triple
-    # already present at this period so we can first-write-wins skip
-    # collisions without N round-trips to the DB.
+    # In merge mode we pre-load every (zone, package, column_name) triple
+    # at this period AND whether its value is NULL. Two distinct rules
+    # apply on collision:
+    #   - existing value IS NULL → new run is allowed to FILL it (UPDATE).
+    #     This is the common case for Rate Notice + CBA merging: kernel
+    #     leaves Pension/Vacation NULL on Residential rows and the CBA's
+    #     LLM extraction fills them.
+    #   - existing value IS NOT NULL → first-write-wins, skip. Reviewer
+    #     resolves real value conflicts via override.
     existing_triples: set[tuple[str, str, str]] = set()
+    existing_null_cells: dict[tuple[str, str, str], str] = {}
     if merge_mode:
         ex = rds.execute_statement(
             **common,
             sql=(
-                "SELECT COALESCE(zone,''), COALESCE(package,''), "
-                "       COALESCE(column_name,'') "
+                "SELECT id::text, COALESCE(zone,''), COALESCE(package,''), "
+                "       COALESCE(column_name,''), (value IS NULL) AS is_null "
                 "  FROM rate_cells WHERE period_id = :pid::uuid"
             ),
             parameters=[{"name": "pid", "value": {"stringValue": period_id}}],
         )
         for row in ex.get("records") or []:
-            existing_triples.add(
-                (
-                    row[0].get("stringValue") or "",
-                    row[1].get("stringValue") or "",
-                    row[2].get("stringValue") or "",
-                )
+            triple = (
+                row[1].get("stringValue") or "",
+                row[2].get("stringValue") or "",
+                row[3].get("stringValue") or "",
             )
+            existing_triples.add(triple)
+            if row[4].get("booleanValue"):
+                existing_null_cells[triple] = row[0].get("stringValue") or ""
 
     inserted = 0
     skipped_no_package = 0
     skipped_collision = 0
+    filled_null = 0
     for row in data_rows:
         zone = row[meta_idx["Zone"]] if "Zone" in meta_idx and meta_idx["Zone"] < len(row) else ""
         package = row[meta_idx["Package"]] if meta_idx["Package"] < len(row) else ""
@@ -458,14 +467,8 @@ def _publish(
             if col_idx >= len(row):
                 continue
             triple = (zone, package, col_name)
-            if triple in existing_triples:
-                # First-write wins: an earlier upload for this same period
-                # already populated this cell. Reviewer can override via UI.
-                skipped_collision += 1
-                continue
             raw = row[col_idx]
             value = _coerce_float(raw)
-            cell_id = str(uuid.uuid4())
             confidence = 1.0 if method == "kernel" else 0.85
             prov = {
                 "source": csv_key,
@@ -473,6 +476,35 @@ def _publish(
                 "source_pdf": source_pdf_name,
                 "row_raw": str(raw)[:80],
             }
+            if triple in existing_triples:
+                # Cell already exists. Two cases:
+                #  - existing value is NULL: this run is allowed to FILL it.
+                #  - existing value is non-null: first-write-wins, skip.
+                existing_cell_id = existing_null_cells.get(triple)
+                if existing_cell_id and value is not None:
+                    rds.execute_statement(
+                        **common,
+                        sql=(
+                            "UPDATE rate_cells SET value = :val::numeric, "
+                            "       value_type = :vt, "
+                            "       provenance = :prov::jsonb, "
+                            "       confidence = :conf::numeric "
+                            " WHERE id = :id::uuid AND value IS NULL"
+                        ),
+                        parameters=[
+                            {"name": "id", "value": {"stringValue": existing_cell_id}},
+                            {"name": "val", "value": {"stringValue": str(value)}},
+                            {"name": "vt", "value": {"stringValue": "currency"}},
+                            {"name": "prov", "value": {"stringValue": json.dumps(prov)}},
+                            {"name": "conf", "value": {"stringValue": str(confidence)}},
+                        ],
+                    )
+                    existing_null_cells.pop(triple, None)
+                    filled_null += 1
+                else:
+                    skipped_collision += 1
+                continue
+            cell_id = str(uuid.uuid4())
             rds.execute_statement(
                 **common,
                 sql=(
@@ -588,6 +620,7 @@ def _publish(
         "method": method,
         "source_pdf": source_pdf_name,
         "cells_inserted": inserted,
+        "cells_filled_null": filled_null,
         "cells_skipped_collision": skipped_collision,
         "rows_skipped_no_package": skipped_no_package,
         "null_cells_after": null_now,

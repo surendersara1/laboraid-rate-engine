@@ -152,18 +152,40 @@ def _invoke_llm_extractor(event: dict[str, Any]) -> dict[str, Any]:
 
 
 def _default_llm_out_key(input_pdf_key: str) -> str:
+    """Per-source-PDF output key so batch directories with multiple PDFs
+    (e.g. Rate Notice + CBA) don't collide on a shared output.csv."""
     if "/" in input_pdf_key:
-        prefix, _ = input_pdf_key.rsplit("/", 1)
-        return f"{prefix}/output.csv"
-    return "output.csv"
+        prefix, base = input_pdf_key.rsplit("/", 1)
+        stem = base.rsplit(".", 1)[0] if "." in base else base
+        return f"{prefix}/{stem}.csv"
+    stem = input_pdf_key.rsplit(".", 1)[0] if "." in input_pdf_key else input_pdf_key
+    return f"{stem}.csv"
 
 
 def _route(event: dict[str, Any]) -> dict[str, Any]:
-    """Pick AgentCore (kernel) or LLM extractor based on the classifier's
-    union name. Known kernel union -> deterministic AgentCore path; otherwise
-    -> Bedrock Claude via the llm-extractor Lambda."""
+    """Pick AgentCore (kernel) or LLM extractor.
+
+    Routing rules:
+    - Doc type ``cba`` / ``apprentice_scale`` -> LLM. The kernel is
+      hand-coded for Rate Notice tabular layouts; CBAs are prose and
+      apprentice scales are a different table shape. The LLM handles
+      both with doc-type-branched prompts.
+    - Doc type ``rate_notice`` / ``rate_sheet`` + kernel union -> kernel.
+    - Anything else -> LLM (rate-notice prompt by default).
+    """
     classify = event.get("classify") or {}
     union = (classify.get("union") or "").lower()
+    doc_type = (classify.get("doc_type") or "").lower()
+    if doc_type in {"cba", "apprentice_scale"}:
+        logger.info(
+            "extractor-invoker: doc_type=%s union=%s -> LLM (kernel doesn't read this shape)",
+            doc_type, union,
+        )
+        if not LLM_EXTRACTOR_FN:
+            raise RuntimeError(
+                f"doc_type={doc_type!r} requires LLM_EXTRACTOR_FN to be configured"
+            )
+        return _invoke_llm_extractor(event)
     if union in _KNOWN_KERNEL_UNIONS:
         logger.info("extractor-invoker: routing union=%s to AgentCore (kernel)", union)
         return invoke_runtime(event)

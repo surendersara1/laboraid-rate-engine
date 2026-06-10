@@ -27,10 +27,32 @@ _FILENAME = re.compile(
     r"(?P<date>\d{4}\.\d{2}\.\d{2})\.(?P<local>\d{3})\s+(?P<doc>.+?)\.pdf$",
     re.IGNORECASE,
 )
+# 2024.08.01-2030.07.31.483 CBA.pdf  ->  CBA range filename, no single anchor
+# date; the period must come from the batch context (other PDFs in the same
+# upload batch carry the actual rate-period anchor).
+_FILENAME_RANGE = re.compile(
+    r"(?P<sd>\d{4}\.\d{2}\.\d{2})[-–]"
+    r"(?P<ed>\d{4}\.\d{2}\.\d{2})\.(?P<local>\d{3})\s+(?P<doc>.+?)\.pdf$",
+    re.IGNORECASE,
+)
+# Key shapes — see lambdas/api/upload-presign/handler.py build_key().
+_UUID_RE = re.compile(
+    r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+    re.IGNORECASE,
+)
+_BATCH_PERIOD_KEY_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 
 _DOC_TYPES = {
     "rate notice": "rate_notice",
     "rate sheet": "rate_sheet",
+    "wage sheet": "rate_sheet",
+    "wage rate sheet": "rate_sheet",
+    "wage rate notice": "rate_notice",
+    # Order matters: more specific keywords first so "apprentice wage sheet"
+    # binds to apprentice_scale, not rate_sheet.
+    "apprentice wage sheet": "apprentice_scale",
+    "trainee scale": "apprentice_scale",
+    "apprentice scale": "apprentice_scale",
     "cba": "cba",
     "agreement": "cba",
 }
@@ -45,23 +67,99 @@ _LOCAL_TO_UNION = {
 }
 
 
+def _batch_period_from_key(key: str) -> str | None:
+    """When upload-presign encoded a batch_period in the S3 key
+    (``laboraid/uploads/<batch_id>/<YYYY-MM-DD>/<filename>``), pull it
+    out so downstream stages can anchor the rate period for non-Rate-Notice
+    docs (CBAs, apprentice scales) that don't carry the period in their
+    own filename."""
+    parts = key.split("/")
+    # uploads/<batch_id>/<period>/<filename>
+    if (
+        len(parts) >= 5
+        and parts[0] == "laboraid"
+        and parts[1] == "uploads"
+        and _UUID_RE.match(parts[2] or "")
+        and _BATCH_PERIOD_KEY_RE.match(parts[3] or "")
+    ):
+        return parts[3]
+    return None
+
+
+def _doc_type_from_name(name: str) -> str:
+    s = name.strip().lower()
+    # Longest-keyword-wins so "apprentice wage sheet" doesn't collide with
+    # "wage sheet" (rate_sheet).
+    matches = sorted(
+        ((k, v) for k, v in _DOC_TYPES.items() if k in s),
+        key=lambda kv: -len(kv[0]),
+    )
+    return matches[0][1] if matches else "unknown"
+
+
 def _classify_by_filename(key: str) -> dict[str, Any] | None:
-    match = _FILENAME.search(os.path.basename(key))
-    if not match:
-        return None
-    doc_raw = match.group("doc").strip().lower()
-    doc_type = next((v for k, v in _DOC_TYPES.items() if k in doc_raw), "unknown")
-    local = match.group("local")
-    period = match.group("date").replace(".", "-")
-    return {
-        "s3_key": key,
-        "union": _LOCAL_TO_UNION.get(local, f"local_{local}"),
-        "local": local,
-        "period": period,
-        "doc_type": doc_type,
-        "confidence": "high",
-        "method": "filename",
-    }
+    """Filename → (local, period, doc_type, union). Recognizes both:
+
+    - Single-date Rate Notice/Rate Sheet/Apprentice Scale (``YYYY.MM.DD.<local> ...``)
+      → period taken from filename.
+    - Multi-year CBA (``YYYY.MM.DD-YYYY.MM.DD.<local> CBA.pdf``)
+      → no single anchor date; the rate period must come from the batch
+      context (S3 key carries it as a segment when the browser detected
+      an anchor Rate Notice in the batch).
+    """
+    filename = os.path.basename(key)
+    batch_period = _batch_period_from_key(key)
+
+    match = _FILENAME.search(filename)
+    if match:
+        doc_type = _doc_type_from_name(match.group("doc"))
+        local = match.group("local")
+        # Even on a clean-date filename, a batch_period (if present) wins
+        # for non-Rate-Notice doc types — a CBA or Apprentice Scale should
+        # always merge into the Rate Notice's period, never their own
+        # nominal date.
+        filename_period = match.group("date").replace(".", "-")
+        period = (
+            batch_period if (batch_period and doc_type != "rate_notice")
+            else filename_period
+        )
+        return {
+            "s3_key": key,
+            "union": _LOCAL_TO_UNION.get(local, f"local_{local}"),
+            "local": local,
+            "period": period,
+            "doc_type": doc_type,
+            "confidence": "high",
+            "method": "filename",
+        }
+
+    # CBA range-date filename.
+    rmatch = _FILENAME_RANGE.search(filename)
+    if rmatch:
+        doc_type = _doc_type_from_name(rmatch.group("doc"))
+        local = rmatch.group("local")
+        # CBAs MUST inherit the rate period from the batch — their own
+        # filename only carries the contract validity span, not the
+        # specific rate-effective date the customer wants extracted.
+        if not batch_period:
+            logger.warning(
+                "classifier: CBA-style filename with NO batch_period in key — "
+                "cannot resolve a single rate period. Falling back to range "
+                "start_date; reviewer will see this in audit_log.",
+                extra={"key": key},
+            )
+        period = batch_period or rmatch.group("sd").replace(".", "-")
+        return {
+            "s3_key": key,
+            "union": _LOCAL_TO_UNION.get(local, f"local_{local}"),
+            "local": local,
+            "period": period,
+            "doc_type": doc_type,
+            "confidence": "high" if batch_period else "low",
+            "method": "filename+batch" if batch_period else "filename_range_only",
+        }
+
+    return None
 
 
 @logger.inject_lambda_context

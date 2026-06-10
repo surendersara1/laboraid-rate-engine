@@ -63,7 +63,7 @@ GUARDRAIL_ID = os.environ.get("BEDROCK_GUARDRAIL_ID", "")
 _MODEL_ID = "us.anthropic.claude-sonnet-4-6"
 
 
-SYSTEM_PROMPT = """You extract a union construction trade rate sheet from a Rate Notice PDF.
+_RATE_NOTICE_PROMPT = """You extract a union construction trade rate sheet from a Rate Notice PDF.
 
 PRIME DIRECTIVE — NEVER FABRICATE: every numeric cell you emit MUST come from
 text/tables in the PDF. If a cell isn't in the PDF, use null. Blank is correct;
@@ -105,8 +105,157 @@ RULES:
 6. Compact form: values directly in "cells", NOT wrapped in {value, ...}.
 """
 
+_CBA_PROMPT = """You extract the RESIDENTIAL Sprinkler package from a Collective
+Bargaining Agreement (CBA) PDF.
 
-def _invoke_bedrock(pdf_bytes: bytes) -> dict[str, Any]:
+CONTEXT — A CBA is a long prose contract covering many years. We've already
+extracted the Building (Commercial) zone rates from a separate Rate Notice
+PDF (which the kernel reads deterministically — you must NOT duplicate that
+work). Your job here is ONLY the Residential Foreman + Journeyman package
+that the Rate Notice doesn't carry.
+
+PRIME DIRECTIVE — NEVER FABRICATE:
+- Every numeric cell you emit MUST come VERBATIM from text in this PDF.
+- If a cell is not stated in the PDF, emit null (not 0).
+- The CBA's BUILDING apprentice percentage schedule (Class 1 = 40%, etc.,
+  typically in Article 15) is for BUILDING/COMMERCIAL only. It does NOT
+  apply to Residential. Do NOT use it to compute Residential apprentice
+  wages.
+- If the CBA only mentions "Trainee rates shall be based on the Residential
+  Fitters rate" without giving the specific percentages or dollar amounts,
+  emit ZERO Apprentice rows. Do not guess. Do not interpolate.
+- Pension/Vacation allocations frequently depend on a separate package-
+  reallocation notice that is NOT in this CBA. If the CBA states a base
+  pension at one date and the user wants a different effective date, use
+  null unless an explicit escalator is written.
+
+ZONE: every row you emit MUST be in zone "Residential". If the section
+isn't clearly the Residential Sprinkler section, do not emit it.
+
+CLASSIFICATION NAMES — use EXACTLY these (no other variants):
+  - "Foreman"  (NOT "Residential Foreman")
+  - "Journeyman"  (NOT "Residential Sprinkler Fitter")
+  - "Apprentice Class 1", "Apprentice Class 2", ..., "Apprentice Class N"
+    (only emit these if the CBA gives an explicit Residential apprentice
+    dollar table — DO NOT emit them if the apprentice scale is missing or
+    only stated as "based on the Fitters rate")
+
+COLUMN NAMES — use the customer's canonical names (adapt the local suffix):
+  Wage, Wage Differential, Wage 1.5x, Wage 2.0x, Health & Welfare,
+  Health & Welfare Metal, Pension, SIS, UA International Training,
+  Industry Promotion National Use, J&A Training <local>, NCFPCG <local>,
+  Bay Area IP Fund <local>, HRA <local>, Vacation <local>,
+  Union Dues 1 <local>, Union Dues 2 <local>.
+
+Common CBA label → canonical column mappings:
+  Wage Rate                    → Wage
+  Metal Trades Plan A          → Health & Welfare Metal
+  N.A.S.I. Pension             → Pension
+  HRA Contribution             → HRA <local>
+  Local <N> Training Fund      → J&A Training <local>
+  UA International Training    → UA International Training
+  SIS Pension                  → SIS
+  No. CA Fire Prot. Industry   → NCFPCG <local>
+  Industry Promotion           → Industry Promotion National Use
+  Industry Promotion (Bay Area)→ Bay Area IP Fund <local>
+
+If the CBA says "Foreman's rate shall be $X over the Residential Sprinkler
+Fitter rate", emit the Foreman row with Wage = Journeyman Wage + X (and
+copy all other benefit columns from the Journeyman row unless the CBA
+overrides them).
+
+For Wage 1.5x and Wage 2.0x: emit if the CBA states the multipliers
+("time and one half" → 1.5, "double time" → 2.0). For Residential, the
+CBA may state Foreman gets the SAME 1x rate as the package (no premium
+on the differential) — in that case Wage Differential = Wage.
+
+OUTPUT — return ONLY a single JSON object (no prose, no markdown) shaped
+exactly like:
+
+{
+  "union_local": "<local>",
+  "trade": "Sprinkler",
+  "parent_intl": "UA",
+  "start_date": "YYYY-MM-DD",
+  "end_date": "YYYY-MM-DD" or null,
+  "zone": "Residential",
+  "columns": ["Wage", "Wage Differential", "Wage 1.5x", "Wage 2.0x",
+              "Health & Welfare Metal", "Pension", "SIS",
+              "UA International Training", "Industry Promotion National Use",
+              "J&A Training <local>", "NCFPCG <local>",
+              "Bay Area IP Fund <local>", "HRA <local>",
+              "Vacation <local>", "Union Dues 1 <local>",
+              "Union Dues 2 <local>"],
+  "rows": [
+    {"classification": "Foreman",    "cells": {"Wage": 50.82, ...}},
+    {"classification": "Journeyman", "cells": {"Wage": 47.82, ...}}
+  ]
+}
+"""
+
+_APPRENTICE_SCALE_PROMPT = """You extract a Residential Sprinkler Apprentice/Trainee
+wage scale from a PDF.
+
+The PDF typically lists Apprentice Class 1..5 (or Trainee Year 1..5) with
+either dollar wages or percentages of the Journeyman rate. We need the
+dollar wage per class for the rate-effective date in the document.
+
+PRIME DIRECTIVE — NEVER FABRICATE: source every cell from the PDF.
+
+OUTPUT — same canonical shape as the Rate Notice prompt:
+
+{
+  "union_local": "<local>",
+  "trade": "Sprinkler",
+  "parent_intl": "UA",
+  "start_date": "YYYY-MM-DD",
+  "end_date": "YYYY-MM-DD" or null,
+  "zone": "Residential",
+  "columns": ["Wage", "Wage 1.5x", "Wage 2.0x"],
+  "rows": [
+    {"classification": "Apprentice Class 1", "cells": {"Wage": 21.96, ...}},
+    {"classification": "Apprentice Class 2", "cells": {"Wage": 24.24, ...}},
+    ...
+  ]
+}
+
+RULES:
+1. If the PDF expresses wages as a percentage of Journeyman, emit the
+   percentage in a "Wage %" column and leave "Wage" null — the Publisher
+   merge step will resolve the dollar value once it joins with the
+   Residential Journeyman row from the CBA.
+2. If both percentage AND a separate dollar table are present, prefer
+   the dollar table and put it in "Wage".
+"""
+
+# Shape kept for backward compatibility — anything calling SYSTEM_PROMPT
+# directly gets the rate-notice prompt.
+SYSTEM_PROMPT = _RATE_NOTICE_PROMPT
+
+
+def _prompt_for_doc_type(doc_type: str) -> tuple[str, str]:
+    """Return (system_prompt, user_instruction) for the given doc type."""
+    dt = (doc_type or "").lower()
+    if dt == "cba":
+        return (
+            _CBA_PROMPT,
+            "Extract the Residential Sprinkler package and any Apprentice "
+            "scale stated in this CBA. Return the JSON exactly as specified.",
+        )
+    if dt == "apprentice_scale":
+        return (
+            _APPRENTICE_SCALE_PROMPT,
+            "Extract the Apprentice/Trainee wage scale from this PDF. "
+            "Return the JSON exactly as specified.",
+        )
+    return (
+        _RATE_NOTICE_PROMPT,
+        "Extract every classification and every rate column visible in this "
+        "Rate Notice. Return the JSON exactly as specified.",
+    )
+
+
+def _invoke_bedrock(pdf_bytes: bytes, doc_type: str = "") -> dict[str, Any]:
     """Call Bedrock Claude with the PDF and parse its JSON response.
 
     boto3's default read_timeout on bedrock-runtime is 60s, but a 3MB PDF +
@@ -125,13 +274,14 @@ def _invoke_bedrock(pdf_bytes: bytes) -> dict[str, Any]:
             retries={"max_attempts": 1},
         ),
     )
+    system_prompt, user_instruction = _prompt_for_doc_type(doc_type)
     body: dict[str, Any] = {
         "anthropic_version": "bedrock-2023-05-31",
         "max_tokens": 16000,
         "system": [
             {
                 "type": "text",
-                "text": SYSTEM_PROMPT,
+                "text": system_prompt,
                 "cache_control": {"type": "ephemeral"},
             }
         ],
@@ -147,14 +297,7 @@ def _invoke_bedrock(pdf_bytes: bytes) -> dict[str, Any]:
                             "data": base64.b64encode(pdf_bytes).decode(),
                         },
                     },
-                    {
-                        "type": "text",
-                        "text": (
-                            "Extract every classification and every rate "
-                            "column visible in this Rate Notice. Return the "
-                            "JSON exactly as specified."
-                        ),
-                    },
+                    {"type": "text", "text": user_instruction},
                 ],
             }
         ],
@@ -366,7 +509,13 @@ def handler(event: dict[str, Any], _context: Any) -> dict[str, Any]:
         ].read()
         logger.info("llm-extractor: downloaded %d bytes from %s", len(pdf_bytes), s3_key)
 
-        payload = _invoke_bedrock(pdf_bytes)
+        doc_type = (classify.get("doc_type") or "").lower()
+        logger.info(
+            "llm-extractor: invoking Bedrock with doc_type=%s for key=%s",
+            doc_type or "(none, rate_notice prompt)",
+            s3_key,
+        )
+        payload = _invoke_bedrock(pdf_bytes, doc_type=doc_type)
         if payload.get("_parse_error"):
             logger.warning(
                 "llm-extractor: Claude returned malformed JSON — see _raw"
@@ -400,9 +549,14 @@ def handler(event: dict[str, Any], _context: Any) -> dict[str, Any]:
 
 
 def _default_out_key(input_pdf_key: str) -> str:
-    """Mirror the kernel's output-key convention so artifacts land under the
-    same directory as the source PDF: replace the filename with output.csv."""
+    """Output CSV key. We used to write ``<prefix>/output.csv`` which
+    COLLIDED when multiple PDFs landed under the same batch+period directory
+    (Rate Notice + CBA in the same batch each wrote output.csv, second writer
+    wins). Per-source-PDF naming keeps every extraction's CSV addressable for
+    audit + lets Publisher invocations reach the right CSV every time."""
     if "/" in input_pdf_key:
-        prefix, _ = input_pdf_key.rsplit("/", 1)
-        return f"{prefix}/output.csv"
-    return "output.csv"
+        prefix, base = input_pdf_key.rsplit("/", 1)
+        stem = base.rsplit(".", 1)[0] if "." in base else base
+        return f"{prefix}/{stem}.csv"
+    stem = input_pdf_key.rsplit(".", 1)[0] if "." in input_pdf_key else input_pdf_key
+    return f"{stem}.csv"
