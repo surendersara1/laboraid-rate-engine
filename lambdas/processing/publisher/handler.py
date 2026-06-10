@@ -480,6 +480,15 @@ def _publish(
     skipped_no_package = 0
     skipped_collision = 0
     filled_null = 0
+    # F4: column-name normalization map for THIS union (e.g., "Apprenticeship
+    # Training" → "J&A Training 704"). Falls through to identity for any
+    # column not listed.
+    try:
+        from column_normalization import canonicalize as _canon
+    except ImportError:
+        def _canon(_local: str, c: str) -> str:
+            return c
+
     for row in data_rows:
         zone = row[meta_idx["Zone"]] if "Zone" in meta_idx and meta_idx["Zone"] < len(row) else ""
         package = row[meta_idx["Package"]] if meta_idx["Package"] < len(row) else ""
@@ -487,6 +496,7 @@ def _publish(
             skipped_no_package += 1
             continue
         for col_idx, col_name in rate_cols:
+            col_name = _canon(local, col_name)
             if col_idx >= len(row):
                 continue
             triple = (zone, package, col_name)
@@ -525,7 +535,43 @@ def _publish(
                     existing_null_cells.pop(triple, None)
                     filled_null += 1
                 else:
+                    # F3: record value disagreements so the reviewer can
+                    # see when two PDFs disagreed on the same cell. Append
+                    # the rejected attempt to provenance.conflicts so it's
+                    # visible in the Provenance panel without disturbing
+                    # the first-write-wins value.
                     skipped_collision += 1
+                    if value is not None:
+                        rds.execute_statement(
+                            **common,
+                            sql=(
+                                "UPDATE rate_cells rc SET "
+                                "  provenance = jsonb_set("
+                                "    COALESCE(provenance, '{}'::jsonb), "
+                                "    '{conflicts}', "
+                                "    COALESCE(provenance->'conflicts', '[]'::jsonb) || "
+                                "      jsonb_build_array(jsonb_build_object("
+                                "        'rejected_value', :rv::numeric, "
+                                "        'source_pdf', :rs, "
+                                "        'method', :rm)), "
+                                "    true) "
+                                " WHERE rc.period_id = :pid::uuid "
+                                "   AND COALESCE(rc.zone,'') = :z "
+                                "   AND COALESCE(rc.package,'') = :pk "
+                                "   AND rc.column_name = :col "
+                                "   AND rc.value IS NOT NULL "
+                                "   AND rc.value <> :rv::numeric"
+                            ),
+                            parameters=[
+                                {"name": "pid", "value": {"stringValue": period_id}},
+                                {"name": "z", "value": {"stringValue": zone}},
+                                {"name": "pk", "value": {"stringValue": package}},
+                                {"name": "col", "value": {"stringValue": col_name}},
+                                {"name": "rv", "value": {"stringValue": str(value)}},
+                                {"name": "rs", "value": {"stringValue": source_pdf_name or ""}},
+                                {"name": "rm", "value": {"stringValue": method}},
+                            ],
+                        )
                 continue
             cell_id = str(uuid.uuid4())
             rds.execute_statement(
