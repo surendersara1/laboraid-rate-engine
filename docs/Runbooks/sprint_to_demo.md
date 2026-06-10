@@ -111,10 +111,40 @@ Schedule TBD. Watch for: Bedrock cold starts (mitigated by M2), demo-time data d
 
 ## Live status snapshot (kept current)
 
-| Day | Items planned | Done | In progress | Blocked |
+| Day | Items planned | Done | Slipped | Blocked |
 |---|---|---|---|---|
-| **Wed PM** (now) | 10 + T1 spillover | 10 (W1–W10) | T1 | — |
-| Thu | T1, T2, T3, T4, T5, T6, T7 | — | — | — |
-| Fri | F1, F2, F3, F4, F5, F6 | — | — | — |
-| Mon | M1, M2, M3, M4, M5 | — | — | — |
+| **Wed PM** | W1–W10 + T1 spillover | All 11 | — | — |
+| **Wed PM (extended)** | T1, T2, T3, T5, T6 | All 5 — committed `a24ddf2`, `cd8f7c8` | — | — |
+| **Wed PM (still extended!)** | T4, F1, F2, F3, F4, F5, F6, M1, M4 | All 9 — committed `857a7c2`, `2628141` | — | — |
+| Thu | (originally T4-T7) | — — pulled forward into Wed PM | T7 (low impact, post-demo OK) | — |
+| Fri | (originally F1-F6) | — — pulled forward into Wed PM | F4 base only (per-union maps populated for sample cases; full prompt audit post-demo) | — |
+| Mon | M1, M2, M3, M4, M5 | M1 ✓ (dry_run script), M4 ✓ (slides outline). Remaining: M2 pre-stage (data already in Aurora), M3 override test, M5 Loom. | — | — |
 | Tue | Demo | — | — | — |
+
+## End-state assessment (Wed 4-5 PM)
+
+**All 5 kernel unions in Aurora at acceptable coverage:**
+
+| Union | Period | Cells | Coverage |
+|---|---|---|---|
+| 483 | 2026-01-01 | 378 | 100% |
+| 537 | 2026-03-01 | 240 | 100% |
+| 704 | 2026-01-01 | 221 | 100% |
+| 821 | 2026-01-01 | 648 | 100% |
+| 281 | 2026-01-01 | 139 | 95% (8 documented gaps) |
+
+**Total: 1,626 cells across 5 unions, 98.9% avg coverage, $2.50 total
+Bedrock spend, 5.9 min total wall clock.** See
+[5union_report.md](./5union_report.md) for the full table.
+
+**Demo materials ready:**
+- [demo_dry_run.md](./demo_dry_run.md) — click-by-click walkthrough
+- [demo_slides_outline.md](./demo_slides_outline.md) — 10-slide deck
+
+**What's left for Mon:**
+- Smoke-test override flow against one cell (M3)
+- Record backup Loom of the full flow (M5)
+- That's it.
+
+Sprint was 4x compressed — all of Thu + Fri + Mon morning shipped on
+Wed afternoon. Thu/Fri are buffer; Mon is just pre-demo polish.
