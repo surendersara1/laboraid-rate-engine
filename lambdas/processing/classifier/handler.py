@@ -22,9 +22,11 @@ logger = Logger()
 tracer = Tracer()
 metrics = Metrics()
 
-# 2026.01.01.704 Rate Notice.pdf  ->  date=2026.01.01 local=704 doc=Rate Notice
+# 2026.01.01.704 Rate Notice.pdf       ->  date=2026.01.01 local=704 doc=Rate Notice
+# 2025.01.01.281.Apprentice Wage Sheet.pdf  ->  same shape, but dot or space
+# after the local — both accepted.
 _FILENAME = re.compile(
-    r"(?P<date>\d{4}\.\d{2}\.\d{2})\.(?P<local>\d{3})\s+(?P<doc>.+?)\.pdf$",
+    r"(?P<date>\d{4}\.\d{2}\.\d{2})\.(?P<local>\d{3})[\s\.]+(?P<doc>.+?)\.pdf$",
     re.IGNORECASE,
 )
 # 2024.08.01-2030.07.31.483 CBA.pdf  ->  CBA range filename, no single anchor
@@ -32,7 +34,13 @@ _FILENAME = re.compile(
 # upload batch carry the actual rate-period anchor).
 _FILENAME_RANGE = re.compile(
     r"(?P<sd>\d{4}\.\d{2}\.\d{2})[-–]"
-    r"(?P<ed>\d{4}\.\d{2}\.\d{2})\.(?P<local>\d{3})\s+(?P<doc>.+?)\.pdf$",
+    r"(?P<ed>\d{4}\.\d{2}\.\d{2})\.(?P<local>\d{3})[\s\.]+(?P<doc>.+?)\.pdf$",
+    re.IGNORECASE,
+)
+# 2024-2029.281 CBA.pdf  ->  year-year-only range (no month-day) for older
+# CBA naming conventions. Treated identically to the full-date range form.
+_FILENAME_YEAR_RANGE = re.compile(
+    r"(?P<sy>\d{4})[-–](?P<ey>\d{4})\.(?P<local>\d{3})[\s\.]+(?P<doc>.+?)\.pdf$",
     re.IGNORECASE,
 )
 # Key shapes — see lambdas/api/upload-presign/handler.py build_key().
@@ -225,6 +233,24 @@ def _classify_by_filename(key: str) -> dict[str, Any] | None:
             "doc_type": doc_type,
             "confidence": "high" if batch_period else "low",
             "method": "filename+batch" if batch_period else "filename_range_only",
+        }
+
+    # Year-year-only range (e.g. 2024-2029.281 CBA.pdf).
+    yrmatch = _FILENAME_YEAR_RANGE.search(filename)
+    if yrmatch:
+        doc_type = _doc_type_from_name(yrmatch.group("doc"))
+        local = yrmatch.group("local")
+        # No specific date in filename → must inherit batch_period; fall
+        # back to first day of the start year so we never crash.
+        period = batch_period or f"{yrmatch.group('sy')}-01-01"
+        return {
+            "s3_key": key,
+            "union": _LOCAL_TO_UNION.get(local, f"local_{local}"),
+            "local": local,
+            "period": period,
+            "doc_type": doc_type,
+            "confidence": "high" if batch_period else "low",
+            "method": "filename+batch" if batch_period else "filename_year_range",
         }
 
     return None

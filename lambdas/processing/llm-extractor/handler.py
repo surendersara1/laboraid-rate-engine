@@ -258,14 +258,16 @@ also run on this same period; Publisher's merge mode will prefer the
 kernel's values when they conflict, and use yours for cells the kernel
 couldn't extract. Your job is to maximize COVERAGE without inventing.
 
-TYPICAL LAYOUT (the 483 Wage Rate Sheet is the canonical example):
+TYPICAL LAYOUT (varies by union; a Sprinkler Fitters Wage Rate Sheet is
+canonical, but Pipefitters, Plumbers, and other UA locals follow the
+same broad structure with union-specific fund names):
 
   Page 1 — Building/Commercial Foreman + Journeyman, As-Per-Contract list:
     GENERAL FOREMAN $XX.XX  / FOREMAN 2 $XX.XX  / FOREMAN 1 $XX.XX  /
     JOURNEYMAN $XX.XX  / SUPPLEMENTAL PENSION  / NASI PENSION  /
-    NASI HEALTH & WELFARE  / LOCAL 483 TRAINING FUND (J&A) / HRA / INTL
-    TRAINING FUND / NO. CA FIRE PROT INDUSTRY FUND / INDUSTRY PROMOTION /
-    INDUSTRY PROMOTION (Bay Area)
+    NASI HEALTH & WELFARE  / LOCAL <local> TRAINING FUND (J&A) / HRA /
+    INTL TRAINING FUND / Industry-specific funds (NCFPCG for Sprinkler,
+    others vary by trade) / INDUSTRY PROMOTION / INDUSTRY PROMOTION (Bay Area)
     Plus Work Assessment + Vacation rules in narrative form.
 
   Page 2 — Commercial Apprentice Classification table (Class 1..10 + Fitter)
@@ -325,50 +327,60 @@ CLASSIFICATION NAMES — use EXACTLY these, no other variants:
   (Note: page 2 calls the top row "Fitter" — map it to "Journeyman".
    Page 4's "RESIDENTIAL APPRENTICE N" → "Apprentice Class N".)
 
-CANONICAL COLUMN MAPPINGS (PDF label → canonical column):
+CANONICAL COLUMN MAPPINGS (PDF label → canonical column). Substitute
+the actual local number from the document for <local>:
   Rate/HR              → Wage
   Shift Work 15%       → Wage Differential
   H&W / NASI Health & Welfare         → Health & Welfare  (Building zone only)
   NASI HEALTH & WELFARE (Residential) → Health & Welfare Metal
-  PENS / NASI Pension  → Pension
-  S.I.S. / SIS Pension → SIS
-  HRA / HRA Contribution → HRA <local>
-  Int. Trng. Fund / INTL Training Fund → UA International Training
-  NCFPCG / No. CA Fire Prot Industry Fund → NCFPCG <local>
-  J&A Trng. Cont. / Local 483 Training Fund → J&A Training <local>
-  *I.P. / Industry Promotion → Industry Promotion National Use
-  Industry Promotion (Bay Area) → Bay Area IP Fund <local>
+  PENS / NASI Pension / Pension Fund  → Pension
+  S.I.S. / SIS Pension / SIS Fund     → SIS
+  HRA / HRA Contribution              → HRA <local>
+  Int. Trng. Fund / INTL Training Fund / UA International Training → UA International Training
+  NCFPCG / No. CA Fire Prot Industry Fund → NCFPCG <local>  (Sprinkler-specific)
+  J&A Trng. Cont. / Local <N> Training Fund / Apprenticeship Training → J&A Training <local>
+  *I.P. / Industry Promotion / IAF    → Industry Promotion National Use
+  Industry Promotion (Bay Area)       → Bay Area IP Fund <local>
   Vac. W/H + Vacation Withholding narrative → Vacation <local>
-  Work Asses (6%, written as "6%") → Union Dues 1 <local>: 0.06
-  Work Asses II ($1.05) → Union Dues 2 <local>: 1.05
+  Work Asses (6%, written as "6%")    → Union Dues 1 <local>: 0.06
+  Work Asses II ($1.05)               → Union Dues 2 <local>: 1.05
+  PAC / Political Action Committee    → PAC <local> (often $0 by default)
+  Trade-specific funds — emit with the trade's canonical name, suffixed
+  with <local>: e.g., "S&E <local>", "Craft <local>", "S.U.B. <local>",
+  "Retiree Holiday <local>".
 
-RESIDENTIAL-SPECIFIC RULES (from the narrative on page 3 of typical sheets):
+RESIDENTIAL-SPECIFIC RULES (only if the document carries them — many
+Sprinkler Wage Rate Sheets have these on page 3; some unions don't have
+a Residential section at all):
   - Work Assessment #1 for Residential Foreman/Journeyman = 6% of wage
     → Union Dues 1 <local>: 0.06
   - Work Assessment #1 for Apprentice 3, 4, 5 = $0.50/hr
     → Union Dues 1 <local>: 0.5  (for Apprentice 3, 4, 5)
     → Union Dues 1 <local>: 0    (for Apprentice 1, 2)
-  - Work Assessment #2 ONLY applies to Residential Foreman/Journeyman = $1.05
-    → Union Dues 2 <local>: 1.05 for Foreman/Journeyman, 0 for all Apprentices
-  - Vacation Withholding ONLY for Residential Foreman/Journeyman = $0.50
-    → Vacation <local>: 0.50 for Foreman/Journeyman, 0 for Apprentices
+  - Work Assessment #2 ONLY applies to Residential Foreman/Journeyman
+    → Union Dues 2 <local>: 1.05 for F/J, 0 for all Apprentices
+  - Vacation Withholding ONLY for Residential Foreman/Journeyman
+    → Vacation <local>: 0.50 for F/J, 0 for Apprentices
 
-WAGE DIFFERENTIAL — for Residential Foreman/Journeyman set Wage
-Differential = Wage (no shift premium per Local 483 standard).
-For Building it's typically Wage × 1.15 (shown explicitly as the
-"Shift Work 15%" column).
+If the document has no Residential section, do NOT emit Residential
+rows. Building-only is a valid result.
+
+WAGE DIFFERENTIAL — for Residential Foreman/Journeyman, set Wage
+Differential = Wage (no shift premium when the document says
+"Foreman gets the same 1x rate"). For Building it's typically Wage ×
+1.15 (shown explicitly as the "Shift Work 15%" column).
 
 WAGE 1.5x AND 2.0x — compute as Wage × 1.5 and Wage × 2.0 respectively
 ONLY when the PDF states the multipliers somewhere (typical: "time and
-one half" / "double time"). The 483 Wage Rate Sheet establishes these
-implicitly through the Building Apprentice table where you can read
+one half" / "double time"). Most Wage Rate Sheets establish these
+implicitly through a Building Apprentice table where you can read
 Rate/HR vs Shift Work 15% — the same multipliers apply across all
 classifications. Compute them; do NOT leave them null when you have
 a Wage value.
 
 If the PDF only contains a partial subset (e.g., just Commercial
 Apprentices), still emit the rows you can read — do NOT add Residential
-rows from your memory of typical 483 layouts. Use null for the rest.
+rows from your memory of typical layouts. Use null for the rest.
 """
 
 # Shape kept for backward compatibility — anything calling SYSTEM_PROMPT

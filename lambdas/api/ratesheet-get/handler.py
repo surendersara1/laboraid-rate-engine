@@ -262,8 +262,18 @@ def handler(event: dict[str, Any], _context: Any) -> dict[str, Any]:
             if canonical_summary.get("gap_count") is not None
             else canonical_summary.get("gaps")
         )
+        # Count distinct (zone, package) pairs in Aurora — that's the actual
+        # classification count, regardless of what canonical_json.rows says
+        # (canonical_json gets overwritten by the LAST extractor's row count
+        # in merge mode, which under-counts when multiple extractors
+        # contribute to the same period).
+        distinct_pairs = {
+            (c.get("zone") or "", c.get("package") or "")
+            for c in cells
+            if c.get("package")
+        }
         counts = {
-            "classifications": canonical_summary.get("rows"),
+            "classifications": len(distinct_pairs),
             "cells": len(cells),
             "gaps": gap_count or 0,
         }
