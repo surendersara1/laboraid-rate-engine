@@ -818,6 +818,39 @@ def _publish(
         parameters=[{"name": "pid", "value": {"stringValue": period_id}}],
     )
 
+    # Self-healing dedupe (race guard). When the CBA + Rate Notice for one
+    # batch run as two parallel SFN executions, each Publisher loads its
+    # existing-cell snapshot before the other commits, so the precedence
+    # OVERWRITE path can't fire and both INSERT — producing duplicate cells
+    # for the same (zone, package, column). The rendered CSV/xlsx then pivots
+    # an arbitrary duplicate and looks wrong even though the correct value is
+    # present. This pass runs at the END of every publish (idempotent +
+    # deterministic), keeping the highest-precedence non-null cell per slot
+    # and deleting the losers — so whichever execution finishes last leaves a
+    # clean, single-valued period. doc_type precedence:
+    # rate_notice > rate_sheet > apprentice_scale > cba; ties prefer a
+    # non-null value, then a reviewer method (customer_import/override), then
+    # the oldest row.
+    dedupe_r = rds.execute_statement(
+        **common,
+        sql=(
+            "DELETE FROM rate_cells rc USING ("
+            "  SELECT id, row_number() OVER ("
+            "    PARTITION BY zone, COALESCE(package,''), column_name ORDER BY "
+            "      CASE WHEN provenance->>'method' IN ('customer_import','override') THEN 1 ELSE 0 END DESC, "
+            "      CASE COALESCE(provenance->>'doc_type','') "
+            "        WHEN 'rate_notice' THEN 3 WHEN 'rate_sheet' THEN 2 "
+            "        WHEN 'apprentice_scale' THEN 1 ELSE 0 END DESC, "
+            "      (value IS NOT NULL) DESC, id ASC) AS rn "
+            "  FROM rate_cells WHERE period_id = :pid::uuid"
+            ") d WHERE rc.id = d.id AND d.rn > 1 AND rc.period_id = :pid::uuid"
+        ),
+        parameters=[{"name": "pid", "value": {"stringValue": period_id}}],
+    )
+    deduped = dedupe_r.get("numberOfRecordsUpdated", 0) or 0
+    if deduped:
+        logger.info("publisher: dedupe removed %d duplicate cells for period %s", deduped, period_id)
+
     null_count_r = rds.execute_statement(
         **common,
         sql=(
