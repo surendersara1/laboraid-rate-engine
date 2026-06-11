@@ -460,12 +460,28 @@ def _publish(
     #     resolves real value conflicts via override.
     existing_triples: set[tuple[str, str, str]] = set()
     existing_null_cells: dict[tuple[str, str, str], str] = {}
+    # Doc-type precedence (SOP §2.3: "Rate notices ... SUPERSEDE figures in
+    # older addenda"). A multi-year CBA carries tables for several effective
+    # dates and the LLM can pick the wrong year; the Rate Notice is by
+    # definition the rates effective for THIS period. When two PDFs in a
+    # batch disagree on a cell, the higher-precedence doc type wins
+    # regardless of which SFN execution finished first.
+    _DOC_PRECEDENCE = {"rate_notice": 3, "rate_sheet": 2, "apprentice_scale": 1, "cba": 0}
+    # Reviewer-entered values are never machine-overwritten.
+    _PROTECTED_METHODS = {"customer_import", "override"}
+    incoming_doc_type = (classify.get("doc_type") or "").lower()
+    incoming_prec = _DOC_PRECEDENCE.get(incoming_doc_type, 1)
+
+    # triple -> (cell_id, existing_precedence, protected)
+    existing_meta: dict[tuple[str, str, str], tuple[str, int, bool]] = {}
     if merge_mode:
         ex = rds.execute_statement(
             **common,
             sql=(
                 "SELECT id::text, COALESCE(zone,''), COALESCE(package,''), "
-                "       COALESCE(column_name,''), (value IS NULL) AS is_null "
+                "       COALESCE(column_name,''), (value IS NULL) AS is_null, "
+                "       COALESCE(provenance->>'doc_type',''), "
+                "       COALESCE(provenance->>'method','') "
                 "  FROM rate_cells WHERE period_id = :pid::uuid"
             ),
             parameters=[{"name": "pid", "value": {"stringValue": period_id}}],
@@ -479,11 +495,19 @@ def _publish(
             existing_triples.add(triple)
             if row[4].get("booleanValue"):
                 existing_null_cells[triple] = row[0].get("stringValue") or ""
+            ex_doc = (row[5].get("stringValue") or "").lower()
+            ex_method = (row[6].get("stringValue") or "").lower()
+            existing_meta[triple] = (
+                row[0].get("stringValue") or "",
+                _DOC_PRECEDENCE.get(ex_doc, 0),
+                ex_method in _PROTECTED_METHODS,
+            )
 
     inserted = 0
     skipped_no_package = 0
     skipped_collision = 0
     filled_null = 0
+    overwritten = 0
     # F4: column-name normalization map for THIS union (e.g., "Apprenticeship
     # Training" → "J&A Training 704"). Falls through to identity for any
     # column not listed.
@@ -511,12 +535,50 @@ def _publish(
                 "source": csv_key,
                 "method": method,
                 "source_pdf": source_pdf_name,
+                "doc_type": incoming_doc_type,
                 "row_raw": str(raw)[:80],
             }
             if triple in existing_triples:
-                # Cell already exists. Two cases:
+                # Cell already exists. Three cases:
                 #  - existing value is NULL: this run is allowed to FILL it.
-                #  - existing value is non-null: first-write-wins, skip.
+                #  - existing non-null but LOWER doc-type precedence (e.g. a
+                #    CBA value when this run is the Rate Notice): OVERWRITE —
+                #    per SOP §2.3 rate notices supersede older addenda. The
+                #    superseded value is preserved in provenance.
+                #  - otherwise: first-write-wins, record the conflict.
+                ex_id, ex_prec, ex_protected = existing_meta.get(
+                    triple, ("", 0, False)
+                )
+                if (
+                    value is not None
+                    and ex_id
+                    and triple not in existing_null_cells
+                    and not ex_protected
+                    and incoming_prec > ex_prec
+                ):
+                    rds.execute_statement(
+                        **common,
+                        sql=(
+                            "UPDATE rate_cells SET "
+                            "  provenance = (:prov::jsonb) || jsonb_build_object("
+                            "    'superseded_value', value, "
+                            "    'superseded_doc_type', provenance->>'doc_type', "
+                            "    'superseded_source_pdf', provenance->>'source_pdf'), "
+                            "  value = :val::numeric, "
+                            "  value_type = :vt, "
+                            "  confidence = :conf::numeric "
+                            " WHERE id = :id::uuid"
+                        ),
+                        parameters=[
+                            {"name": "id", "value": {"stringValue": ex_id}},
+                            {"name": "val", "value": {"stringValue": str(value)}},
+                            {"name": "vt", "value": {"stringValue": "currency"}},
+                            {"name": "prov", "value": {"stringValue": json.dumps(prov)}},
+                            {"name": "conf", "value": {"stringValue": str(confidence)}},
+                        ],
+                    )
+                    overwritten += 1
+                    continue
                 existing_cell_id = existing_null_cells.get(triple)
                 if existing_cell_id and value is not None:
                     rds.execute_statement(
@@ -1243,6 +1305,7 @@ def _publish(
         "source_pdf": source_pdf_name,
         "cells_inserted": inserted,
         "cells_filled_null": filled_null,
+        "cells_overwritten_by_precedence": overwritten,
         "cells_skipped_collision": skipped_collision,
         "rows_skipped_no_package": skipped_no_package,
         "null_cells_after": null_now,

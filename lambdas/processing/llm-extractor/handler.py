@@ -581,6 +581,7 @@ def _invoke_bedrock(
     doc_type: str = "",
     local: str | int | None = None,
     ocr_hint: str = "",
+    period: str = "",
 ) -> dict[str, Any]:
     """Call Bedrock Claude with the PDF and parse its JSON response.
 
@@ -601,6 +602,20 @@ def _invoke_bedrock(
         ),
     )
     system_prompt, user_instruction = _prompt_for_doc_type(doc_type, local)
+    if period:
+        user_instruction = (
+            f"TARGET RATE PERIOD: {period}\n"
+            f"This batch builds the rate sheet effective {period}. Multi-year\n"
+            "CBAs contain wage and fringe tables for SEVERAL effective dates\n"
+            "(annual escalations: e.g. 8/1/2022, 8/1/2023, 8/1/2024, ...).\n"
+            f"Extract ONLY the values in effect on {period}: for each rate,\n"
+            "choose the table/column/row whose effective date is the LATEST\n"
+            f"one on or before {period}. NEVER emit an earlier year's rates.\n"
+            "If the document's most recent table predates the target period\n"
+            "and a later increase is defined as a formula (e.g. '+$2.00\n"
+            "effective 8/1/2025'), apply the formula.\n\n"
+            f"{user_instruction}"
+        )
     if ocr_hint:
         user_instruction = (
             f"{user_instruction}\n\n"
@@ -915,7 +930,13 @@ def handler(event: dict[str, Any], _context: Any) -> dict[str, Any]:
             len(ocr_hint),
             s3_key,
         )
-        payload = _invoke_bedrock(pdf_bytes, doc_type=doc_type, local=local, ocr_hint=ocr_hint)
+        payload = _invoke_bedrock(
+            pdf_bytes,
+            doc_type=doc_type,
+            local=local,
+            ocr_hint=ocr_hint,
+            period=str(classify.get("period") or ""),
+        )
         if payload.get("_parse_error"):
             logger.warning(
                 "llm-extractor: Claude returned malformed JSON — see _raw"
