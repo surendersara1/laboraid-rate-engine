@@ -521,12 +521,17 @@ def _layout_hint(layout: dict[str, Any] | None) -> str:
             if key_text and val_text:
                 kvs.append(f"{key_text}: {val_text}")
     # Cap each section so the prompt stays under a few KB.
+    #
+    # NOTE: we deliberately DROP the KEY_VALUE_PAIRS section. On CBA / rate-
+    # sheet PDFs, Textract's KV pairs are dominated by the fund-trustee
+    # block (names, street addresses, ZIP codes, phone numbers). Forwarding
+    # that to Bedrock trips the PII guardrail and the whole call returns
+    # "Input contains PII; please redact before resubmitting" before Claude
+    # ever sees the table. The LINE items have the same numeric content
+    # Claude needs for cell extraction without the PII surface.
     out: list[str] = []
-    if kvs:
-        out.append("KEY_VALUE_PAIRS:")
-        out.extend(kvs[:200])
     if lines:
-        out.append("\nLINES:")
+        out.append("LINES (Textract OCR — authoritative reading of the page):")
         out.extend(lines[:600])
     return "\n".join(out).strip()
 

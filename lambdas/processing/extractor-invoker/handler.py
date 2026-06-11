@@ -138,6 +138,12 @@ def _invoke_llm_extractor(event: dict[str, Any]) -> dict[str, Any]:
     classify = event.get("classify") or {}
     out_s3_key = _default_llm_out_key(classify.get("s3_key") or "")
     payload = {"classify": classify, "out_s3_key": out_s3_key}
+    # Forward the OCR pre-processing result so the LLM extractor can load
+    # the Textract layout.json and pass cell-level ground truth to Claude.
+    # Without this, scanned PDFs (text_chars=0) get vision-only extraction
+    # and Claude often returns 0 rows on dense fringe tables.
+    if event.get("ocr"):
+        payload["ocr"] = event["ocr"]
     resp = lc.invoke(
         FunctionName=LLM_EXTRACTOR_FN,
         InvocationType="RequestResponse",
