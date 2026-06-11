@@ -27,6 +27,7 @@ interface StagedFile {
   anchorDate: string | null; // YYYY-MM-DD if a single anchor date can be parsed
   status: "staged" | "hashing" | "uploading" | "done" | "duplicate" | "error";
   detail?: string;
+  s3Key?: string; // the inputs-bucket key once uploaded (or the existing one if dup)
 }
 
 // YYYY.MM.DD.<local> ...     — Rate Notice / Wage Sheet (single anchor date)
@@ -171,7 +172,7 @@ export function Uploads(): JSX.Element {
     batchPeriod: string | null,
     updateOne: (id: string, patch: Partial<StagedFile>) => void,
     force = false,
-  ) => {
+  ): Promise<{ s3_key: string; filename: string } | null> => {
     try {
       updateOne(s.id, { status: "hashing" });
       const contentHash = await sha256Hex(s.file);
@@ -186,18 +187,23 @@ export function Uploads(): JSX.Element {
       if (presign.status === "duplicate") {
         updateOne(s.id, {
           status: "duplicate",
+          s3Key: presign.existing_s3_key,
           detail: presign.existing_period_id
             ? `already processed (period ${presign.existing_period_id.slice(0, 8)}…)`
             : "already processed",
         });
-        return;
+        return presign.existing_s3_key
+          ? { s3_key: presign.existing_s3_key, filename: s.file.name }
+          : null;
       }
       if (!presign.url) throw new Error("no presigned URL returned");
       const r = await fetch(presign.url, { method: "PUT", body: s.file });
       if (!r.ok) throw new Error(`S3 PUT ${r.status}`);
-      updateOne(s.id, { status: "done" });
+      updateOne(s.id, { status: "done", s3Key: presign.key });
+      return presign.key ? { s3_key: presign.key, filename: s.file.name } : null;
     } catch (e) {
       updateOne(s.id, { status: "error", detail: String(e) });
+      return null;
     }
   };
 
@@ -221,7 +227,26 @@ export function Uploads(): JSX.Element {
     setActiveBatch({ batch_id: batchId, batch_period: batchPeriod, finished: false });
     const updateOne = (id: string, patch: Partial<StagedFile>) =>
       setStaged((prev) => prev.map((s) => (s.id === id ? { ...s, ...patch } : s)));
-    await Promise.all(staged.map((s) => uploadOne(s, batchId, batchPeriod, updateOne)));
+    // 1. Upload every staged file to S3 (concurrent PUTs are fine — they don't
+    //    touch Aurora; only the staging bucket). Each returns its manifest entry.
+    const entries = await Promise.all(
+      staged.map((s) => uploadOne(s, batchId, batchPeriod, updateOne)),
+    );
+    // 2. Kick ONE sequential pipeline run with the full manifest. The planner
+    //    sorts (CBA first, then by date) and the SFN applies docs one-at-a-time
+    //    — no parallel race, no duplicate cells.
+    const files = entries.filter((e): e is { s3_key: string; filename: string } => e != null);
+    if (files.length > 0) {
+      try {
+        await api.post("/v1/batches/process", {
+          batch_id: batchId,
+          batch_period: batchPeriod ?? undefined,
+          files,
+        });
+      } catch (e) {
+        console.error("batch process start failed:", e);
+      }
+    }
     setActiveBatch((b) => (b ? { ...b, finished: true } : b));
   };
 
