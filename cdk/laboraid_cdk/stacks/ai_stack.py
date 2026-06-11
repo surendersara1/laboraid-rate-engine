@@ -44,14 +44,23 @@ class AiStack(Stack):
             kms_key_arn=master_key.key_arn,
             sensitive_information_policy_config=(
                 bedrock.CfnGuardrail.SensitiveInformationPolicyConfigProperty(
+                    # ANONYMIZE (mask), not BLOCK. The extractor reads the
+                    # customer's own union rate documents, which legitimately
+                    # carry fund-office phone/email in a trustee block. BLOCK
+                    # rejected the whole document ("Input contains PII") so
+                    # Claude extracted 0 rows from the 281 wage sheets — the
+                    # PII filter was silently killing real extractions.
+                    # ANONYMIZE masks any actual phone/email/SSN before the
+                    # model sees it (still protected) while letting the rate
+                    # tables — which are not PII — through.
                     pii_entities_config=[
-                        bedrock.CfnGuardrail.PiiEntityConfigProperty(type="EMAIL", action="BLOCK"),
-                        bedrock.CfnGuardrail.PiiEntityConfigProperty(type="PHONE", action="BLOCK"),
+                        bedrock.CfnGuardrail.PiiEntityConfigProperty(type="EMAIL", action="ANONYMIZE"),
+                        bedrock.CfnGuardrail.PiiEntityConfigProperty(type="PHONE", action="ANONYMIZE"),
                         bedrock.CfnGuardrail.PiiEntityConfigProperty(
-                            type="US_SOCIAL_SECURITY_NUMBER", action="BLOCK"
+                            type="US_SOCIAL_SECURITY_NUMBER", action="ANONYMIZE"
                         ),
                         bedrock.CfnGuardrail.PiiEntityConfigProperty(
-                            type="CREDIT_DEBIT_CARD_NUMBER", action="BLOCK"
+                            type="CREDIT_DEBIT_CARD_NUMBER", action="ANONYMIZE"
                         ),
                     ],
                 )
