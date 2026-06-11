@@ -508,6 +508,83 @@ def _publish(
     skipped_collision = 0
     filled_null = 0
     overwritten = 0
+    row_cleared = 0
+
+    # ROW-LEVEL PRECEDENCE REPLACEMENT — "the Rate Notice must overwrite the CBA".
+    #
+    # Per Dan's SOP §2.3 a rate notice supersedes the older CBA addenda. The
+    # cell-level precedence overwrite only fires when the two docs use the SAME
+    # column name — but the kernel and the LLM frequently name the same fund
+    # differently ("Annuity" vs "Annuity 537", "Vacation 1 537" vs a stray
+    # "Vacation 537"), so the stale CBA columns survived as duplicates next to
+    # the correct Rate Notice columns. This clears, for every (zone, package)
+    # ROW the incoming higher-precedence doc covers, all cells written by a
+    # LOWER-precedence doc — then the insert loop writes the incoming doc's
+    # clean set. Rows the incoming doc does NOT cover (e.g. 483 Residential,
+    # which the kernel skips) are left untouched, so a CBA-only row survives.
+    # Reviewer values (customer_import / override) are never cleared.
+    if merge_mode and incoming_prec > 0:
+        incoming_rows: set[tuple[str, str]] = set()
+        for r0 in data_rows:
+            z0 = r0[meta_idx["Zone"]] if "Zone" in meta_idx and meta_idx["Zone"] < len(r0) else ""
+            p0 = r0[meta_idx["Package"]] if meta_idx["Package"] < len(r0) else ""
+            if p0:
+                incoming_rows.add((z0, p0))
+        for z0, p0 in incoming_rows:
+            delr = rds.execute_statement(
+                **common,
+                sql=(
+                    "DELETE FROM rate_cells WHERE period_id = :pid::uuid "
+                    "  AND zone = :z AND COALESCE(package,'') = :pk "
+                    "  AND COALESCE(provenance->>'method','') NOT IN ('customer_import','override') "
+                    "  AND CASE COALESCE(provenance->>'doc_type','') "
+                    "        WHEN 'rate_notice' THEN 3 WHEN 'rate_sheet' THEN 2 "
+                    "        WHEN 'apprentice_scale' THEN 1 ELSE 0 END < :prec"
+                ),
+                parameters=[
+                    {"name": "pid", "value": {"stringValue": period_id}},
+                    {"name": "z", "value": {"stringValue": z0 or ""}},
+                    {"name": "pk", "value": {"stringValue": p0}},
+                    {"name": "prec", "value": {"longValue": incoming_prec}},
+                ],
+            )
+            row_cleared += delr.get("numberOfRecordsUpdated", 0) or 0
+        if row_cleared:
+            logger.info(
+                "publisher: row-precedence cleared %d lower-precedence cells "
+                "before merging %s (prec=%d)",
+                row_cleared, source_pdf_name, incoming_prec,
+            )
+            # Rebuild the existing-cell snapshot to reflect the deletes so the
+            # insert loop INSERTs fresh (instead of skip-as-collision).
+            existing_triples.clear()
+            existing_null_cells.clear()
+            existing_meta.clear()
+            ex2 = rds.execute_statement(
+                **common,
+                sql=(
+                    "SELECT id::text, COALESCE(zone,''), COALESCE(package,''), "
+                    "       COALESCE(column_name,''), (value IS NULL), "
+                    "       COALESCE(provenance->>'doc_type',''), COALESCE(provenance->>'method','') "
+                    "  FROM rate_cells WHERE period_id = :pid::uuid"
+                ),
+                parameters=[{"name": "pid", "value": {"stringValue": period_id}}],
+            )
+            for row in ex2.get("records") or []:
+                triple = (
+                    row[1].get("stringValue") or "",
+                    row[2].get("stringValue") or "",
+                    row[3].get("stringValue") or "",
+                )
+                existing_triples.add(triple)
+                if row[4].get("booleanValue"):
+                    existing_null_cells[triple] = row[0].get("stringValue") or ""
+                existing_meta[triple] = (
+                    row[0].get("stringValue") or "",
+                    _DOC_PRECEDENCE.get((row[5].get("stringValue") or "").lower(), 0),
+                    (row[6].get("stringValue") or "").lower() in _PROTECTED_METHODS,
+                )
+
     # F4: column-name normalization map for THIS union (e.g., "Apprenticeship
     # Training" → "J&A Training 704"). Falls through to identity for any
     # column not listed.
@@ -1339,6 +1416,7 @@ def _publish(
         "cells_inserted": inserted,
         "cells_filled_null": filled_null,
         "cells_overwritten_by_precedence": overwritten,
+        "cells_row_cleared_lower_precedence": row_cleared,
         "cells_skipped_collision": skipped_collision,
         "rows_skipped_no_package": skipped_no_package,
         "null_cells_after": null_now,
