@@ -804,7 +804,69 @@ def _publish(
         ),
         parameters=[{"name": "pid", "value": {"stringValue": period_id}}],
     )
+    # ------------------------------------------------------------------
+    # Deterministic Residential Apprentice SOP rules.
+    #
+    # Per Dan's SOP §4 + 483 CBA Article 8, certain Residential Apprentice
+    # cells are determinable from the SOP regardless of what Claude saw:
+    #   * Work Assessment #2 (column suffix "Union Dues 2 *") = $0 for
+    #     ALL Residential Apprentices (only applies to JM/Foreman).
+    #   * Vacation Withholding (column suffix "Vacation *") = $0 for
+    #     ALL Residential Apprentices.
+    #   * Work Assessment #1 (column suffix "Union Dues 1 *") = $0 for
+    #     Apprentice Class 1-2 only (Class 3-5 inherits JM value, which
+    #     a separate inheritance pass would handle when the master
+    #     profile flags that column as JM-inheritable).
+    # Claude's mapping of "Work Assessment #N" to the actual master
+    # column name varies; the publisher does this translation
+    # deterministically once cells are in Aurora.
+    _ZERO_BY_RULE: list[tuple[str, str, str | None]] = [
+        ("Union Dues 2", "Apprentice Class", None),         # WA #2 — all classes
+        ("Vacation", "Apprentice Class", None),              # Vacation — all classes
+        ("Union Dues 1", "Apprentice Class", "1-2"),        # WA #1 — class 1 and 2 only
+    ]
+    rules_applied = 0
+    for col_prefix, pkg_prefix, class_range in _ZERO_BY_RULE:
+        class_pred = ""
+        params = [
+            {"name": "pid", "value": {"stringValue": period_id}},
+            {"name": "cp", "value": {"stringValue": col_prefix + "%"}},
+            {"name": "pp", "value": {"stringValue": pkg_prefix + "%"}},
+        ]
+        if class_range == "1-2":
+            class_pred = " AND (package LIKE '%Class 1' OR package LIKE '%Class 2')"
+        rule_r = rds.execute_statement(
+            **common,
+            sql=(
+                "UPDATE rate_cells SET value = 0.0, confidence = 1.0, "
+                "       provenance = COALESCE(provenance, '{}'::jsonb) || jsonb_build_object("
+                "         'method', 'zero_by_rule', 'rule_source', 'SOP §4 Residential Apprentice'"
+                "       ) "
+                "WHERE period_id = :pid::uuid AND zone = 'Residential' "
+                "  AND value IS NULL AND column_name LIKE :cp AND package LIKE :pp" + class_pred
+            ),
+            parameters=params,
+        )
+        n = rule_r.get("numberOfRecordsUpdated", 0)
+        if n:
+            logger.info(
+                "publisher: applied SOP zero_by_rule col_prefix=%s pkg=%s range=%s -> %d cells",
+                col_prefix, pkg_prefix, class_range, n,
+            )
+            rules_applied += n
+
     still_null_gaps: list[list[str]] = []
+    if rules_applied:
+        # Re-fetch NULL set after the SOP rules ran.
+        null_r = rds.execute_statement(
+            **common,
+            sql=(
+                "SELECT zone, COALESCE(package, ''), column_name FROM rate_cells "
+                "WHERE period_id = :pid::uuid AND value IS NULL "
+                "ORDER BY zone, package, column_name"
+            ),
+            parameters=[{"name": "pid", "value": {"stringValue": period_id}}],
+        )
     for row in null_r.get("records") or []:
         z = row[0].get("stringValue") or ""
         pk = row[1].get("stringValue") or ""
