@@ -5,6 +5,12 @@ uses day-to-day.
 
 ## Product walkthrough (CTO / Technical Director audience — primary deck)
 
+> **Live SPA** rendering of these three docs (with the mermaid diagram + tabs + sidebar TOC):
+> **https://d3ggwschjt81wu.cloudfront.net/product-walkthrough.html**
+>
+> Built from these markdown sources at [`../spa/`](../spa/). Edit the MDs below and re-run
+> `python docs/spa/deploy.py` to refresh.
+
 | File | Audience | What it covers |
 |---|---|---|
 | [PRODUCT_END_TO_END_FLOW.md](PRODUCT_END_TO_END_FLOW.md) | NBS CTO + Technical Directors + LaborAid CTO | **14-step flow** from "user uploads a PDF" → "Calculator consumes published rates." Every service, every Lambda, every Bedrock call, every error condition, every observability hook in sequence. |
