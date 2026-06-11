@@ -777,31 +777,41 @@ def _publish(
         prior_cj = {}
     prior_state = cj_r["records"][0][1].get("stringValue") or "pending_review"
     run_gaps = canonical.get("gaps") or []
-    # Merge gap lists from prior + this run; cells now non-null get
-    # filtered out so the list stays actionable.
-    prior_gaps = prior_cj.get("gaps_detail") or []
-    merged_gaps = list({tuple(g) for g in (prior_gaps + run_gaps) if isinstance(g, (list, tuple)) and len(g) >= 3})
-    # Filter merged_gaps to only those that are STILL null in Aurora.
+    # ------------------------------------------------------------------
+    # Rebuild gaps_detail from Aurora truth, not from accumulated runtime
+    # responses. The prior merge approach had a race window in multi-PDF
+    # batches where two SFN executions publish in parallel and stale gap
+    # entries (cells filled by the OTHER execution after this filter ran)
+    # survived in the canonical_json. The UI banner then showed reasons
+    # that no longer matched reality (e.g. "Wage not in docs" when the
+    # cell was already 22.47 from a CBA-derived calculation).
+    #
+    # New approach: SELECT every still-NULL cell from rate_cells in one
+    # query; attach a reason from THIS run's runtime gaps if the row
+    # matches, else use a sensible default.
+    # ------------------------------------------------------------------
+    run_reasons: dict[tuple[str, str, str], str] = {}
+    for g in run_gaps:
+        if isinstance(g, (list, tuple)) and len(g) >= 4:
+            z, pk, col, reason = g[0], g[1], g[2], g[3]
+            run_reasons[(z or "", pk or "", col or "")] = reason
+    null_r = rds.execute_statement(
+        **common,
+        sql=(
+            "SELECT zone, COALESCE(package, ''), column_name FROM rate_cells "
+            "WHERE period_id = :pid::uuid AND value IS NULL "
+            "ORDER BY zone, package, column_name"
+        ),
+        parameters=[{"name": "pid", "value": {"stringValue": period_id}}],
+    )
     still_null_gaps: list[list[str]] = []
-    for zone, package, column, *rest in merged_gaps:
-        check = rds.execute_statement(
-            **common,
-            sql=(
-                "SELECT 1 FROM rate_cells "
-                " WHERE period_id = :pid::uuid AND zone = :z "
-                "   AND COALESCE(package,'') = :pk AND column_name = :col "
-                "   AND value IS NULL LIMIT 1"
-            ),
-            parameters=[
-                {"name": "pid", "value": {"stringValue": period_id}},
-                {"name": "z", "value": {"stringValue": zone or ""}},
-                {"name": "pk", "value": {"stringValue": package or ""}},
-                {"name": "col", "value": {"stringValue": column or ""}},
-            ],
-        )
-        if check.get("records"):
-            still_null_gaps.append([zone, package, column, *rest])
-    prior_cj["gap_count"] = null_now
+    for row in null_r.get("records") or []:
+        z = row[0].get("stringValue") or ""
+        pk = row[1].get("stringValue") or ""
+        col = row[2].get("stringValue") or ""
+        reason = run_reasons.get((z, pk, col), "value not present in uploaded PDFs; reviewer should triage")
+        still_null_gaps.append([z, pk, col, reason])
+    prior_cj["gap_count"] = len(still_null_gaps)
     prior_cj["gaps_detail"] = still_null_gaps
 
     # Move 3 — Deterministic Rule 1-12 validation against the customer's
