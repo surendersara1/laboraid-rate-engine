@@ -9,9 +9,14 @@ Single-file tabbed renderer of the three product walkthrough docs:
 Live at:
 
 > **https://d3ggwschjt81wu.cloudfront.net/product-walkthrough.html**
+> (HTTP Basic Auth — see [`auth/`](auth/) for credentials + rotation)
 
-(Same CloudFront distribution as the React UI; served from
-`s3://laboraid-dev-l1-bucket-spa/product-walkthrough.html`.)
+Served from `s3://laboraid-dev-l1-bucket-spa/product-walkthrough.html`
+behind the same CloudFront distribution as the React UI. A path-pattern
+cache behavior on `/product-walkthrough.html` attaches a CloudFront
+Function that demands Basic Auth before serving the SPA. The React UI
+at `/` is **not** affected — the auth gate only fires on the walkthrough
+path.
 
 ## Structure
 

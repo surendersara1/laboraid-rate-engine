@@ -7,6 +7,7 @@ uses day-to-day.
 
 > **Live SPA** rendering of these three docs (with the mermaid diagram + tabs + sidebar TOC):
 > **https://d3ggwschjt81wu.cloudfront.net/product-walkthrough.html**
+> (HTTP Basic Auth — `laboraid` / see [Secrets Manager](../spa/auth/README.md))
 >
 > Built from these markdown sources at [`../spa/`](../spa/). Edit the MDs below and re-run
 > `python docs/spa/deploy.py` to refresh.
