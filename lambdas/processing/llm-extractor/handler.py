@@ -522,18 +522,58 @@ def _layout_hint(layout: dict[str, Any] | None) -> str:
                 kvs.append(f"{key_text}: {val_text}")
     # Cap each section so the prompt stays under a few KB.
     #
-    # NOTE: we deliberately DROP the KEY_VALUE_PAIRS section. On CBA / rate-
-    # sheet PDFs, Textract's KV pairs are dominated by the fund-trustee
-    # block (names, street addresses, ZIP codes, phone numbers). Forwarding
-    # that to Bedrock trips the PII guardrail and the whole call returns
-    # "Input contains PII; please redact before resubmitting" before Claude
-    # ever sees the table. The LINE items have the same numeric content
-    # Claude needs for cell extraction without the PII surface.
+    # NOTE: we deliberately DROP the KEY_VALUE_PAIRS section AND strip PII
+    # patterns from LINE items. On CBA / rate-sheet PDFs the trustee block
+    # contains addresses, ZIP codes, phone numbers, and fund-trustee names
+    # — Bedrock's PII guardrail rejects the whole call with "Input contains
+    # PII; please redact before resubmitting" before Claude ever sees the
+    # numeric tables. The numeric content Claude needs survives the redact
+    # because it's tabular cells, not formatted addresses.
+    cleaned: list[str] = []
+    for ln in lines:
+        if _line_is_pii(ln):
+            continue
+        cleaned.append(ln)
     out: list[str] = []
-    if lines:
+    if cleaned:
         out.append("LINES (Textract OCR — authoritative reading of the page):")
-        out.extend(lines[:600])
+        out.extend(cleaned[:600])
     return "\n".join(out).strip()
+
+
+# PII regex set — runs against every Textract LINE before it's forwarded
+# to Bedrock. Drops lines that look like addresses, phones, ZIPs, fund
+# trustee names — the patterns that trip the Bedrock guardrail.
+_PII_LINE_PATTERNS = [
+    re.compile(r"\b\d{3}[-.\s]?\d{3}[-.\s]?\d{4}\b"),                         # phone
+    re.compile(r"\b\(\d{3}\)\s?\d{3}[-.\s]?\d{4}\b"),                         # (XXX) XXX-XXXX
+    re.compile(r"\b\d{5}(-\d{4})?\b\s*$"),                                    # ZIP at end of line
+    re.compile(r"\b(?:Suite|Ste|Floor|Bldg|Building|Unit)\s+\#?\d", re.I),    # suite numbers
+    re.compile(r"\b\d{1,6}\s+[A-Z][A-Za-z]+(?:\s+[A-Z][A-Za-z]+)*\s+(?:Street|St|Avenue|Ave|Road|Rd|Boulevard|Blvd|Drive|Dr|Lane|Ln|Way|Court|Ct|Parkway|Pkwy|Highway|Hwy)\b", re.I),
+    re.compile(r"\b[A-Z][a-z]+,\s*(?:CA|NV|AZ|OR|WA|TX|FL|NY)\s+\d{5}\b"),    # City, State ZIP
+    re.compile(r"\bP\.?\s*O\.?\s*Box\s+\d+", re.I),                           # PO Box
+    re.compile(r"\bemail:?\s*[\w.+-]+@[\w-]+\.[\w.-]+", re.I),                # email
+    re.compile(r"\b[\w.+-]+@[\w-]+\.[\w.-]+\b"),                              # bare email
+    re.compile(r"\b(?:Trustees? of|Trustee Office|Administrator|Fund Office|Fund Administrator)\b", re.I),
+    re.compile(r"\bMake checks? payable to\b", re.I),
+]
+
+
+def _line_is_pii(line: str) -> bool:
+    """True if the Textract LINE matches an address/phone/ZIP/trustee pattern
+    that Bedrock's PII guardrail would reject. Cell-grid lines (numbers, fund
+    column headers, classification names) never match."""
+    s = (line or "").strip()
+    if not s:
+        return True
+    # Lines that are mostly digits + decimal points + small symbols = rate
+    # cells. Keep them.
+    if sum(1 for c in s if c.isdigit() or c in ".$%,") / max(len(s), 1) > 0.5:
+        return False
+    for pat in _PII_LINE_PATTERNS:
+        if pat.search(s):
+            return True
+    return False
 
 
 def _invoke_bedrock(
@@ -574,7 +614,12 @@ def _invoke_bedrock(
         )
     body: dict[str, Any] = {
         "anthropic_version": "bedrock-2023-05-31",
-        "max_tokens": 16000,
+        # 32k output ceiling — multi-zone rate sheets (Building + Residential)
+        # routinely emit 21-row × 18-col tables that hit the prior 16k cap
+        # mid-response and truncated to malformed JSON. Claude Sonnet 4.6
+        # supports up to 64k output tokens; 32k is the right balance between
+        # headroom and cost per call.
+        "max_tokens": 32000,
         "system": [
             {
                 "type": "text",
@@ -708,6 +753,36 @@ def _write_raw_for_debug(text: str) -> dict[str, Any]:
     }
 
 
+def _unwrap_nested_payload(payload: dict[str, Any]) -> dict[str, Any]:
+    """If Claude wrapped the response in {meta, data} (or similar), find the
+    inner object containing 'rows' and lift it out. We tolerate up to two
+    levels of nesting — anything deeper is a prompt-discipline issue, not
+    something to silently recover from."""
+    if not isinstance(payload, dict):
+        return payload
+    if "rows" in payload:
+        return payload
+    # Look one level deep for a child that has 'rows'.
+    for key in ("data", "result", "output", "extraction", "ratesheet"):
+        child = payload.get(key)
+        if isinstance(child, dict) and "rows" in child:
+            # Merge meta fields up so union_local/trade/etc are preserved.
+            merged = dict(child)
+            for top_key in ("union_local", "trade", "parent_intl", "start_date", "end_date", "zone", "columns"):
+                if top_key not in merged and top_key in payload:
+                    merged[top_key] = payload[top_key]
+                # Also pull from a 'meta' sibling.
+                if top_key not in merged and isinstance(payload.get("meta"), dict):
+                    if top_key in payload["meta"]:
+                        merged[top_key] = payload["meta"][top_key]
+            return merged
+    # Look for any dict child with rows.
+    for child in payload.values():
+        if isinstance(child, dict) and "rows" in child:
+            return child
+    return payload
+
+
 def _to_canonical_csv(
     payload: dict[str, Any], classify: dict[str, Any]
 ) -> tuple[str, list[tuple[str, str, str, str]]]:
@@ -715,6 +790,7 @@ def _to_canonical_csv(
     gap list. The CSV layout mirrors what the kernel emits so the Publisher
     Lambda handles both extractors identically.
     """
+    payload = _unwrap_nested_payload(payload)
     # Use classifier fallbacks for any field Claude didn't return.
     union_group = (
         payload.get("parent_intl") or "UNKNOWN"

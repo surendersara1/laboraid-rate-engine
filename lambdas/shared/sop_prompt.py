@@ -311,11 +311,57 @@ _BODIES = {
 }
 
 
+_STRICT_OUTPUT_RULES = """
+
+OUTPUT RULES — VIOLATIONS BREAK THE PIPELINE:
+
+1. Return ONE valid JSON object. No prose, no ```json fences, no commentary
+   before or after the object. Your entire response must parse via json.loads.
+
+2. The TOP-LEVEL OBJECT shape is EXACTLY this (no other top-level keys):
+   {
+     "union_local": "<string>",
+     "trade": "<string>",
+     "parent_intl": "UA",
+     "start_date": "YYYY-MM-DD",
+     "end_date": "YYYY-MM-DD" or null,
+     "zone": "Building" or "Residential",
+     "columns": ["<col1>", "<col2>", ...],
+     "rows": [
+       {"classification": "<package name>", "zone": "<Building|Residential>",
+        "cells": {"<col1>": <number or null>, "<col2>": <number or null>, ...}}
+     ]
+   }
+
+3. NEVER wrap the response in {"meta": ..., "data": ...} or any other
+   container — the top-level object MUST have a "rows" array directly.
+
+4. cells values must be scalar numbers or null. Never strings, never objects,
+   never arrays. "12.60" must be 12.60. Percent symbols are dropped: "6.00%"
+   becomes 6.0.
+
+5. If a cell is not in the document, use null. Never invent values.
+
+6. Output the rows array in the package order suggested by the Master Package
+   List (Foreman/Journeyman first, then apprentices ascending).
+
+7. CRITICAL: emit the JSON in COMPACT form (no indentation) so the full
+   table fits within the model's output budget. Decoded JSON is what we
+   parse; whitespace adds no information."""
+
+
 def build_system_prompt(doc_type: str, local: str | int) -> str:
     """Compose the full system prompt for a single Bedrock call:
-    SOP header + master-list context for THIS union + per-doc-type body."""
+    SOP header + master-list context for THIS union + per-doc-type body +
+    strict output-shape rules."""
     body = _BODIES.get((doc_type or "").lower(), _RATE_NOTICE_BODY)
-    parts = [_SOP_HEADER, _master_context(local), "\nYOUR SPECIFIC TASK\n", body]
+    parts = [
+        _SOP_HEADER,
+        _master_context(local),
+        "\nYOUR SPECIFIC TASK\n",
+        body,
+        _STRICT_OUTPUT_RULES,
+    ]
     return "".join(parts)
 
 
