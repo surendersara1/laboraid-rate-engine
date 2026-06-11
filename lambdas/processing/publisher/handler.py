@@ -354,6 +354,10 @@ def _publish(
             "output_csv": csv_key,
             "uploads": [source_pdf_key] if source_pdf_key else [],
         }
+        # Keep prior_sf defined on the new-period path too — the gap-report
+        # block downstream reads prior_sf["uploads"] for the sources list and
+        # crashed with UnboundLocalError when the period was newly created.
+        prior_sf = source_files
         # Preserve the FULL gap list with reasons (kernel emits
         # [zone, package, column, reason] tuples). Reviewers need the
         # reasons to know what supporting doc to upload — a bare count

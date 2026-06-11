@@ -350,7 +350,13 @@ class ProcessingStack(Stack):
         self.publisher.add_environment(
             "OUTPUTS_BUCKET", outputs_bucket.bucket_name
         )
-        outputs_bucket.grant_read(self.publisher)
+        # read_write, not read: the publisher WRITES the final artifacts
+        # (final_ratesheet.csv, gap_report.json) to the outputs bucket at the
+        # end of every publish. With grant_read only, every PutObject was
+        # AccessDenied — swallowed by the non-fatal try/except, so the UI
+        # showed "— not produced" while the SFN run still SUCCEEDED.
+        outputs_bucket.grant_read_write(self.publisher)
+        master_key.grant_encrypt_decrypt(self.publisher)
         if aurora is not None and aurora_secret is not None:
             aurora.grant_data_api_access(self.publisher)
             aurora_secret.grant_read(self.publisher)
