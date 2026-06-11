@@ -4,16 +4,64 @@ Running record of what the LaborAid Rate Engine pipeline produces when fed
 real customer Rate Notice / CBA PDFs. One entry per upload batch. Use this to
 track quality, normalization gaps, and what's worth showing the client.
 
-Pipeline path under test (committed 0a9a032, 5d97cb7):
+Pipeline path under test (updated 2026-06-10 — OCR step added):
 ```
 PDF -> S3 inputs -> EventBridge -> Step Functions
-   -> Classify (filename regex)
+   -> OCRPreprocess (NEW: pypdf text-layer detect, Textract async fallback)
+   -> FlattenOcr (Pass, reshapes state)
+   -> Classify (filename regex + Bedrock Claude fallback)
+   -> GetAgentConfig (DDB ExtractorAgent enabled flag)
+   -> AgentEnabled? (Choice)
    -> ExtractorInvoker (routes on union)
        - known kernel union  -> AgentCore Runtime (deterministic Python kernel)
-       - everything else     -> llm-extractor Lambda (Bedrock Claude Sonnet 4.6)
-   -> Publisher Lambda (writes unions + rate_periods + rate_cells to Aurora)
+       - everything else     -> llm-extractor Lambda (Bedrock Claude Sonnet 4.6
+                                + Textract layout hint when OCR ran)
+   -> PublishToAurora (Lambda: unions + rate_periods + rate_cells in Aurora,
+                       M3 master_validation, invokes xlsx-renderer)
+   -> Published (Succeed)
    -> Business Inbox (UI)
 ```
+
+See [`../Design/CTO_END_TO_END_FLOW.md`](../Design/CTO_END_TO_END_FLOW.md) for
+the full 14-step walkthrough, every error condition, and every observability
+hook.
+
+---
+
+## 2026-06-10 (evening) — OCR step + M1-M6 + 5-union end-to-end retest
+
+After landing the M1-M6 architectural moves (SOP-aligned prompts, master_data
+module, deterministic Rule 1-12 validation, two-tab xlsx, onboarding workflow,
+dual-control gate) plus a new OCRPreprocess Step Functions stage backed by
+pypdf + AWS Textract, all 5 POC unions were re-uploaded as fresh batches
+against a fully cleaned environment (Aurora truncated, S3 versioned-delete,
+DDB scan-and-delete; schema migration `_TMP_/apply_m6_schema.py` re-applied
+post-cleanup).
+
+**12/12 SFN executions SUCCEEDED.** All PDFs detected as digital
+(`method=text_layer_present`) — Textract was not invoked on this run; the
+fallback path is wired and ready for scanned faxes.
+
+| Local | Trade | Period | OCR Method | Cells | M3 Dispositions (OK / DRIFT / NOT_FOUND) | M4 xlsx tabs | Gray-fill deduction cols |
+|---|---|---|---|---|---|---|---|
+| 281 | Sprinkler | 2026-01-01 | text_layer_present (2p) | 0 ⚠️ | 0 / 0 / 0 | Articles + Rate Data | (none — see open issue) |
+| 483 | Sprinkler | 2026-01-01 | text_layer_present (2p) | 378 | 29 / 0 / 2 | Articles + 2026-01-01 | Union Dues 1/2, Vacation 483 |
+| 537 | Pipefitter | 2026-03-01 | text_layer_present (1p) | 240 | 13 / 4 / 16 | Articles + 2026-03-01 | C.O.P.E. / Organizing / Union Dues 537 |
+| 537 | Pipefitter | 2025-09-01 | text_layer_present (35p) | 91 | 3 / 6 / 11 | Articles + 2026-03-01 | same |
+| 704 | Sprinkler | 2026-01-01 | text_layer_present (12p) | 221 | 24 / 1 / 2 | Articles + 2026-01-01 | Retiree Holiday / S&E / Union Dues 704 |
+| 821 | Sprinkler | 2026-01-01 | text_layer_present (1p) | 648 | 30 / 1 / 1 | Articles + 2026-01-01 | Market Recovery / PAC / UA Organizing / Union Dues 821 |
+
+**Open issue:** 281 SFN executions SUCCEEDED but the AgentCore kernel returned
+0 rows for the Journeymen + 2× Apprentice wage sheets — pre-existing kernel
+regression on the 281 filename pattern, not OCR-related. Owner: kernel team.
+
+**Tooling used:** `_TMP_/upload_all_5.py` (sequential per-batch with
+8s inter-batch breather + 8× exponential backoff on API GW 503s) and
+`_TMP_/verify_5_unions.py` (per-union state + OCR method + cell count +
+disposition summary + xlsx tab structure).
+
+**Cost on this run:** $0 OCR (no Textract calls), Aurora baseline + ~150k
+Claude tokens for 4 LLM extractor runs.
 
 ---
 

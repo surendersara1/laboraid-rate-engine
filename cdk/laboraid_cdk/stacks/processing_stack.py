@@ -292,6 +292,43 @@ class ProcessingStack(Stack):
                 )
             )
 
+        # --- OCR pre-processing Lambda (text-layer detect + AWS Textract) -----
+        # First stage of the SFN main pipeline. Digital PDFs pass through (no
+        # Textract spend); scanned PDFs get analyze_document FORMS+TABLES and
+        # the response is dropped next to the source as `<key>.layout.json`.
+        # The llm-extractor reads that layout and feeds the cell grid + KV
+        # pairs to Claude as structured ground truth.
+        self.ocr_preprocess = TaggedLambda(
+            self,
+            "OcrPreprocess",
+            env=env,
+            layer="l4",
+            function_name=name(env, "l4", "fn", "ocr-preprocess"),
+            handler="handler.handler",
+            code=lambda_.Code.from_asset("../lambdas/processing/ocr-preprocess"),
+            timeout=Duration.minutes(15),
+            memory_size=1024,
+        )
+        self.ocr_preprocess.add_environment("INPUTS_BUCKET", inputs_bucket.bucket_name)
+        self.ocr_preprocess.add_environment("OUTPUTS_BUCKET", outputs_bucket.bucket_name)
+        inputs_bucket.grant_read(self.ocr_preprocess)
+        outputs_bucket.grant_read_write(self.ocr_preprocess)
+        master_key.grant_encrypt_decrypt(self.ocr_preprocess)
+        # Textract analyze_document (sync) + start_document_analysis +
+        # get_document_analysis (async, for >5-page PDFs). Resource-scoped to
+        # nothing (Textract is regional, doesn't support ARN scoping).
+        self.ocr_preprocess.add_to_role_policy(
+            iam.PolicyStatement(
+                effect=iam.Effect.ALLOW,
+                actions=[
+                    "textract:AnalyzeDocument",
+                    "textract:StartDocumentAnalysis",
+                    "textract:GetDocumentAnalysis",
+                ],
+                resources=["*"],
+            )
+        )
+
         # --- Publisher Lambda (writes the agent's extraction into Aurora) -----
         # This is the missing piece the pipeline used to lack: the SFN's
         # "Publish" state was a literal sfn.Succeed() — the agent CSV ended up
@@ -333,3 +370,4 @@ class ProcessingStack(Stack):
         CfnOutput(self, "ExtractorRepoUri", value=self.extractor_repo.repository_uri)
         CfnOutput(self, "PublisherFnName", value=self.publisher.function_name)
         CfnOutput(self, "LlmExtractorFnName", value=self.llm_extractor.function_name)
+        CfnOutput(self, "OcrPreprocessFnName", value=self.ocr_preprocess.function_name)

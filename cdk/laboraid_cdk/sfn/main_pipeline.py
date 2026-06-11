@@ -61,6 +61,7 @@ def build_definition(
     agent_config_table: ddb.ITable,
     extract_task: sfn.IChainable | None = None,
     publisher: lambda_.IFunction | None = None,
+    ocr_preprocess: lambda_.IFunction | None = None,
 ) -> sfn.IChainable:
     """Construct the pipeline chain. Tasks are created under ``scope``.
 
@@ -79,6 +80,42 @@ def build_definition(
             {"s3_key": sfn.JsonPath.string_at("$.detail.object.key")}
         ),
     )
+
+    # Stage 0 — OCR pre-processing. Runs before Classify so the SFN state has
+    # `$.ocr.layout_s3_key` available to every downstream task (the
+    # llm-extractor consumes it as ground-truth OCR ahead of Claude vision).
+    # When ocr_preprocess is None (unit-test stub), Classify remains the entry.
+    entry: sfn.IChainable
+    if ocr_preprocess is not None:
+        ocr_task = tasks.LambdaInvoke(
+            scope,
+            "OcrPreprocess",
+            lambda_function=ocr_preprocess,
+            payload_response_only=True,
+            payload=sfn.TaskInput.from_object(
+                {"s3_key": sfn.JsonPath.string_at("$.detail.object.key")}
+            ),
+            result_path="$.ocr_result",
+        )
+        # Pull the nested ocr block onto the top of state so Classify and
+        # extractor see `$.ocr` consistently.
+        flatten = sfn.Pass(
+            scope,
+            "FlattenOcr",
+            parameters={
+                "detail.$": "$.detail",
+                "ocr.$": "$.ocr_result.ocr",
+            },
+        )
+        ocr_task.add_retry(
+            errors=["Lambda.ServiceException", "Lambda.TooManyRequestsException", "States.TaskFailed"],
+            interval=Duration.seconds(5),
+            max_attempts=2,
+            backoff_rate=2.0,
+        )
+        entry = ocr_task.next(flatten).next(classify)
+    else:
+        entry = classify
 
     # Stage 1a — read the agent-config row so the pipeline can honour the
     # Admin enable/disable toggle (Spec/09 §3.2 line 580).
@@ -161,4 +198,5 @@ def build_definition(
     failed = sfn.Fail(scope, "PipelineFailed", error="PipelineError", cause="See execution input")
     classify.add_catch(failed, errors=["States.ALL"], result_path="$.error")
 
-    return classify.next(get_agent_cfg).next(agent_gate)
+    classify.next(get_agent_cfg).next(agent_gate)
+    return entry

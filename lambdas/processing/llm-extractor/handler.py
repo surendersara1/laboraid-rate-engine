@@ -465,10 +465,77 @@ def _prompt_for_doc_type(
     )
 
 
+def _layout_hint(layout: dict[str, Any] | None) -> str:
+    """Render a compact text hint from the ocr-preprocess Textract output.
+
+    The full Textract JSON is megabytes; the LLM cannot consume it all and we
+    don't want to pay tokens for boilerplate. We grab only what actually helps
+    Claude resolve the table: the line items (with row/column hints) and the
+    KEY/VALUE pairs. Returns "" when no layout is available or the doc had a
+    native text layer (in which case Claude sees the PDF directly anyway).
+    """
+    if not layout:
+        return ""
+    method = layout.get("method") or ""
+    if method == "text_layer_present":
+        # The PDF already has selectable text; Claude reads it natively.
+        return ""
+    blocks = layout.get("Blocks") or []
+    if not blocks:
+        return ""
+    lines: list[str] = []
+    kvs: list[str] = []
+    # Index blocks for KV pair resolution.
+    by_id = {b.get("Id"): b for b in blocks if b.get("Id")}
+    for b in blocks:
+        bt = b.get("BlockType")
+        if bt == "LINE":
+            txt = (b.get("Text") or "").strip()
+            if txt:
+                lines.append(txt)
+        elif bt == "KEY_VALUE_SET" and "KEY" in (b.get("EntityTypes") or []):
+            key_text = (b.get("Text") or "").strip()
+            if not key_text:
+                # KEY blocks reference WORD/LINE children via Relationships.
+                children = []
+                for rel in b.get("Relationships") or []:
+                    if rel.get("Type") == "CHILD":
+                        for cid in rel.get("Ids") or []:
+                            ct = (by_id.get(cid) or {}).get("Text")
+                            if ct:
+                                children.append(ct)
+                key_text = " ".join(children).strip()
+            val_text = ""
+            for rel in b.get("Relationships") or []:
+                if rel.get("Type") == "VALUE":
+                    for vid in rel.get("Ids") or []:
+                        vblock = by_id.get(vid) or {}
+                        children = []
+                        for vrel in vblock.get("Relationships") or []:
+                            if vrel.get("Type") == "CHILD":
+                                for cid in vrel.get("Ids") or []:
+                                    ct = (by_id.get(cid) or {}).get("Text")
+                                    if ct:
+                                        children.append(ct)
+                        val_text = " ".join(children).strip()
+            if key_text and val_text:
+                kvs.append(f"{key_text}: {val_text}")
+    # Cap each section so the prompt stays under a few KB.
+    out: list[str] = []
+    if kvs:
+        out.append("KEY_VALUE_PAIRS:")
+        out.extend(kvs[:200])
+    if lines:
+        out.append("\nLINES:")
+        out.extend(lines[:600])
+    return "\n".join(out).strip()
+
+
 def _invoke_bedrock(
     pdf_bytes: bytes,
     doc_type: str = "",
     local: str | int | None = None,
+    ocr_hint: str = "",
 ) -> dict[str, Any]:
     """Call Bedrock Claude with the PDF and parse its JSON response.
 
@@ -489,6 +556,17 @@ def _invoke_bedrock(
         ),
     )
     system_prompt, user_instruction = _prompt_for_doc_type(doc_type, local)
+    if ocr_hint:
+        user_instruction = (
+            f"{user_instruction}\n\n"
+            "## TEXTRACT LAYOUT HINT (ground truth OCR — prefer over vision)\n"
+            "The following key/value pairs and line items were extracted by AWS\n"
+            "Textract from the same PDF. Use these as the authoritative reading of\n"
+            "the document; resolve any conflict between the image and this hint in\n"
+            "favour of this hint. Cells you cannot find here OR in the PDF must be\n"
+            "null per the never-fabricate rule.\n\n"
+            f"```\n{ocr_hint}\n```"
+        )
     body: dict[str, Any] = {
         "anthropic_version": "bedrock-2023-05-31",
         "max_tokens": 16000,
@@ -725,13 +803,38 @@ def handler(event: dict[str, Any], _context: Any) -> dict[str, Any]:
 
         doc_type = (classify.get("doc_type") or "").lower()
         local = classify.get("local")
+
+        # OCR pre-processing output, if SFN ran the ocr-preprocess stage. We
+        # accept both shapes: a layout JSON pointer (preferred) and an inline
+        # layout dict. When neither is present the LLM falls back to vision-only.
+        ocr_hint = ""
+        ocr_state = event.get("ocr") or {}
+        layout_key = ocr_state.get("layout_s3_key") if isinstance(ocr_state, dict) else None
+        if layout_key:
+            try:
+                layout_bytes = s3.get_object(Bucket=OUTPUTS_BUCKET, Key=layout_key)[
+                    "Body"
+                ].read()
+                layout = json.loads(layout_bytes)
+                ocr_hint = _layout_hint(layout)
+                logger.info(
+                    "llm-extractor: loaded OCR layout %s (%d chars hint)",
+                    layout_key, len(ocr_hint),
+                )
+            except Exception:
+                logger.exception(
+                    "llm-extractor: failed to load OCR layout %s — falling back to vision-only",
+                    layout_key,
+                )
+
         logger.info(
-            "llm-extractor: invoking Bedrock with doc_type=%s local=%s for key=%s",
+            "llm-extractor: invoking Bedrock with doc_type=%s local=%s ocr_hint_chars=%d for key=%s",
             doc_type or "(none, rate_notice prompt)",
             local,
+            len(ocr_hint),
             s3_key,
         )
-        payload = _invoke_bedrock(pdf_bytes, doc_type=doc_type, local=local)
+        payload = _invoke_bedrock(pdf_bytes, doc_type=doc_type, local=local, ocr_hint=ocr_hint)
         if payload.get("_parse_error"):
             logger.warning(
                 "llm-extractor: Claude returned malformed JSON — see _raw"

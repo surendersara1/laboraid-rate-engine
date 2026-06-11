@@ -19,12 +19,21 @@ inform implementation; the customer-facing material lives in
 | [08_Ground_Truth_and_LLM_Loop.md](08_Ground_Truth_and_LLM_Loop.md) | Ground truth + LLM accuracy loop |
 | [09_Technical_Implementation_Spec.md](09_Technical_Implementation_Spec.md) | **Master spec — every layer, every resource** |
 
-## System architecture
+## CTO presentation set (June 10, 2026 — primary deck)
+
+| File | Topic |
+|---|---|
+| [CTO_END_TO_END_FLOW.md](CTO_END_TO_END_FLOW.md) | **14-step flow** — every service, every Lambda, every Bedrock call, every error, every observability hook in sequence |
+| [CTO_SERVICE_INVENTORY.md](CTO_SERVICE_INVENTORY.md) | Slide-deck appendix — every Lambda, every SFN state, every DDB table, cost model |
+| [CTO_ERROR_AND_LOGGING_REFERENCE.md](CTO_ERROR_AND_LOGGING_REFERENCE.md) | SRE / on-call reference — HTTP codes, retry policies, log groups, replay playbook, SLOs |
+| [client_brief_and_integration_plan.md](client_brief_and_integration_plan.md) | Customer-input synthesis + 6 architectural moves |
+
+## System architecture (background)
 
 | File | Topic |
 |---|---|
 | [ARCHITECTURE.md](ARCHITECTURE.md) | High-level architecture |
-| [Architecture_Flow.md](Architecture_Flow.md) | Detailed flow walkthrough |
+| [Architecture_Flow.md](Architecture_Flow.md) | Detailed flow walkthrough (pre-OCR) |
 | [Architecture_Flow.html](Architecture_Flow.html) | Renderable HTML version |
 | [Understanding.md](Understanding.md) | Project understanding doc |
 

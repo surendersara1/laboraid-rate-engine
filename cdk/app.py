@@ -149,6 +149,7 @@ orchestration = OrchestrationStack(
     master_key=security.master_key,
     publisher=processing.publisher,
     llm_extractor=processing.llm_extractor,
+    ocr_preprocess=processing.ocr_preprocess,
 )
 orchestration.add_dependency(processing)
 orchestration.add_dependency(validation)

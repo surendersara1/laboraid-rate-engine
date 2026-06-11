@@ -52,6 +52,7 @@ class OrchestrationStack(Stack):
         master_key: kms.IKey,
         publisher: lambda_.IFunction | None = None,
         llm_extractor: lambda_.IFunction | None = None,
+        ocr_preprocess: lambda_.IFunction | None = None,
         **kwargs: Any,
     ) -> None:
         super().__init__(scope, construct_id, **kwargs)
@@ -124,6 +125,7 @@ class OrchestrationStack(Stack):
             agent_config_table=agent_config_table,
             extract_task=extract_task,
             publisher=publisher,
+            ocr_preprocess=ocr_preprocess,
         )
 
         log_group = logs.LogGroup(
