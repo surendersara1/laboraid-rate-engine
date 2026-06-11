@@ -10,8 +10,14 @@
   <!-- Render-time deps via CDN. Pinned so the SPA is reproducible. -->
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/highlight.js@11.10.0/styles/atom-one-dark.min.css">
   <script src="https://cdn.jsdelivr.net/npm/marked@13.0.3/marked.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/marked-highlight@2.1.4/lib/index.umd.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/mermaid@11.4.1/dist/mermaid.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/highlight.js@11.10.0/lib/highlight.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/highlight.js@11.10.0/lib/languages/python.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/highlight.js@11.10.0/lib/languages/javascript.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/highlight.js@11.10.0/lib/languages/json.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/highlight.js@11.10.0/lib/languages/bash.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/highlight.js@11.10.0/lib/languages/sql.min.js"></script>
 
   <style>
     :root {
@@ -411,34 +417,39 @@
 <script id="doc-errors-md" type="text/markdown">__DOC_ERRORS_PLACEHOLDER__</script>
 
 <script>
-  // --- marked configuration --------------------------------------------------
-  marked.setOptions({
-    gfm: true,
-    breaks: false,
-    headerIds: true,
-    mangle: false,
-    highlight: function(code, lang) {
-      if (lang === 'mermaid') return code;     // we render mermaid separately
-      if (lang && hljs.getLanguage(lang)) {
-        try { return hljs.highlight(code, { language: lang }).value; } catch (_) {}
-      }
-      return hljs.highlightAuto(code).value;
-    },
-  });
+  // --- marked configuration (v13 API) ----------------------------------------
+  marked.setOptions({ gfm: true, breaks: false });
 
-  // marked treats `_` inside identifiers as italics — our docs are full of
-  // `snake_case` words. Override the renderer to bias toward identifiers.
+  // marked-highlight extension — v13 dropped the `highlight` option, so the
+  // syntax-highlighting pass is now a registered extension instead.
+  marked.use(markedHighlight.markedHighlight({
+    langPrefix: 'hljs language-',
+    highlight(code, lang) {
+      if (lang === 'mermaid') return code; // pass through; we handle it below
+      if (lang && hljs.getLanguage(lang)) {
+        try { return hljs.highlight(code, { language: lang, ignoreIllegals: true }).value; }
+        catch (_) {}
+      }
+      return code;
+    },
+  }));
+
+  // Renderer override — pulls mermaid blocks out of the default <pre><code>
+  // so we can render them as SVG instead of text.
+  // v13 API: renderer.code({ text, lang, escaped }).
   const renderer = new marked.Renderer();
   const origCode = renderer.code.bind(renderer);
-  renderer.code = function(code, infostring, escaped) {
-    const lang = (infostring || '').match(/^\S*/)[0];
+  renderer.code = function(token) {
+    const lang = ((token && token.lang) || '').match(/^\S*/)[0];
     if (lang === 'mermaid') {
-      // Defer mermaid render — emit a div with raw source.
       const id = 'mmd-' + Math.random().toString(36).slice(2, 9);
-      const escaped = code.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-      return `<div class="mermaid-wrapper"><div class="mermaid" id="${id}">${escaped}</div></div>`;
+      const safe = token.text
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;');
+      return `<div class="mermaid-wrapper"><div class="mermaid" id="${id}">${safe}</div></div>`;
     }
-    return origCode(code, infostring, escaped);
+    return origCode(token);
   };
   marked.use({ renderer });
 
@@ -452,26 +463,40 @@
   });
 
   // --- doc loading -----------------------------------------------------------
+  // UTF-8-safe base64 decode. atob() returns a binary string; we need to walk
+  // its bytes through TextDecoder so em-dashes / arrows / non-ASCII survive.
   function decodeDoc(id) {
     const el = document.getElementById(id);
     if (!el) return '';
-    let raw = el.textContent || '';
-    // Decode the build-time base64 wrapper so the markdown never contains
-    // a literal </script> that would end the inline tag.
+    const raw = (el.textContent || '').replace(/\s+/g, '');
+    if (!raw) return '';
     try {
-      return atob(raw.trim());
+      const binary = atob(raw);
+      const bytes = new Uint8Array(binary.length);
+      for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+      return new TextDecoder('utf-8').decode(bytes);
     } catch (e) {
-      return raw;
+      console.error('decodeDoc failed:', e);
+      return '**Failed to decode doc payload — see console.**';
     }
   }
 
   function renderTab(tab) {
     const mdId = { flow: 'doc-flow-md', services: 'doc-services-md', errors: 'doc-errors-md' }[tab];
-    const md = decodeDoc(mdId);
     const pane = document.getElementById('pane-' + tab);
-    // Strip the front-matter title line so the SPA's tabs are the title bar.
-    pane.innerHTML = marked.parse(md);
-    // Re-target inter-doc links to switch tabs instead of navigating.
+    try {
+      const md = decodeDoc(mdId);
+      pane.innerHTML = marked.parse(md);
+    } catch (err) {
+      console.error('marked.parse failed for', tab, err);
+      pane.innerHTML = `<div style="padding:20px;color:#f87171;">
+        <h2>Render error</h2>
+        <p>${(err && err.message) || err}</p>
+        <pre style="background:#0b1220;padding:12px;border-radius:6px;overflow:auto;">${(err && err.stack) || ''}</pre>
+      </div>`;
+      return;
+    }
+    // Re-target inter-doc links to switch tabs instead of navigating away.
     pane.querySelectorAll('a').forEach(a => {
       const href = a.getAttribute('href') || '';
       let mapTab = null;
@@ -577,8 +602,17 @@
   });
 
   // --- initial render --------------------------------------------------------
-  const initial = new URLSearchParams(location.search).get('tab') || 'flow';
-  activateTab(initial);
+  window.addEventListener('error', (e) => {
+    console.error('window error:', e.message, e.filename, e.lineno);
+  });
+  try {
+    const initial = new URLSearchParams(location.search).get('tab') || 'flow';
+    activateTab(initial);
+  } catch (err) {
+    console.error('initial render failed:', err);
+    document.getElementById('pane-flow').innerHTML =
+      `<div style="padding:20px;color:#f87171;">Initial render failed: ${err.message}<br><pre>${err.stack}</pre></div>`;
+  }
 </script>
 
 </body>
