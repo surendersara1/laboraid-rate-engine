@@ -7,17 +7,11 @@
   <meta name="description" content="End-to-end flow, service inventory, and error/logging reference for the LaborAid Rate Engine — NBS for LaborAid POC.">
   <meta name="robots" content="noindex,nofollow">
 
-  <!-- Render-time deps via CDN. Pinned so the SPA is reproducible. -->
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/highlight.js@11.10.0/styles/atom-one-dark.min.css">
+  <!-- Render-time deps via CDN. Pinned so the SPA is reproducible.
+       Only marked + mermaid — no syntax highlighting. Code blocks render
+       in monospace via the embedded CSS; that's enough for a doc deck. -->
   <script src="https://cdn.jsdelivr.net/npm/marked@13.0.3/marked.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/marked-highlight@2.1.4/lib/index.umd.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/mermaid@11.4.1/dist/mermaid.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/highlight.js@11.10.0/lib/highlight.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/highlight.js@11.10.0/lib/languages/python.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/highlight.js@11.10.0/lib/languages/javascript.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/highlight.js@11.10.0/lib/languages/json.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/highlight.js@11.10.0/lib/languages/bash.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/highlight.js@11.10.0/lib/languages/sql.min.js"></script>
 
   <style>
     :root {
@@ -418,40 +412,46 @@
 
 <script>
   // --- marked configuration (v13 API) ----------------------------------------
+  // Self-contained renderer override — no chaining into the original renderer.
+  // marked v13 calls renderer.code with a token object `{type, raw, lang, text}`.
+  // We emit the final HTML directly so there's no `bind(this)` chain that v13
+  // can trip on. Mermaid blocks become <div class="mermaid"> for mermaid.run();
+  // everything else becomes <pre><code class="language-xxx">…</code></pre>.
+  function escapeHtml(s) {
+    return String(s || '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+  }
+
   marked.setOptions({ gfm: true, breaks: false });
-
-  // marked-highlight extension — v13 dropped the `highlight` option, so the
-  // syntax-highlighting pass is now a registered extension instead.
-  marked.use(markedHighlight.markedHighlight({
-    langPrefix: 'hljs language-',
-    highlight(code, lang) {
-      if (lang === 'mermaid') return code; // pass through; we handle it below
-      if (lang && hljs.getLanguage(lang)) {
-        try { return hljs.highlight(code, { language: lang, ignoreIllegals: true }).value; }
-        catch (_) {}
-      }
-      return code;
+  marked.use({
+    renderer: {
+      // marked@13.0.3 still calls renderer.code with positional args
+      // (code: string, infostring: string, escaped: boolean) despite the
+      // docs claiming a token argument. Support both shapes defensively.
+      code(arg1, arg2 /*, arg3*/) {
+        let text, lang;
+        if (typeof arg1 === 'string') {
+          text = arg1;
+          lang = String(arg2 || '').match(/^\S*/)[0];
+        } else if (arg1 && typeof arg1 === 'object') {
+          text = arg1.text || '';
+          lang = String(arg1.lang || '').match(/^\S*/)[0];
+        } else {
+          text = '';
+          lang = '';
+        }
+        if (lang === 'mermaid') {
+          const id = 'mmd-' + Math.random().toString(36).slice(2, 9);
+          return `<div class="mermaid-wrapper"><div class="mermaid" id="${id}">${escapeHtml(text)}</div></div>`;
+        }
+        const cls = lang ? ` class="language-${escapeHtml(lang)}"` : '';
+        return `<pre><code${cls}>${escapeHtml(text)}</code></pre>\n`;
+      },
     },
-  }));
-
-  // Renderer override — pulls mermaid blocks out of the default <pre><code>
-  // so we can render them as SVG instead of text.
-  // v13 API: renderer.code({ text, lang, escaped }).
-  const renderer = new marked.Renderer();
-  const origCode = renderer.code.bind(renderer);
-  renderer.code = function(token) {
-    const lang = ((token && token.lang) || '').match(/^\S*/)[0];
-    if (lang === 'mermaid') {
-      const id = 'mmd-' + Math.random().toString(36).slice(2, 9);
-      const safe = token.text
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;');
-      return `<div class="mermaid-wrapper"><div class="mermaid" id="${id}">${safe}</div></div>`;
-    }
-    return origCode(token);
-  };
-  marked.use({ renderer });
+  });
 
   // --- mermaid configuration -------------------------------------------------
   const isDark = !window.matchMedia('(prefers-color-scheme: light)').matches;
