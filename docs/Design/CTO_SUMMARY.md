@@ -5,10 +5,10 @@
 **Repository:** `github.com/surendersara1/laboraid-rate-engine` · Branch `feat/aws-strands-integration` (PR-ready)
 **Status as of audit:** **Build complete. All 8 audit blockers fixed. All quality gates green. Ready for PR, merge, and first deploy.**
 
-> **Update (2026-06-10) — three new CTO-grade walkthrough docs landed:**
-> - [`CTO_END_TO_END_FLOW.md`](CTO_END_TO_END_FLOW.md) — the 14-step "user uploads a PDF → Calculator consumes published rates" narrative with every service, every Lambda, every Bedrock call, every error condition and observability hook in sequence. **This is the primary deck for the LaborAid CTO meeting.**
-> - [`CTO_SERVICE_INVENTORY.md`](CTO_SERVICE_INVENTORY.md) — slide-deck appendix: every Lambda, every SFN state, every Bedrock/Textract surface, every DDB table, every CloudWatch alarm, plus a rough $/day cost model.
-> - [`CTO_ERROR_AND_LOGGING_REFERENCE.md`](CTO_ERROR_AND_LOGGING_REFERENCE.md) — SRE / on-call reference: every HTTP code, every SFN retry policy, every log group, every replay playbook, every production SLO.
+> **Update (2026-06-10) — three product walkthrough docs landed (now under [`../Runbooks/`](../Runbooks/)):**
+> - [`../Runbooks/PRODUCT_END_TO_END_FLOW.md`](../Runbooks/PRODUCT_END_TO_END_FLOW.md) — the 14-step "user uploads a PDF → Calculator consumes published rates" narrative with every service, every Lambda, every Bedrock call, every error condition and observability hook in sequence. **This is the primary deck for the LaborAid CTO meeting.**
+> - [`../Runbooks/PRODUCT_SERVICE_INVENTORY.md`](../Runbooks/PRODUCT_SERVICE_INVENTORY.md) — slide-deck appendix: every Lambda, every SFN state, every Bedrock/Textract surface, every DDB table, every CloudWatch alarm, plus a rough $/day cost model.
+> - [`../Runbooks/PRODUCT_ERROR_AND_LOGGING_REFERENCE.md`](../Runbooks/PRODUCT_ERROR_AND_LOGGING_REFERENCE.md) — SRE / on-call reference: every HTTP code, every SFN retry policy, every log group, every replay playbook, every production SLO.
 >
 > Also new June 9-10: M1-M6 architectural moves + the OCR pre-processing step
 > (AWS Textract + pypdf text-layer detection) — covered in §4 of the end-to-end flow.

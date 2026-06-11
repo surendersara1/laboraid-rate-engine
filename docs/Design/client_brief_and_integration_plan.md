@@ -1,12 +1,12 @@
 # Client Brief and Integration Plan
 
 > **2026-06-10 update.** M1-M6 + OCR pre-processing landed and verified
-> against all 5 POC unions (see [`CTO_END_TO_END_FLOW.md`](CTO_END_TO_END_FLOW.md)
+> against all 5 POC unions (see [`../Runbooks/PRODUCT_END_TO_END_FLOW.md`](../Runbooks/PRODUCT_END_TO_END_FLOW.md)
 > §8 for the live test results table). The end-to-end story is now in
-> three companion docs:
-> - **Flow:** [`CTO_END_TO_END_FLOW.md`](CTO_END_TO_END_FLOW.md) — the 14-step walkthrough.
-> - **Services:** [`CTO_SERVICE_INVENTORY.md`](CTO_SERVICE_INVENTORY.md).
-> - **Errors + logs:** [`CTO_ERROR_AND_LOGGING_REFERENCE.md`](CTO_ERROR_AND_LOGGING_REFERENCE.md).
+> three companion docs under [`../Runbooks/`](../Runbooks/):
+> - **Flow:** [`../Runbooks/PRODUCT_END_TO_END_FLOW.md`](../Runbooks/PRODUCT_END_TO_END_FLOW.md) — the 14-step walkthrough.
+> - **Services:** [`../Runbooks/PRODUCT_SERVICE_INVENTORY.md`](../Runbooks/PRODUCT_SERVICE_INVENTORY.md).
+> - **Errors + logs:** [`../Runbooks/PRODUCT_ERROR_AND_LOGGING_REFERENCE.md`](../Runbooks/PRODUCT_ERROR_AND_LOGGING_REFERENCE.md).
 
 **Status:** Complete client input. **No further documents incoming from
 Dan or the LaborAid team** — what's catalogued here is the full input

@@ -22,7 +22,7 @@ PDF -> S3 inputs -> EventBridge -> Step Functions
    -> Business Inbox (UI)
 ```
 
-See [`../Design/CTO_END_TO_END_FLOW.md`](../Design/CTO_END_TO_END_FLOW.md) for
+See [`PRODUCT_END_TO_END_FLOW.md`](PRODUCT_END_TO_END_FLOW.md) for
 the full 14-step walkthrough, every error condition, and every observability
 hook.
 

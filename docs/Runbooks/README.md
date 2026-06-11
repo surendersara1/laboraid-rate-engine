@@ -3,6 +3,16 @@
 Operational + customer-facing documents the product produces and the team
 uses day-to-day.
 
+## Product walkthrough (CTO / Technical Director audience — primary deck)
+
+| File | Audience | What it covers |
+|---|---|---|
+| [PRODUCT_END_TO_END_FLOW.md](PRODUCT_END_TO_END_FLOW.md) | NBS CTO + Technical Directors + LaborAid CTO | **14-step flow** from "user uploads a PDF" → "Calculator consumes published rates." Every service, every Lambda, every Bedrock call, every error condition, every observability hook in sequence. |
+| [PRODUCT_SERVICE_INVENTORY.md](PRODUCT_SERVICE_INVENTORY.md) | Same as above (slide-deck appendix) | Every Lambda (17), every SFN state, every Bedrock/Textract surface, every DDB table + Aurora schema, recommended CloudWatch alarms, $/day cost model. |
+| [PRODUCT_ERROR_AND_LOGGING_REFERENCE.md](PRODUCT_ERROR_AND_LOGGING_REFERENCE.md) | SRE / on-call | Every HTTP code with body, every SFN retry policy, every log group, Powertools schema, CloudWatch Insights replay query, production SLOs, hardening checklist. |
+
+## Ops + customer-facing
+
 | File | Audience | What it covers |
 |---|---|---|
 | [RUNBOOK.md](RUNBOOK.md) | Ops | Deploy procedure, alarms, kernel regression gate, rollback, plus a "What if…" Q&A section for the questions that come up in conversation. |

@@ -1,7 +1,7 @@
 # LaborAid Rate Engine — Error Conditions & Logging Reference
 
 > **Audience.** SRE / on-call. Field-level reference; the narrative lives in
-> [`CTO_END_TO_END_FLOW.md`](CTO_END_TO_END_FLOW.md).
+> [`PRODUCT_END_TO_END_FLOW.md`](PRODUCT_END_TO_END_FLOW.md).
 > **Read this as.** "Something went wrong at step N — where do I look first?"
 
 ---

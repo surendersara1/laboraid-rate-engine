@@ -1,6 +1,6 @@
 # LaborAid Rate Engine — Service Inventory & Observability Matrix
 
-> **Audience.** Same as [`CTO_END_TO_END_FLOW.md`](CTO_END_TO_END_FLOW.md). This is the slide-deck appendix you keep open in a second tab during Q&A.
+> **Audience.** Same as [`PRODUCT_END_TO_END_FLOW.md`](PRODUCT_END_TO_END_FLOW.md). This is the slide-deck appendix you keep open in a second tab during Q&A.
 > **Pairs with.** The end-to-end flow doc for narrative; this doc for "where in the stack does X live."
 
 ---
