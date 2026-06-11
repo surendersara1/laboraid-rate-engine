@@ -220,10 +220,9 @@ the main body — check the addenda. CBA prose DEFAULTS TO THE JOURNEYMAN
 RATE unless explicitly stated otherwise.
 
 If a Rate Notice for the SAME period was uploaded alongside this CBA in
-the batch, the Rate Notice handles Building. Your job in that case is
-ONLY the Residential package (Foreman + Journeyman), IF AND ONLY IF the
-CBA contains a Residential section with explicit wage values. Otherwise
-emit zero rows.
+the batch, the Rate Notice handles Building. Your job in that case is to
+extract the Residential package (Foreman + Journeyman + every Apprentice
+class), IF AND ONLY IF the CBA contains a Residential section.
 
 Output shape is identical to the Rate Notice output (see above). Use
 the Master Fund List "Fund Name" verbatim for every fund column.
@@ -232,11 +231,62 @@ If the CBA is the only document in the batch, extract everything you
 can from it — Building Foreman/Journeyman, fringe schedules, the full
 package — using the Master Lists below.
 
-DO NOT EMIT APPRENTICE ROWS unless the CBA contains a Residential
-Apprentice/Trainee dollar table with explicit values. If the CBA only
-shows a Building Apprentice percentage schedule (Article 15 in some
-CBAs), do NOT apply it to Residential. The dedicated Wage Rate Sheet
-or Apprentice Scale PDF in the batch is the source for those.
+CRITICAL — RESIDENTIAL APPRENTICE PERCENTAGE SCHEDULES:
+
+Many CBAs (483, 281, others) define Residential Apprentice wages NOT as
+explicit dollar tables but as PERCENTAGES of the Residential Journeyman
+wage rate, e.g.:
+
+  "Residential Apprentices working under this Agreement shall be paid
+   wages equal to the following percentages of the Residential Sprinkler
+   Fitter wage rate:
+       Residential Apprentice 1:  47%
+       Residential Apprentice 2:  52%
+       Residential Apprentice 3:  66%
+       Residential Apprentice 4:  75%
+       Residential Apprentice 5:  89%"
+
+When you see this pattern, YOU MUST:
+
+  1. Locate the Residential Journeyman / Sprinkler Fitter base wage in
+     the same CBA (typically on the adjacent page, in a per-hour table
+     headed "RESIDENTIAL SPRINKLER FITTER" or "Wage Rate $XX.XX per
+     hour"). Use the wage effective on the rate period's start_date.
+
+  2. Compute each Apprentice's Wage column as:
+         apprentice_wage = round(base_wage * percentage, 2)
+     Round to 2 decimal places. The percentage is a decimal: 47% = 0.47.
+
+  3. Compute the wage multipliers from the apprentice wage:
+         Wage 1.5x = round(apprentice_wage * 1.5, 2)
+         Wage 2.0x = round(apprentice_wage * 2.0, 2)
+         Wage Differential = the per-row delta to standard Wage, or
+                             match Foreman/Journeyman pattern from the
+                             same CBA (often = Wage * 1.15 for 483).
+
+  4. Inherit fringe values (Health & Welfare, Pension, HRA, etc.) from
+     the Residential Foreman/Journeyman row UNLESS the CBA explicitly
+     states an apprentice differs. SOP §4 rules:
+       - "Work Assessment #2 ($1.05/hr) applies ONLY to Residential
+          Foreman/Journeyman → 0 for Residential Apprentices."
+       - "Vacation Withholding applies ONLY to Residential Foreman/
+          Journeyman → 0 for Residential Apprentices."
+       - "Work Assessment #1: $0.50 for Apprentice 3-5, $0 for 1-2."
+     Apply these rules as zero_by_rule when the CBA narrative confirms.
+
+  5. Emit the apprentice rows EVEN IF the CBA does not give a dollar
+     table — the percentage schedule + the journeyman wage is sufficient
+     to derive every cell. Set provenance.method = "derived_from_cba"
+     for these rows in your reasoning trail (the canonical schema only
+     carries scalar values, but recording the derivation matters).
+
+If a Wage Rate Sheet or Apprentice Scale PDF is ALSO in the batch, that
+document supersedes the CBA-derived values for the cells it covers. The
+publisher merges; per-cell provenance records which doc filled which.
+
+If the CBA only shows a Building Apprentice percentage schedule (Article
+15), do NOT apply it to Residential — Building and Residential are
+distinct package families.
 """
 
 _WAGE_RATE_SHEET_BODY = """The document is a 3-5 page Wage Rate Sheet — a complete rate package
