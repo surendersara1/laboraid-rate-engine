@@ -140,13 +140,19 @@ def handler(event: dict[str, Any], _context: Any) -> dict[str, Any]:
         batch_id = body.get("batch_id") or ""
         batch_period = (body.get("batch_period") or "").strip()
         content_hash = (body.get("content_hash") or "").lower()
+        # force=true bypasses content-hash dedup: the reviewer explicitly
+        # wants this PDF re-extracted (e.g. extraction logic improved since
+        # the first run, or the prior run produced wrong values). We delete
+        # the prior hash row so the fresh row inserted below wins, and the
+        # re-run is audit-visible via the new batch_id.
+        force = bool(body.get("force"))
 
         # Content-hash dedup. If we've already seen this exact byte content
         # processed to completion, skip — give the caller the existing
         # period info so the UI can route them straight to that rate sheet.
         if content_hash:
             prior = _lookup_hash(content_hash)
-            if prior:
+            if prior and not force:
                 logger.info(
                     "upload-presign: dedup hit for %s — skipping new upload",
                     content_hash[:12],
@@ -158,6 +164,18 @@ def handler(event: dict[str, Any], _context: Any) -> dict[str, Any]:
                     "existing_s3_key": prior.get("s3_key"),
                     "first_seen_at": prior.get("first_seen_at"),
                 })
+            if prior and force:
+                logger.info(
+                    "upload-presign: FORCE reprocess for %s (prior period %s)",
+                    content_hash[:12], prior.get("period_id"),
+                )
+                try:
+                    import boto3 as _b
+                    _b.resource("dynamodb").Table(FILE_HASHES_TABLE).delete_item(
+                        Key={"content_hash": content_hash}
+                    )
+                except Exception as e:  # pragma: no cover
+                    logger.warning("force: prior hash delete failed: %s", e)
 
         key = build_key(filename, batch_id=batch_id, batch_period=batch_period)
         import boto3

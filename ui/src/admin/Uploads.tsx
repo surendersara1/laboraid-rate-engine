@@ -170,6 +170,7 @@ export function Uploads(): JSX.Element {
     batchId: string,
     batchPeriod: string | null,
     updateOne: (id: string, patch: Partial<StagedFile>) => void,
+    force = false,
   ) => {
     try {
       updateOne(s.id, { status: "hashing" });
@@ -180,6 +181,7 @@ export function Uploads(): JSX.Element {
         batch_id: batchId,
         batch_period: batchPeriod ?? undefined,
         content_hash: contentHash,
+        ...(force ? { force: true } : {}),
       });
       if (presign.status === "duplicate") {
         updateOne(s.id, {
@@ -197,6 +199,19 @@ export function Uploads(): JSX.Element {
     } catch (e) {
       updateOne(s.id, { status: "error", detail: String(e) });
     }
+  };
+
+  // Force re-process a single file the dedup gate skipped: re-runs the
+  // presign with force=true (server deletes the prior content-hash row),
+  // PUTs the PDF, and the pipeline extracts it fresh. The new cells MERGE
+  // into the existing period (filling NULLs / appending); audit trail keeps
+  // both batch ids.
+  const forceOne = async (id: string) => {
+    const target = staged.find((s) => s.id === id);
+    if (!target || !activeBatch) return;
+    const updateOne = (sid: string, patch: Partial<StagedFile>) =>
+      setStaged((prev) => prev.map((s) => (s.id === sid ? { ...s, ...patch } : s)));
+    await uploadOne(target, activeBatch.batch_id, activeBatch.batch_period, updateOne, true);
   };
 
   const processNow = async () => {
@@ -295,6 +310,15 @@ export function Uploads(): JSX.Element {
                     </span>
                     {s.detail && (
                       <span className="text-xs text-slate-500">{s.detail}</span>
+                    )}
+                    {s.status === "duplicate" && (
+                      <button
+                        onClick={() => forceOne(s.id)}
+                        className="rounded-md border border-amber-300 bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-800 hover:bg-amber-100"
+                        title="Bypass the duplicate check and re-extract this PDF with the current pipeline. New values merge into the existing period; the audit trail records the re-run."
+                      >
+                        Force re-process
+                      </button>
                     )}
                     {s.status === "staged" && (
                       <button
