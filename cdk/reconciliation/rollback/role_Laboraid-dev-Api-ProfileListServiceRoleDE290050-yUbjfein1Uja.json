@@ -1,0 +1,16 @@
+== inline policy names ==
+{
+    "PolicyNames": [
+        "ProfileListServiceRoleDefaultPolicy48F496E5",
+        "rds-data-profiles"
+    ]
+}
+== attached managed ==
+{
+    "AttachedPolicies": [
+        {
+            "PolicyName": "AWSLambdaBasicExecutionRole",
+            "PolicyArn": "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
+        }
+    ]
+}

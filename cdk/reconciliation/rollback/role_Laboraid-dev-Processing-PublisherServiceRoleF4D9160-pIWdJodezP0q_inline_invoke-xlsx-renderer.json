@@ -1,0 +1,18 @@
+{
+    "RoleName": "Laboraid-dev-Processing-PublisherServiceRoleF4D9160-pIWdJodezP0q",
+    "PolicyName": "invoke-xlsx-renderer",
+    "PolicyDocument": {
+        "Version": "2012-10-17",
+        "Statement": [
+            {
+                "Effect": "Allow",
+                "Action": [
+                    "lambda:InvokeFunction"
+                ],
+                "Resource": [
+                    "arn:aws:lambda:us-east-2:908106425069:function:laboraid-dev-l7-fn-renderer-xlsx"
+                ]
+            }
+        ]
+    }
+}

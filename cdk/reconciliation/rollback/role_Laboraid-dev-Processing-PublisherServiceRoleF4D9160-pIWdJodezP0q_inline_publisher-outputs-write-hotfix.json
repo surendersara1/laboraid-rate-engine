@@ -1,0 +1,27 @@
+{
+    "RoleName": "Laboraid-dev-Processing-PublisherServiceRoleF4D9160-pIWdJodezP0q",
+    "PolicyName": "publisher-outputs-write-hotfix",
+    "PolicyDocument": {
+        "Version": "2012-10-17",
+        "Statement": [
+            {
+                "Effect": "Allow",
+                "Action": [
+                    "s3:PutObject",
+                    "s3:DeleteObject",
+                    "s3:AbortMultipartUpload"
+                ],
+                "Resource": "arn:aws:s3:::laboraid-dev-l3-bucket-outputs/*"
+            },
+            {
+                "Effect": "Allow",
+                "Action": [
+                    "kms:Encrypt",
+                    "kms:GenerateDataKey",
+                    "kms:GenerateDataKey*"
+                ],
+                "Resource": "arn:aws:kms:us-east-2:908106425069:key/45c8f457-2906-4434-b6f1-afed538eb6e2"
+            }
+        ]
+    }
+}

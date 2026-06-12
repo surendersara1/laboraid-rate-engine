@@ -1,0 +1,56 @@
+{
+    "RoleName": "Laboraid-dev-Processing-PublisherServiceRoleF4D9160-pIWdJodezP0q",
+    "PolicyName": "PublisherServiceRoleDefaultPolicy0E21E942",
+    "PolicyDocument": {
+        "Version": "2012-10-17",
+        "Statement": [
+            {
+                "Action": [
+                    "xray:PutTelemetryRecords",
+                    "xray:PutTraceSegments"
+                ],
+                "Resource": "*",
+                "Effect": "Allow"
+            },
+            {
+                "Action": [
+                    "s3:GetBucket*",
+                    "s3:GetObject*",
+                    "s3:List*"
+                ],
+                "Resource": [
+                    "arn:aws:s3:::laboraid-dev-l3-bucket-outputs",
+                    "arn:aws:s3:::laboraid-dev-l3-bucket-outputs/*"
+                ],
+                "Effect": "Allow"
+            },
+            {
+                "Action": [
+                    "kms:Decrypt",
+                    "kms:DescribeKey"
+                ],
+                "Resource": "arn:aws:kms:us-east-2:908106425069:key/45c8f457-2906-4434-b6f1-afed538eb6e2",
+                "Effect": "Allow"
+            },
+            {
+                "Action": [
+                    "rds-data:BatchExecuteStatement",
+                    "rds-data:BeginTransaction",
+                    "rds-data:CommitTransaction",
+                    "rds-data:ExecuteStatement",
+                    "rds-data:RollbackTransaction"
+                ],
+                "Resource": "arn:aws:rds:us-east-2:908106425069:cluster:laboraid-dev-l3-aurora-cluster",
+                "Effect": "Allow"
+            },
+            {
+                "Action": [
+                    "secretsmanager:DescribeSecret",
+                    "secretsmanager:GetSecretValue"
+                ],
+                "Resource": "arn:aws:secretsmanager:us-east-2:908106425069:secret:laboraid-dev-l3-secret-aurora-1tsRI5",
+                "Effect": "Allow"
+            }
+        ]
+    }
+}

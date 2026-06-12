@@ -1,0 +1,9 @@
+== inline policy names ==
+{
+    "PolicyNames": [
+        "invoke-batch-planner",
+        "invoke-ocr-preprocess",
+        "invoke-synthesizer",
+        "MainPipelineRoleDefaultPolicyCE271BF9"
+    ]
+}

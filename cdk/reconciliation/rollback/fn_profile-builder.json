@@ -1,0 +1,56 @@
+{
+    "FunctionName": "laboraid-dev-l4-fn-profile-builder",
+    "FunctionArn": "arn:aws:lambda:us-east-2:908106425069:function:laboraid-dev-l4-fn-profile-builder",
+    "Runtime": "python3.12",
+    "Role": "arn:aws:iam::908106425069:role/Laboraid-dev-Processing-LlmExtractorServiceRole5953-7yv71qdkhE6t",
+    "Handler": "handler.handler",
+    "CodeSize": 344153,
+    "Description": "",
+    "Timeout": 900,
+    "MemorySize": 1024,
+    "LastModified": "2026-06-12T00:17:26.000+0000",
+    "CodeSha256": "vGSb8a+omaHRJW+iLyzogEUEnDB/X9IrWoSH+3wumFg=",
+    "Version": "$LATEST",
+    "Environment": {
+        "Variables": {
+            "POWERTOOLS_SERVICE_NAME": "laboraid-profile-builder",
+            "AURORA_SECRET_ARN": "arn:aws:secretsmanager:us-east-2:908106425069:secret:laboraid-dev-l3-secret-aurora-1tsRI5",
+            "INPUTS_BUCKET": "laboraid-dev-l3-bucket-inputs",
+            "SYNTH_MODEL_ID": "us.anthropic.claude-opus-4-5-20251101-v1:0",
+            "BEDROCK_GUARDRAIL_ID": "n90pzu1mx4zk",
+            "ENV": "dev",
+            "LOG_LEVEL": "INFO",
+            "AURORA_CLUSTER_ARN": "arn:aws:rds:us-east-2:908106425069:cluster:laboraid-dev-l3-aurora-cluster"
+        }
+    },
+    "TracingConfig": {
+        "Mode": "PassThrough"
+    },
+    "RevisionId": "1e1fa9c2-bb1e-475d-89f6-d4aa0a01f954",
+    "Layers": [
+        {
+            "Arn": "arn:aws:lambda:us-east-2:017000801446:layer:AWSLambdaPowertoolsPythonV3-python312-arm64:25",
+            "CodeSize": 8808370
+        }
+    ],
+    "State": "Active",
+    "LastUpdateStatus": "Successful",
+    "PackageType": "Zip",
+    "Architectures": [
+        "arm64"
+    ],
+    "EphemeralStorage": {
+        "Size": 512
+    },
+    "SnapStart": {
+        "ApplyOn": "None",
+        "OptimizationStatus": "Off"
+    },
+    "RuntimeVersionConfig": {
+        "RuntimeVersionArn": "arn:aws:lambda:us-east-2::runtime:bec1042407ffdf4a1e2261cba8ed01949f62579da0d7ee83345b26dd8890eef8"
+    },
+    "LoggingConfig": {
+        "LogFormat": "Text",
+        "LogGroup": "/aws/lambda/laboraid-dev-l4-fn-profile-builder"
+    }
+}

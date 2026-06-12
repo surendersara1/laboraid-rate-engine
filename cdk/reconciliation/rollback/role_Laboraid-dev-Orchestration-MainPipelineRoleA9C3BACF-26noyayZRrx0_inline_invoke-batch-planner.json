@@ -1,0 +1,23 @@
+{
+    "RoleName": "Laboraid-dev-Orchestration-MainPipelineRoleA9C3BACF-26noyayZRrx0",
+    "PolicyName": "invoke-batch-planner",
+    "PolicyDocument": {
+        "Version": "2012-10-17",
+        "Statement": [
+            {
+                "Effect": "Allow",
+                "Action": "lambda:InvokeFunction",
+                "Resource": [
+                    "arn:aws:lambda:us-east-2:908106425069:function:laboraid-dev-l4-fn-batch-planner",
+                    "arn:aws:lambda:us-east-2:908106425069:function:laboraid-dev-l4-fn-batch-planner:*",
+                    "arn:aws:lambda:us-east-2:908106425069:function:laboraid-dev-l4-fn-ocr-preprocess",
+                    "arn:aws:lambda:us-east-2:908106425069:function:laboraid-dev-l4-fn-ocr-preprocess:*",
+                    "arn:aws:lambda:us-east-2:908106425069:function:laboraid-dev-l3-fn-extractor-invoker",
+                    "arn:aws:lambda:us-east-2:908106425069:function:laboraid-dev-l3-fn-extractor-invoker:*",
+                    "arn:aws:lambda:us-east-2:908106425069:function:laboraid-dev-l4-fn-publisher",
+                    "arn:aws:lambda:us-east-2:908106425069:function:laboraid-dev-l4-fn-publisher:*"
+                ]
+            }
+        ]
+    }
+}

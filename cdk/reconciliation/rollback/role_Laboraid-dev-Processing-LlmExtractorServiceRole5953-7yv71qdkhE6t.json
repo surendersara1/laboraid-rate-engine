@@ -1,0 +1,17 @@
+== inline policy names ==
+{
+    "PolicyNames": [
+        "invoke-profile-builder",
+        "LlmExtractorServiceRoleDefaultPolicy98A9102E",
+        "rds-data-profiles"
+    ]
+}
+== attached managed ==
+{
+    "AttachedPolicies": [
+        {
+            "PolicyName": "AWSLambdaBasicExecutionRole",
+            "PolicyArn": "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
+        }
+    ]
+}

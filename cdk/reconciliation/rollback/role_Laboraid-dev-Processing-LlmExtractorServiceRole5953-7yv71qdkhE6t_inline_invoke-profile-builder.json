@@ -1,0 +1,17 @@
+{
+    "RoleName": "Laboraid-dev-Processing-LlmExtractorServiceRole5953-7yv71qdkhE6t",
+    "PolicyName": "invoke-profile-builder",
+    "PolicyDocument": {
+        "Version": "2012-10-17",
+        "Statement": [
+            {
+                "Effect": "Allow",
+                "Action": "lambda:InvokeFunction",
+                "Resource": [
+                    "arn:aws:lambda:us-east-2:908106425069:function:laboraid-dev-l4-fn-profile-builder",
+                    "arn:aws:lambda:us-east-2:908106425069:function:laboraid-dev-l4-fn-profile-builder:*"
+                ]
+            }
+        ]
+    }
+}

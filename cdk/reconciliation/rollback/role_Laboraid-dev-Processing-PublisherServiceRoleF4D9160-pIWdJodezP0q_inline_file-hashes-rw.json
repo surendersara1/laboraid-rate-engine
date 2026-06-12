@@ -1,0 +1,22 @@
+{
+    "RoleName": "Laboraid-dev-Processing-PublisherServiceRoleF4D9160-pIWdJodezP0q",
+    "PolicyName": "file-hashes-rw",
+    "PolicyDocument": {
+        "Version": "2012-10-17",
+        "Statement": [
+            {
+                "Effect": "Allow",
+                "Action": [
+                    "dynamodb:GetItem",
+                    "dynamodb:PutItem",
+                    "dynamodb:Query",
+                    "dynamodb:Scan",
+                    "dynamodb:UpdateItem"
+                ],
+                "Resource": [
+                    "arn:aws:dynamodb:us-east-2:908106425069:table/laboraid-dev-l3-ddb-file-hashes"
+                ]
+            }
+        ]
+    }
+}
