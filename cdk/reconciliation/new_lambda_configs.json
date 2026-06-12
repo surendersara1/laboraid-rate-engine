@@ -1,0 +1,105 @@
+{
+  "laboraid-dev-l4-fn-synthesizer": {
+    "Runtime": "python3.12",
+    "Handler": "handler.handler",
+    "Role": "arn:aws:iam::908106425069:role/Laboraid-dev-Processing-LlmExtractorServiceRole5953-7yv71qdkhE6t",
+    "Timeout": 900,
+    "MemorySize": 1024,
+    "Architectures": [
+      "arm64"
+    ],
+    "Layers": [
+      "arn:aws:lambda:us-east-2:017000801446:layer:AWSLambdaPowertoolsPythonV3-python312-arm64:25"
+    ],
+    "Env": [
+      "AURORA_CLUSTER_ARN",
+      "AURORA_SECRET_ARN",
+      "BEDROCK_GUARDRAIL_ID",
+      "ENV",
+      "INPUTS_BUCKET",
+      "LOG_LEVEL",
+      "OUTPUTS_BUCKET",
+      "POWERTOOLS_SERVICE_NAME",
+      "PROFILE_BUILDER_FN",
+      "SYNTH_MODEL_ID"
+    ]
+  },
+  "laboraid-dev-l4-fn-synth-publish": {
+    "Runtime": "python3.12",
+    "Handler": "handler.handler",
+    "Role": "arn:aws:iam::908106425069:role/Laboraid-dev-Processing-PublisherServiceRoleF4D9160-pIWdJodezP0q",
+    "Timeout": 300,
+    "MemorySize": 512,
+    "Architectures": [
+      "arm64"
+    ],
+    "Layers": [
+      "arn:aws:lambda:us-east-2:017000801446:layer:AWSLambdaPowertoolsPythonV3-python312-arm64:25"
+    ],
+    "Env": [
+      "AURORA_CLUSTER_ARN",
+      "AURORA_SECRET_ARN",
+      "ENV",
+      "LOG_LEVEL",
+      "OUTPUTS_BUCKET",
+      "POWERTOOLS_SERVICE_NAME"
+    ]
+  },
+  "laboraid-dev-l4-fn-profile-builder": {
+    "Runtime": "python3.12",
+    "Handler": "handler.handler",
+    "Role": "arn:aws:iam::908106425069:role/Laboraid-dev-Processing-LlmExtractorServiceRole5953-7yv71qdkhE6t",
+    "Timeout": 900,
+    "MemorySize": 1024,
+    "Architectures": [
+      "arm64"
+    ],
+    "Layers": [
+      "arn:aws:lambda:us-east-2:017000801446:layer:AWSLambdaPowertoolsPythonV3-python312-arm64:25"
+    ],
+    "Env": [
+      "AURORA_CLUSTER_ARN",
+      "AURORA_SECRET_ARN",
+      "BEDROCK_GUARDRAIL_ID",
+      "ENV",
+      "INPUTS_BUCKET",
+      "LOG_LEVEL",
+      "POWERTOOLS_SERVICE_NAME",
+      "SYNTH_MODEL_ID"
+    ]
+  },
+  "laboraid-dev-l4-fn-batch-planner": {
+    "Runtime": "python3.12",
+    "Handler": "handler.handler",
+    "Role": "arn:aws:iam::908106425069:role/laboraid-dev-l4-role-batch-planner",
+    "Timeout": 300,
+    "MemorySize": 1024,
+    "Architectures": [
+      "x86_64"
+    ],
+    "Layers": [
+      "arn:aws:lambda:us-east-2:017000801446:layer:AWSLambdaPowertoolsPythonV3-python312-x86_64:24"
+    ],
+    "Env": [
+      "CLASSIFIER_FN",
+      "INPUTS_BUCKET"
+    ]
+  },
+  "laboraid-dev-l2-fn-batch-process": {
+    "Runtime": "python3.12",
+    "Handler": "handler.handler",
+    "Role": "arn:aws:iam::908106425069:role/laboraid-dev-l2-role-batch-process",
+    "Timeout": 30,
+    "MemorySize": 1024,
+    "Architectures": [
+      "x86_64"
+    ],
+    "Layers": [
+      "arn:aws:lambda:us-east-2:017000801446:layer:AWSLambdaPowertoolsPythonV3-python312-x86_64:24",
+      "arn:aws:lambda:us-east-2:908106425069:layer:laboraid-dev-l2-layer-authz:2"
+    ],
+    "Env": [
+      "STATE_MACHINE_ARN"
+    ]
+  }
+}

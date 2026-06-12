@@ -1,0 +1,208 @@
+{
+  "Laboraid-dev-Orchestration-MainPipelineRoleA9C3BACF-26noyayZRrx0": {
+    "invoke-batch-planner": {
+      "Version": "2012-10-17",
+      "Statement": [
+        {
+          "Effect": "Allow",
+          "Action": "lambda:InvokeFunction",
+          "Resource": [
+            "arn:aws:lambda:us-east-2:908106425069:function:laboraid-dev-l4-fn-batch-planner",
+            "arn:aws:lambda:us-east-2:908106425069:function:laboraid-dev-l4-fn-batch-planner:*",
+            "arn:aws:lambda:us-east-2:908106425069:function:laboraid-dev-l4-fn-ocr-preprocess",
+            "arn:aws:lambda:us-east-2:908106425069:function:laboraid-dev-l4-fn-ocr-preprocess:*",
+            "arn:aws:lambda:us-east-2:908106425069:function:laboraid-dev-l3-fn-extractor-invoker",
+            "arn:aws:lambda:us-east-2:908106425069:function:laboraid-dev-l3-fn-extractor-invoker:*",
+            "arn:aws:lambda:us-east-2:908106425069:function:laboraid-dev-l4-fn-publisher",
+            "arn:aws:lambda:us-east-2:908106425069:function:laboraid-dev-l4-fn-publisher:*"
+          ]
+        }
+      ]
+    },
+    "invoke-ocr-preprocess": {
+      "Version": "2012-10-17",
+      "Statement": [
+        {
+          "Effect": "Allow",
+          "Action": "lambda:InvokeFunction",
+          "Resource": "arn:aws:lambda:us-east-2:908106425069:function:laboraid-dev-l4-fn-ocr-preprocess:*"
+        },
+        {
+          "Effect": "Allow",
+          "Action": "lambda:InvokeFunction",
+          "Resource": "arn:aws:lambda:us-east-2:908106425069:function:laboraid-dev-l4-fn-ocr-preprocess"
+        }
+      ]
+    },
+    "invoke-synthesizer": {
+      "Version": "2012-10-17",
+      "Statement": [
+        {
+          "Effect": "Allow",
+          "Action": "lambda:InvokeFunction",
+          "Resource": [
+            "arn:aws:lambda:us-east-2:908106425069:function:laboraid-dev-l4-fn-synthesizer",
+            "arn:aws:lambda:us-east-2:908106425069:function:laboraid-dev-l4-fn-synthesizer:*",
+            "arn:aws:lambda:us-east-2:908106425069:function:laboraid-dev-l4-fn-synth-publish",
+            "arn:aws:lambda:us-east-2:908106425069:function:laboraid-dev-l4-fn-synth-publish:*"
+          ]
+        }
+      ]
+    },
+    "MainPipelineRoleDefaultPolicyCE271BF9": {
+      "Version": "2012-10-17",
+      "Statement": [
+        {
+          "Action": "lambda:InvokeFunction",
+          "Resource": [
+            "arn:aws:lambda:us-east-2:908106425069:function:laboraid-dev-l3-fn-extractor-invoker",
+            "arn:aws:lambda:us-east-2:908106425069:function:laboraid-dev-l4-fn-classifier",
+            "arn:aws:lambda:us-east-2:908106425069:function:laboraid-dev-l4-fn-publisher",
+            "arn:aws:lambda:us-east-2:908106425069:function:laboraid-dev-l3-fn-extractor-invoker:*",
+            "arn:aws:lambda:us-east-2:908106425069:function:laboraid-dev-l4-fn-classifier:*",
+            "arn:aws:lambda:us-east-2:908106425069:function:laboraid-dev-l4-fn-publisher:*"
+          ],
+          "Effect": "Allow"
+        },
+        {
+          "Action": "dynamodb:GetItem",
+          "Resource": "arn:aws:dynamodb:us-east-2:908106425069:table/laboraid-dev-l3-ddb-agent-config",
+          "Effect": "Allow"
+        },
+        {
+          "Action": [
+            "logs:CreateLogDelivery",
+            "logs:DeleteLogDelivery",
+            "logs:DescribeLogGroups",
+            "logs:DescribeResourcePolicies",
+            "logs:GetLogDelivery",
+            "logs:ListLogDeliveries",
+            "logs:PutResourcePolicy",
+            "logs:UpdateLogDelivery",
+            "xray:GetSamplingRules",
+            "xray:GetSamplingTargets",
+            "xray:PutTelemetryRecords",
+            "xray:PutTraceSegments"
+          ],
+          "Resource": "*",
+          "Effect": "Allow"
+        },
+        {
+          "Action": "kms:Decrypt",
+          "Resource": "arn:aws:kms:us-east-2:908106425069:key/45c8f457-2906-4434-b6f1-afed538eb6e2",
+          "Effect": "Allow"
+        }
+      ]
+    }
+  },
+  "Laboraid-dev-Processing-LlmExtractorServiceRole5953-7yv71qdkhE6t": {
+    "invoke-profile-builder": {
+      "Version": "2012-10-17",
+      "Statement": [
+        {
+          "Effect": "Allow",
+          "Action": "lambda:InvokeFunction",
+          "Resource": [
+            "arn:aws:lambda:us-east-2:908106425069:function:laboraid-dev-l4-fn-profile-builder",
+            "arn:aws:lambda:us-east-2:908106425069:function:laboraid-dev-l4-fn-profile-builder:*"
+          ]
+        }
+      ]
+    },
+    "LlmExtractorServiceRoleDefaultPolicy98A9102E": {
+      "Version": "2012-10-17",
+      "Statement": [
+        {
+          "Action": [
+            "xray:PutTelemetryRecords",
+            "xray:PutTraceSegments"
+          ],
+          "Resource": "*",
+          "Effect": "Allow"
+        },
+        {
+          "Action": [
+            "s3:GetBucket*",
+            "s3:GetObject*",
+            "s3:List*"
+          ],
+          "Resource": [
+            "arn:aws:s3:::laboraid-dev-l3-bucket-inputs",
+            "arn:aws:s3:::laboraid-dev-l3-bucket-inputs/*"
+          ],
+          "Effect": "Allow"
+        },
+        {
+          "Action": [
+            "kms:Decrypt",
+            "kms:DescribeKey",
+            "kms:Encrypt",
+            "kms:GenerateDataKey*",
+            "kms:ReEncrypt*"
+          ],
+          "Resource": "arn:aws:kms:us-east-2:908106425069:key/45c8f457-2906-4434-b6f1-afed538eb6e2",
+          "Effect": "Allow"
+        },
+        {
+          "Action": [
+            "s3:Abort*",
+            "s3:DeleteObject*",
+            "s3:GetBucket*",
+            "s3:GetObject*",
+            "s3:List*",
+            "s3:PutObject",
+            "s3:PutObjectLegalHold",
+            "s3:PutObjectRetention",
+            "s3:PutObjectTagging",
+            "s3:PutObjectVersionTagging"
+          ],
+          "Resource": [
+            "arn:aws:s3:::laboraid-dev-l3-bucket-outputs",
+            "arn:aws:s3:::laboraid-dev-l3-bucket-outputs/*"
+          ],
+          "Effect": "Allow"
+        },
+        {
+          "Action": [
+            "bedrock:Converse",
+            "bedrock:ConverseStream",
+            "bedrock:InvokeModel",
+            "bedrock:InvokeModelWithResponseStream"
+          ],
+          "Resource": [
+            "arn:aws:bedrock:*::foundation-model/anthropic.claude-*",
+            "arn:aws:bedrock:us-east-2:908106425069:inference-profile/*"
+          ],
+          "Effect": "Allow"
+        },
+        {
+          "Action": "bedrock:ApplyGuardrail",
+          "Resource": "arn:aws:bedrock:us-east-2:908106425069:guardrail/n90pzu1mx4zk",
+          "Effect": "Allow"
+        }
+      ]
+    },
+    "rds-data-profiles": {
+      "Version": "2012-10-17",
+      "Statement": [
+        {
+          "Effect": "Allow",
+          "Action": [
+            "rds-data:ExecuteStatement",
+            "rds-data:BatchExecuteStatement"
+          ],
+          "Resource": "arn:aws:rds:us-east-2:908106425069:cluster:laboraid-dev-l3-aurora-cluster"
+        },
+        {
+          "Effect": "Allow",
+          "Action": [
+            "secretsmanager:GetSecretValue"
+          ],
+          "Resource": "arn:aws:secretsmanager:us-east-2:908106425069:secret:laboraid-dev-l3-secret-aurora-1tsRI5"
+        }
+      ]
+    }
+  },
+  "Laboraid-dev-Api-ProfileListServiceRoleDE290050-yUbjfei": "err An error occurred (NoSuchEntity) when ca",
+  "Laboraid-dev-Api-ProfileUpdateServiceRoleCC284331-2TQ4V": "err An error occurred (NoSuchEntity) when ca"
+}

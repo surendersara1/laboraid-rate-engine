@@ -1,0 +1,115 @@
+{
+  "Comment": "Objective-driven: PLAN -> SYNTHESIZE(all docs, profile) -> SYNTH-PUBLISH(Aurora, cohorts) ",
+  "StartAt": "Plan",
+  "TimeoutSeconds": 3600,
+  "States": {
+    "Plan": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::lambda:invoke",
+      "Parameters": {
+        "FunctionName": "arn:aws:lambda:us-east-2:908106425069:function:laboraid-dev-l4-fn-batch-planner",
+        "Payload.$": "$"
+      },
+      "ResultSelector": {
+        "plan.$": "$.Payload"
+      },
+      "OutputPath": "$.plan",
+      "Retry": [
+        {
+          "ErrorEquals": [
+            "Lambda.ServiceException",
+            "Lambda.TooManyRequestsException",
+            "States.TaskFailed"
+          ],
+          "IntervalSeconds": 5,
+          "MaxAttempts": 2,
+          "BackoffRate": 2.0
+        }
+      ],
+      "Catch": [
+        {
+          "ErrorEquals": [
+            "States.ALL"
+          ],
+          "ResultPath": "$.error",
+          "Next": "PipelineFailed"
+        }
+      ],
+      "Next": "Synthesize"
+    },
+    "Synthesize": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::lambda:invoke",
+      "Parameters": {
+        "FunctionName": "arn:aws:lambda:us-east-2:908106425069:function:laboraid-dev-l4-fn-synthesizer",
+        "Payload.$": "$"
+      },
+      "ResultSelector": {
+        "out.$": "$.Payload"
+      },
+      "OutputPath": "$.out",
+      "Retry": [
+        {
+          "ErrorEquals": [
+            "Lambda.ServiceException",
+            "Lambda.TooManyRequestsException",
+            "States.TaskFailed"
+          ],
+          "IntervalSeconds": 5,
+          "MaxAttempts": 2,
+          "BackoffRate": 2.0
+        }
+      ],
+      "Catch": [
+        {
+          "ErrorEquals": [
+            "States.ALL"
+          ],
+          "ResultPath": "$.error",
+          "Next": "PipelineFailed"
+        }
+      ],
+      "Next": "SynthPublish"
+    },
+    "SynthPublish": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::lambda:invoke",
+      "Parameters": {
+        "FunctionName": "arn:aws:lambda:us-east-2:908106425069:function:laboraid-dev-l4-fn-synth-publish",
+        "Payload.$": "$"
+      },
+      "ResultSelector": {
+        "out.$": "$.Payload"
+      },
+      "OutputPath": "$.out",
+      "Retry": [
+        {
+          "ErrorEquals": [
+            "Lambda.ServiceException",
+            "Lambda.TooManyRequestsException",
+            "States.TaskFailed"
+          ],
+          "IntervalSeconds": 5,
+          "MaxAttempts": 2,
+          "BackoffRate": 2.0
+        }
+      ],
+      "Catch": [
+        {
+          "ErrorEquals": [
+            "States.ALL"
+          ],
+          "ResultPath": "$.error",
+          "Next": "PipelineFailed"
+        }
+      ],
+      "Next": "Published"
+    },
+    "Published": {
+      "Type": "Succeed"
+    },
+    "PipelineFailed": {
+      "Type": "Fail"
+    }
+  }
+}
