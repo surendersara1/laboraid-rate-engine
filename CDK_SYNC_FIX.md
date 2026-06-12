@@ -1,113 +1,103 @@
-# CDK Sync Fix — Plan
+# CDK Sync Fix — Detailed Plan (REVIEW BEFORE EXECUTION)
 
-How we bring the CDK in the repo back into agreement with the live AWS account,
-on a **single shared environment**, without risking the running system.
-Companion to `/DEPLOY_FREEZE.md` and `cdk/RECONCILIATION.md`.
+Reconcile the repo's CDK with the live AWS account on a **single shared env**,
+safely. **Nothing in Phases 1–2 changes AWS.** Only Phase 3 touches AWS, and it's
+gated to a maintenance window. Companion to `/DEPLOY_FREEZE.md`,
+`cdk/RECONCILIATION.md`, captured specs in `cdk/reconciliation/*.json`.
 
-> **Current state:** deploys are frozen. Live specs are captured in
-> `cdk/reconciliation/*.json`. A CloudFormation **resource scan is COMPLETE**
-> (IaC generator) — the account's live resources are indexed and ready to turn
-> into a template.
+**Legend:** ☐ todo · 🟢 safe (no AWS change) · 🟡 read-only AWS · 🔴 mutates AWS (gated)
 
 ---
 
-## 1. What "out of sync" actually means here
+## Phase 0 — Foundation  ✅ DONE
+- [x] `DEPLOY_FREEZE.md` committed (no accidental deploy)
+- [x] Drift detection on all 9 stacks (27 drifted resources mapped)
+- [x] Live specs captured → `cdk/reconciliation/{sfn_definition,new_lambda_configs,iam_inline_policies}.json`
+- [x] CloudFormation **resource scan COMPLETE** (IaC generator, 104 resource types)
 
-Two distinct problems — they need different tools:
+---
 
-**(a) Drifted, CDK-managed resources** — already in CloudFormation stacks, but
-changed out-of-band via boto3. `cdk deploy` would *revert* them.
-- Orchestration: Step Functions definition (`Plan→Synthesize→SynthPublish`),
-  MainPipelineRole IAM, the upload EventBridge rule (now DISABLED).
-- Processing / Api: IAM ServiceRole inline policies (rds-data + invoke grants).
-- Ai: PiiGuardrail (ANONYMIZE — already in source, not yet deployed).
-- Storage / Validation: S3 bucket + SNS topic config drift (to be reviewed — likely benign).
+## Phase 1 — Author CDK to match live  🟢 (no AWS changes)
 
-**(b) Unmanaged resources** — created by boto3, **not in any CloudFormation
-stack** (so drift detection can't even see them):
-- Lambdas: `synthesizer`, `synth-publish`, `profile-builder` (Processing);
-  `batch-planner` (Processing); `batch-process` (Api) — and their IAM roles.
-- API route `POST /v1/batches/process`.
-- Runtime deps the new Lambdas bundle but the repo doesn't declare: **pypdf, openpyxl**.
+### 1A · Orchestration stack (highest risk — the SFN)
+- [ ] 1A.1 Rewrite `cdk/laboraid_cdk/sfn/main_pipeline.py` → `Plan → Synthesize → SynthPublish` (+ `Published`/`PipelineFailed`), matching retry/catch in `sfn_definition.json`
+- [ ] 1A.2 Update `stacks/orchestration_stack.py` — `build_definition` now takes `batch_planner`, `synthesizer`, `synth_publish` (drop classifier/checksum/range/confidence/render wiring)
+- [ ] 1A.3 Add MainPipelineRole grants: planner/synthesizer/synth-publish `grant_invoke`
+- [ ] 1A.4 Set the upload EventBridge rule `enabled=False` (matches live DISABLED)
 
-## 2. Why not just `cdk migrate --from-scan` over the whole account
+### 1B · Processing stack (the 4 new Lambdas + IAM + deps)
+- [ ] 1B.1 Add `synthesizer` Lambda (config from `new_lambda_configs.json`: py3.12 arm64, 1024MB, 900s, powertools layer; env INPUTS/OUTPUTS_BUCKET, BEDROCK_GUARDRAIL_ID, SYNTH_MODEL_ID=opus-4-5, AURORA_CLUSTER_ARN, AURORA_SECRET_ARN, PROFILE_BUILDER_FN, PROFILES_DIR)
+- [ ] 1B.2 Add `synth-publish` Lambda (Aurora env; role w/ RDS Data API)
+- [ ] 1B.3 Add `profile-builder` Lambda (Bedrock + S3 + RDS env)
+- [ ] 1B.4 Add `batch-planner` Lambda (invokes classifier)
+- [ ] 1B.5 **Declare runtime deps** `pypdf` + `openpyxl` — chosen approach: a shared **Lambda layer** built from `requirements.txt` (used by synthesizer + profile-builder). (Alt: per-function `BundlingOptions`.)
+- [ ] 1B.6 Bundle shared modules into the assets: `master_data.py`, `pdf_utils.py`, and `profiles/*.json` for the synthesizer
+- [ ] 1B.7 IAM: `LlmExtractorServiceRole` += inline `rds-data-profiles` (ExecuteStatement/BatchExecuteStatement on cluster + GetSecretValue on secret) and `invoke-profile-builder` — verbatim from `iam_inline_policies.json`
+- [ ] 1B.8 Grants for new roles: `bedrock:InvokeModel` (+ guardrail), S3 read inputs / read-write outputs, RDS Data API on cluster + secret
 
-`cdk migrate --from-scan` / a full IaC-generator template would scaffold a **new**
-low-level CDK app (raw `Cfn*` constructs) describing *everything*. We already have
-a clean, hand-written, multi-stack CDK. Replacing it with a generated low-level
-app would lose that structure and create a messy takeover of the existing stacks.
+### 1C · Api stack (batch endpoint + IAM)
+- [ ] 1C.1 Add `batch-process` Lambda + route `POST /v1/batches/process` (JWT authorizer, Business/Operations/Admins gate, `STATE_MACHINE_ARN` env, `states:StartExecution` grant)
+- [ ] 1C.2 IAM: `ProfileListServiceRole` + `ProfileUpdateServiceRole` += inline `rds-data-profiles`
+- [ ] 1C.3 Verify `ratesheet-get` / `job-status` env (presign expiry) + roles match live
 
-**So we use the AWS tools surgically:** the **resource scan + IaC generator** to
-*capture* the unmanaged resources (a) as CloudFormation, and `cdk import` to
-*adopt* them into the existing stacks — while the drifted managed resources (b)
-are fixed by editing the existing CDK source to match the captured live specs.
+### 1D · Ai / Storage / Validation
+- [ ] 1D.1 Ai: confirm `PiiGuardrail` = ANONYMIZE (already in source — verify only)
+- [ ] 1D.2 Storage: inspect the 6 S3-bucket drifts (likely notification/policy config) — absorb if real, document if benign
+- [ ] 1D.3 Validation: inspect the 2 SNS-topic drifts — same treatment
 
-## 3. The plan (phased; only Phase 3 touches AWS state, gated)
+### 1E · Build gate
+- [ ] 1E.1 `cdk synth` the whole app — **must template with no errors**
+- [ ] 1E.2 Commit Phase 1 on a branch `fix/cdk-reconcile` (not main) for review
 
-### Phase 0 — Done
-- [x] Freeze deploys (`DEPLOY_FREEZE.md`).
-- [x] Drift detection on all 9 stacks; live-spec capture (`cdk/reconciliation/`).
-- [x] CloudFormation resource scan (IaC generator) — COMPLETE.
+**Phase 1 acceptance:** `cdk synth` clean; CDK source describes the live system.
 
-### Phase 1 — Author CDK to match live (SAFE — no AWS changes)
-1. **Orchestration** — rewrite the SFN definition to `Plan→Synthesize→SynthPublish`
-   (from `sfn_definition.json`); add the MainPipelineRole invoke grants; set the
-   upload EventBridge rule to **disabled**.
-2. **Processing** — add `synthesizer`, `synth-publish`, `profile-builder`,
-   `batch-planner` Lambda constructs (config from `new_lambda_configs.json`);
-   add the `rds-data` + invoke inline policies to the relevant roles; declare
-   **pypdf + openpyxl** (a `requirements.txt` bundled into the function asset, or
-   a shared Lambda layer).
-3. **Api** — add `batch-process` Lambda + the `POST /v1/batches/process` route;
-   add `rds-data-profiles` to ProfileList/ProfileUpdate roles.
-4. **Ai** — confirm guardrail = ANONYMIZE (already in source).
-5. **Storage / Validation** — inspect the S3/SNS drift; absorb if real, else note.
-6. `cdk synth` after each stack — must template cleanly.
+---
 
-### Phase 2 — Validate against live (SAFE — read-only)
-1. `cdk diff <stack>` per stack. For drifted-managed resources the diff should
-   describe **exactly the live state** (proving our source reproduces it).
-2. For the new Lambdas, `cdk diff` will say "will CREATE" — expected; they get
-   **imported**, not created (Phase 3). Do **not** deploy yet.
-3. Generate the IaC template for the unmanaged resources to confirm exact config:
-   ```
-   aws cloudformation create-generated-template \
-     --generated-template-name laboraid-new-resources \
-     --resources <from the completed resource scan>
-   aws cloudformation get-generated-template \
-     --generated-template-name laboraid-new-resources --format YAML
-   ```
+## Phase 2 — Validate against live  🟡 (read-only AWS)
 
-### Phase 3 — Adopt + converge (TOUCHES AWS — gated, in a window)
-Run in a planned maintenance window, **not** within hours of a demo. Per stack,
-smallest blast radius first:
-1. **`cdk import <stack>`** — adopt the boto3-created Lambdas/roles into the stack
-   (CloudFormation takes ownership of the *existing* physical resources — it does
-   **not** recreate or replace them).
-2. **`cdk deploy <stack>`** — converges the CloudFormation template to the CDK
-   source (= the live state). Because the source now matches live, the change set
-   should be minimal/no-op for the drifted resources.
-3. After each stack: smoke-test (process 281/704 end to end) before the next.
-4. When all stacks deploy clean and `cdk diff` is empty across the board, remove
-   `DEPLOY_FREEZE.md`.
+- [ ] 2.1 `cdk diff Laboraid-dev-Orchestration` — diff should describe **exactly** the live SFN/IAM/rule change
+- [ ] 2.2 `cdk diff Laboraid-dev-Processing` — new Lambdas show as **CREATE** (will be *imported* in P3, not created); IAM matches
+- [ ] 2.3 `cdk diff Laboraid-dev-Api` — batch-process + route + IAM
+- [ ] 2.4 `cdk diff` Ai / Storage / Validation — minimal/expected only
+- [ ] 2.5 `aws cloudformation create-generated-template` + `get-generated-template` for the 5 unmanaged Lambdas+roles+route → confirm the exact resource set/config to import
+- [ ] 2.6 Write `cdk/reconciliation/DIFF_REVIEW.md` — per-stack summary of what each deploy would change
 
-## 4. Safety & rollback
+**Phase 2 acceptance:** every diff understood and expected. **🚦 GATE: you review `DIFF_REVIEW.md` and approve before Phase 3.**
 
-- **Phases 1–2 change nothing in AWS** — pure code + read-only diff. We can take
-  these all the way to "validated, deployable" with zero risk to the live env.
-- **`cdk import` is non-destructive** — it adopts existing resources; it does not
-  delete or replace them.
-- Before any `cdk deploy`, snapshot the live SFN definition and affected IAM
-  policies (already captured); rollback = re-apply the boto3 snapshot.
-- One stack at a time, smoke-test between — so a problem is contained and
-  reversible, never a big-bang.
+---
 
-## 5. Recommended timing (72h to next demo, single env)
+## Phase 3 — Adopt + converge  🔴 (mutates AWS — gated, maintenance window)
 
-- **Now → next 48h:** do **Phases 1–2** (safe). End state: the repo's CDK
-  reproduces the live system and is proven deployable via `cdk diff`. The
-  "destruction footing" is gone — freeze guard + correct source.
-- **After the next demo (or a quiet window):** do **Phase 3** (import + deploy,
-  per stack, smoke-tested). Do **not** run Phase 3 in the 72h before the demo.
+> Run in a planned window, **never** in the 72h before a demo. One stack at a
+> time, smallest blast radius first, smoke-test between each.
 
-This gets us synced safely without betting the one environment on a mid-POC deploy.
+- [ ] 3.1 Re-snapshot live (fresh SFN def + IAM) → `cdk/reconciliation/rollback/`
+- [ ] 3.2 `cdk import Laboraid-dev-Processing` — adopt synthesizer / synth-publish / profile-builder / batch-planner (map physical names; **non-destructive** — no recreate)
+- [ ] 3.3 `cdk import Laboraid-dev-Api` — adopt batch-process
+- [ ] 3.4 `cdk deploy Laboraid-dev-Storage` → smoke-test; then `Validation`, then `Ai`
+- [ ] 3.5 `cdk deploy Laboraid-dev-Processing` → **smoke-test: process 281 end-to-end**
+- [ ] 3.6 `cdk deploy Laboraid-dev-Api` → **smoke-test: ratesheet-get + review actions**
+- [ ] 3.7 `cdk deploy Laboraid-dev-Orchestration` (the SFN — last/biggest) → **smoke-test: full 704 pipeline**
+- [ ] 3.8 `cdk diff` all 9 stacks → **empty**; re-run drift detection → **IN_SYNC**
+- [ ] 3.9 Remove `DEPLOY_FREEZE.md`; merge `fix/cdk-reconcile` → main; tag release
+
+**Phase 3 acceptance:** all stacks `IN_SYNC`, all smoke tests pass, freeze lifted.
+
+---
+
+## Rollback (per step in Phase 3)
+- `cdk import` fails → no change (import is atomic); fix the construct, retry.
+- A `cdk deploy` regresses behavior → CloudFormation auto-rolls-back the stack; if
+  partial, re-apply the boto3 snapshot (`rollback/`) for SFN/IAM and re-freeze.
+- Each stack is independent + smoke-tested, so blast radius is one stack.
+
+## Timing (72h to next demo, single env)
+- **Now → +48h:** Phases 1 & 2 (zero AWS change). Outcome: CDK reproduces live,
+  proven by `cdk diff`; destruction risk already removed by the freeze + correct source.
+- **After the next demo / quiet window:** Phase 3, per the gate above.
+
+## Open decisions for your review
+1. **Deps packaging** — shared Lambda layer for pypdf+openpyxl (recommended) vs per-function bundling?
+2. **synth-publish role** — reuse the Publisher role (has RDS) vs a dedicated role?
+3. **Phase 3 window** — when? (Proposed: after the next demo.)
+4. **Branch** — do Phases 1–2 on `fix/cdk-reconcile` and PR for review (recommended)?
