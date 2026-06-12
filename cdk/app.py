@@ -136,23 +136,12 @@ orchestration = OrchestrationStack(
     f"Laboraid-{config.env}-Orchestration",
     config=config,
     inputs_bucket=storage.inputs_bucket,
-    classifier=processing.classifier,
-    checksum=validation.checksum,
-    range_fn=validation.range_fn,
-    confidence=validation.confidence,
-    review_router=validation.review_router,
-    xlsx=validation.xlsx,
-    csv=validation.csv,
-    articles=validation.articles,
-    agent_config_table=storage.agent_config_table,
-    extractor_runtime_arn=processing.extractor_runtime.runtime_arn,
+    batch_planner=processing.batch_planner,
+    synthesizer=processing.synthesizer_fn,
+    synth_publish=processing.synth_publish,
     master_key=security.master_key,
-    publisher=processing.publisher,
-    llm_extractor=processing.llm_extractor,
-    ocr_preprocess=processing.ocr_preprocess,
 )
 orchestration.add_dependency(processing)
-orchestration.add_dependency(validation)
 orchestration.add_dependency(storage)
 
 observability = ObservabilityStack(

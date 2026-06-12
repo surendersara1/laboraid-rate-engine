@@ -39,93 +39,22 @@ class OrchestrationStack(Stack):
         *,
         config: Config,
         inputs_bucket: s3.IBucket,
-        classifier: lambda_.IFunction,
-        checksum: lambda_.IFunction,
-        range_fn: lambda_.IFunction,
-        confidence: lambda_.IFunction,
-        review_router: lambda_.IFunction,
-        xlsx: lambda_.IFunction,
-        csv: lambda_.IFunction,
-        articles: lambda_.IFunction,
-        agent_config_table: ddb.ITable,
-        extractor_runtime_arn: str,
+        batch_planner: lambda_.IFunction,
+        synthesizer: lambda_.IFunction,
+        synth_publish: lambda_.IFunction,
         master_key: kms.IKey,
-        publisher: lambda_.IFunction | None = None,
-        llm_extractor: lambda_.IFunction | None = None,
-        ocr_preprocess: lambda_.IFunction | None = None,
         **kwargs: Any,
     ) -> None:
         super().__init__(scope, construct_id, **kwargs)
         env = config.env
 
-        # Stage-2 extraction: a thin Lambda invokes the ExtractorAgent on AgentCore
-        # Runtime synchronously (no native SFN -> AgentCore integration) — audit B6.
-        # 15-minute timeout matches AgentCore Runtime's max single-invocation
-        # duration. The kernel pipeline (PDF OCR + extract + compute + checksum)
-        # routinely runs 2-5 min per union; the TaggedLambda default 30s would
-        # silently cut the agent mid-run, returning RuntimeClientError to SFN with
-        # no agent-side error trail (smoke test 2026-06-08 — fresh log streams
-        # under the agent log group were created but stayed empty).
-        self.extractor_invoker = TaggedLambda(
-            self,
-            "ExtractorInvoker",
-            env=env,
-            layer="l3",
-            function_name=name(env, "l3", "fn", "extractor-invoker"),
-            handler="handler.handler",
-            code=lambda_.Code.from_asset("../lambdas/processing/extractor-invoker"),
-            environment={
-                "EXTRACTOR_RUNTIME_ARN": extractor_runtime_arn,
-                "LLM_EXTRACTOR_FN": (
-                    llm_extractor.function_name if llm_extractor else ""
-                ),
-            },
-            timeout=Duration.minutes(15),
-        )
-        self.extractor_invoker.add_to_role_policy(
-            iam.PolicyStatement(
-                effect=iam.Effect.ALLOW,
-                actions=["bedrock-agentcore:InvokeAgentRuntime"],
-                resources=[extractor_runtime_arn, f"{extractor_runtime_arn}/*"],
-            )
-        )
-        if llm_extractor is not None:
-            llm_extractor.grant_invoke(self.extractor_invoker)
-        extract_task = tasks.LambdaInvoke(
-            self,
-            "ExtractViaAgent",
-            lambda_function=self.extractor_invoker,
-            payload_response_only=True,
-            result_path="$.extract",
-        )
-        # Narrow retries: only retry on transient infra errors. The blanket
-        # States.TaskFailed retry causes triple-execution on the LLM path
-        # (slow boto3 timeouts get retried mid-call). 15-min Lambda timeout
-        # already handles the long Claude call.
-        extract_task.add_retry(
-            errors=[
-                "Lambda.ServiceException",
-                "Lambda.TooManyRequestsException",
-            ],
-            interval=Duration.seconds(5),
-            max_attempts=2,
-            backoff_rate=2.0,
-        )
-
+        # Plan -> Synthesize -> SynthPublish. CDK's LambdaInvoke tasks auto-grant
+        # the state-machine role permission to invoke each Lambda.
         definition = build_definition(
             self,
-            classifier=classifier,
-            checksum=checksum,
-            range_fn=range_fn,
-            confidence=confidence,
-            review_router=review_router,
-            xlsx=xlsx,
-            csv=csv,
-            articles=articles,
-            agent_config_table=agent_config_table,
-            extract_task=extract_task,
-            publisher=publisher,
-            ocr_preprocess=ocr_preprocess,
+            batch_planner=batch_planner,
+            synthesizer=synthesizer,
+            synth_publish=synth_publish,
         )
 
         log_group = logs.LogGroup(
@@ -140,22 +69,19 @@ class OrchestrationStack(Stack):
             state_machine_name=name(env, "l3", "sfn", "main"),
             state_machine_type=sfn.StateMachineType.STANDARD,
             definition_body=sfn.DefinitionBody.from_chainable(definition),
-            timeout=Duration.minutes(30),
+            timeout=Duration.minutes(60),
             tracing_enabled=True,
             logs=sfn.LogOptions(destination=log_group, level=sfn.LogLevel.ALL),
         )
 
-        # DynamoGetItem on a CMK-encrypted table (agent-config) requires the SFN
-        # execution role to decrypt with the same key. CDK auto-grants the table
-        # actions but not the implicit KMS dependency — smoke test 2026-06-08 hit
-        # AccessDeniedException on kms:Decrypt at the GetAgentConfig step.
-        master_key.grant_decrypt(self.state_machine.role)
-
-        # S3 ObjectCreated (via EventBridge) -> start an execution.
+        # S3-upload EventBridge trigger — kept for reference but DISABLED. Batches
+        # are started explicitly via POST /v1/batches/process ("Process this
+        # batch"), not auto-triggered on upload.
         events.Rule(
             self,
             "OnInputUpload",
             rule_name=name(env, "l3", "rule", "input-uploaded"),
+            enabled=False,
             event_pattern=events.EventPattern(
                 source=["aws.s3"],
                 detail_type=["Object Created"],

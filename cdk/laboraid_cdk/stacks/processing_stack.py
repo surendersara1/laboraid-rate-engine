@@ -372,8 +372,110 @@ class ProcessingStack(Stack):
                 "ENGINE_BUS_NAME", engine_bus.event_bus_name
             )
 
+        # ===================================================================
+        # Objective-driven synthesizer pipeline (replaces the per-doc kernel +
+        # AgentCore extraction path). Plan -> Synthesize -> SynthPublish.
+        # ===================================================================
+        synth_model = "us.anthropic.claude-opus-4-5-20251101-v1:0"
+        # Cross-region inference profile + foundation models + guardrail.
+        bedrock_synth_resources = [
+            "arn:aws:bedrock:*::foundation-model/anthropic.claude-*",
+            f"arn:aws:bedrock:{config.region}:{Stack.of(self).account}:inference-profile/*",
+            f"arn:aws:bedrock:{config.region}:{Stack.of(self).account}:guardrail/*",
+        ]
+
+        # Shared layer: pypdf + openpyxl + the master_data / pdf_utils modules
+        # (Code.from_asset never pip-installs; the layer vendors them).
+        synth_deps_layer = lambda_.LayerVersion(
+            self,
+            "SynthDepsLayer",
+            layer_version_name=name(env, "l4", "layer", "synth-deps"),
+            code=lambda_.Code.from_asset("../cdk/layers/synth-deps"),
+            compatible_runtimes=[lambda_.Runtime.PYTHON_3_12],
+            compatible_architectures=[lambda_.Architecture.ARM_64],
+        )
+
+        # Profile-builder: CBA -> union structure -> Aurora (unions.profile_yaml).
+        self.profile_builder = TaggedLambda(
+            self, "ProfileBuilder", env=env, layer="l4",
+            function_name=name(env, "l4", "fn", "profile-builder"),
+            handler="handler.handler",
+            code=lambda_.Code.from_asset("../lambdas/processing/profile-builder"),
+            memory_size=1024, timeout=Duration.seconds(900),
+            layers=[synth_deps_layer],
+        )
+        self.profile_builder.add_environment("INPUTS_BUCKET", inputs_bucket.bucket_name)
+        self.profile_builder.add_environment("BEDROCK_GUARDRAIL_ID", guardrail_id)
+        self.profile_builder.add_environment("SYNTH_MODEL_ID", synth_model)
+        inputs_bucket.grant_read(self.profile_builder)
+        self.profile_builder.add_to_role_policy(iam.PolicyStatement(
+            effect=iam.Effect.ALLOW,
+            actions=["bedrock:InvokeModel", "bedrock:InvokeModelWithResponseStream"],
+            resources=bedrock_synth_resources))
+
+        # Synthesizer: all docs + the union's profile -> rate sheet (CSV/XLSX/JSON).
+        self.synthesizer_fn = TaggedLambda(
+            self, "Synthesizer", env=env, layer="l4",
+            function_name=name(env, "l4", "fn", "synthesizer"),
+            handler="handler.handler",
+            code=lambda_.Code.from_asset("../lambdas/processing/synthesizer"),
+            memory_size=1024, timeout=Duration.seconds(900),
+            layers=[synth_deps_layer],
+        )
+        self.synthesizer_fn.add_environment("INPUTS_BUCKET", inputs_bucket.bucket_name)
+        self.synthesizer_fn.add_environment("OUTPUTS_BUCKET", outputs_bucket.bucket_name)
+        self.synthesizer_fn.add_environment("BEDROCK_GUARDRAIL_ID", guardrail_id)
+        self.synthesizer_fn.add_environment("SYNTH_MODEL_ID", synth_model)
+        self.synthesizer_fn.add_environment("PROFILE_BUILDER_FN", self.profile_builder.function_name)
+        inputs_bucket.grant_read(self.synthesizer_fn)
+        outputs_bucket.grant_read_write(self.synthesizer_fn)
+        master_key.grant_encrypt_decrypt(self.synthesizer_fn)
+        self.synthesizer_fn.add_to_role_policy(iam.PolicyStatement(
+            effect=iam.Effect.ALLOW,
+            actions=["bedrock:InvokeModel", "bedrock:InvokeModelWithResponseStream"],
+            resources=bedrock_synth_resources))
+        self.profile_builder.grant_invoke(self.synthesizer_fn)  # auto-onboard
+
+        # Synth-publish: write the synthesized rate sheet to Aurora (clean replace,
+        # cohorts in rate_cells.dimensions).
+        self.synth_publish = TaggedLambda(
+            self, "SynthPublish", env=env, layer="l4",
+            function_name=name(env, "l4", "fn", "synth-publish"),
+            handler="handler.handler",
+            code=lambda_.Code.from_asset("../lambdas/processing/synth-publish"),
+            memory_size=512, timeout=Duration.seconds(300),
+        )
+        self.synth_publish.add_environment("OUTPUTS_BUCKET", outputs_bucket.bucket_name)
+        outputs_bucket.grant_read_write(self.synth_publish)
+        master_key.grant_encrypt_decrypt(self.synth_publish)
+
+        # Batch-planner: classify + order the uploaded PDFs; resolve union + period.
+        self.batch_planner = TaggedLambda(
+            self, "BatchPlanner", env=env, layer="l4",
+            function_name=name(env, "l4", "fn", "batch-planner"),
+            handler="handler.handler",
+            code=lambda_.Code.from_asset("../lambdas/processing/batch-planner"),
+            memory_size=1024, timeout=Duration.seconds(300),
+        )
+        self.batch_planner.add_environment("INPUTS_BUCKET", inputs_bucket.bucket_name)
+        self.batch_planner.add_environment("CLASSIFIER_FN", self.classifier.function_name)
+        inputs_bucket.grant_read(self.batch_planner)
+        self.classifier.grant_invoke(self.batch_planner)
+
+        # Aurora (RDS Data API) for the three DB-touching new Lambdas.
+        if aurora is not None and aurora_secret is not None:
+            for fn in (self.synthesizer_fn, self.profile_builder, self.synth_publish):
+                aurora.grant_data_api_access(fn)
+                aurora_secret.grant_read(fn)
+                fn.add_environment("AURORA_CLUSTER_ARN", aurora.cluster_arn)
+                fn.add_environment("AURORA_SECRET_ARN", aurora_secret.secret_arn)
+
         CfnOutput(self, "ClassifierFnName", value=self.classifier.function_name)
         CfnOutput(self, "ExtractorRepoUri", value=self.extractor_repo.repository_uri)
         CfnOutput(self, "PublisherFnName", value=self.publisher.function_name)
         CfnOutput(self, "LlmExtractorFnName", value=self.llm_extractor.function_name)
         CfnOutput(self, "OcrPreprocessFnName", value=self.ocr_preprocess.function_name)
+        CfnOutput(self, "SynthesizerFnName", value=self.synthesizer_fn.function_name)
+        CfnOutput(self, "SynthPublishFnName", value=self.synth_publish.function_name)
+        CfnOutput(self, "ProfileBuilderFnName", value=self.profile_builder.function_name)
+        CfnOutput(self, "BatchPlannerFnName", value=self.batch_planner.function_name)
