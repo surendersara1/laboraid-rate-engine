@@ -183,34 +183,48 @@ def handler(event: dict[str, Any], _context: Any) -> dict[str, Any]:
 
         timeline = _collapse_history(events)
 
-        # Parse input → derive source PDF S3 key, union, period.
+        # Parse input → derive source PDF S3 key(s), union, period. Two shapes:
+        #  - legacy EventBridge: {detail:{object:{key}}}
+        #  - sequential batch:   {batch_id, batch_period, files:[{s3_key,...}]}
         try:
             inp = json.loads(desc.get("input", "{}"))
-            s3_key = inp.get("detail", {}).get("object", {}).get("key", "")
         except Exception:
-            s3_key = ""
+            inp = {}
+        batch_files = inp.get("files") or []
+        s3_key = inp.get("detail", {}).get("object", {}).get("key", "")
         parts = s3_key.split("/") if s3_key else []
         union = period = ""
         if len(parts) >= 5 and parts[0] == "laboraid":
             union = f"{parts[1]} {parts[2]}"
             period = parts[3]
+        elif batch_files:
+            period = inp.get("batch_period", "")
 
-        # Output CSV is conventionally output.csv under the same prefix.
-        output_csv_key = (
-            "/".join(parts[:-1]) + "/output.csv" if parts else ""
-        )
+        # Output CSV: batch runs put it at the synthesizer's key, surfaced in
+        # the execution output (SynthPublish.output_csv); legacy runs use the
+        # conventional output.csv next to the source.
+        output_csv_key = ""
+        try:
+            out = json.loads(desc.get("output") or "{}")
+            output_csv_key = out.get("output_csv") or (out.get("out") or {}).get("output_csv") or ""
+        except Exception:
+            pass
+        if not output_csv_key and parts:
+            output_csv_key = "/".join(parts[:-1]) + "/output.csv"
 
         # Check existence of artifacts before presigning so the UI can show
         # actual states (present / not yet produced) instead of dead links.
         artifacts: list[dict[str, Any]] = []
-        if s3_key:
+        # Source PDFs — legacy single key, or each batch file.
+        source_keys = [s3_key] if s3_key else [f.get("s3_key") for f in batch_files if f.get("s3_key")]
+        for sk in source_keys:
             artifacts.append({
-                "name": "Source PDF",
+                "name": (sk.rsplit("/", 1)[-1] if len(source_keys) > 1 else "Source PDF"),
                 "kind": "input",
                 "bucket": INPUTS_BUCKET,
-                "key": s3_key,
+                "key": sk,
                 "size": None,
-                "url": _presign(s3, INPUTS_BUCKET, s3_key),
+                "url": _presign(s3, INPUTS_BUCKET, sk),
             })
         if output_csv_key:
             size = None
@@ -249,9 +263,9 @@ def handler(event: dict[str, Any], _context: Any) -> dict[str, Any]:
             "output_csv_key": output_csv_key,
             "timeline": timeline,
             "artifacts": artifacts,
-            "agent_log_group": (
-                f"/aws/bedrock-agentcore/runtimes/{AGENT_RUNTIME_ID}-DEFAULT"
-            ),
+            # The synthesizer Lambda runs the Bedrock (Opus 4.5) extraction —
+            # that's where the AI logs live for the current pipeline.
+            "agent_log_group": "/aws/lambda/laboraid-dev-l4-fn-synthesizer",
         })
     except Exception:
         logger.exception("job-status failed")

@@ -253,7 +253,7 @@ export function JobDetail(): JSX.Element {
       {/* Logs deep-link */}
       {cwUrl && (
         <div className="rounded-lg border border-slate-200 bg-slate-50 p-4 text-sm">
-          <span className="text-slate-600">Agent runtime logs are in CloudWatch:</span>{" "}
+          <span className="text-slate-600">AI extraction logs (Claude Opus 4.5 · AWS Bedrock) in CloudWatch:</span>{" "}
           <a
             href={cwUrl}
             target="_blank"
@@ -271,6 +271,17 @@ export function JobDetail(): JSX.Element {
   );
 }
 
+// What each pipeline stage actually does — surfaces the Bedrock + Aurora tech
+// so the timeline reads as the real architecture, not just orchestration names.
+const STEP_INFO: Record<string, string> = {
+  Plan: "Classify & order the uploaded PDFs (CBA vs rate notice); resolve the union + target rate period.",
+  Synthesize:
+    "Claude Opus 4.5 on AWS Bedrock reads ALL documents together against this union's profile (Aurora) and produces the complete rate sheet — values extracted from the PDFs, mapped to canonical fund/classification names.",
+  SynthPublish:
+    "Write the finished rows into Aurora (PostgreSQL), indenture cohorts stored as row dimensions; emits the canonical CSV.",
+  Published: "Pipeline complete — rate sheet is in the review queue.",
+};
+
 /** Single timeline step — click the header to expand input/output + logs link. */
 function StepRow({ step, isLast }: { step: JobTimelineStep; isLast: boolean }): JSX.Element {
   const [open, setOpen] = useState(false);
@@ -279,6 +290,16 @@ function StepRow({ step, isLast }: { step: JobTimelineStep; isLast: boolean }): 
         step.log_group,
       )}`
     : undefined;
+  // The internal calls this stage made (Bedrock, Aurora, S3, classifier),
+  // emitted by each Lambda in its output as `trace`.
+  const trace: { call: string; detail: string }[] = (() => {
+    try {
+      const t = JSON.parse(step.output || "{}").trace;
+      return Array.isArray(t) ? t : [];
+    } catch {
+      return [];
+    }
+  })();
 
   return (
     <li className="flex gap-3">
@@ -315,8 +336,30 @@ function StepRow({ step, isLast }: { step: JobTimelineStep; isLast: boolean }): 
             {fmtDuration(step.duration_ms)}
           </span>
         </button>
+        {STEP_INFO[step.name] && (
+          <p className="ml-5 mr-2 mt-0.5 text-xs leading-snug text-slate-500">
+            {STEP_INFO[step.name]}
+          </p>
+        )}
         {open && (
           <div className="ml-5 mt-2 space-y-3 rounded-md border border-slate-200 bg-slate-50 p-3 text-xs">
+            {trace.length > 0 && (
+              <div>
+                <div className="font-medium uppercase tracking-wide text-slate-500">
+                  Calls in this stage
+                </div>
+                <ul className="mt-1.5 space-y-1.5">
+                  {trace.map((t, i) => (
+                    <li key={i} className="flex items-start gap-2">
+                      <span className="whitespace-nowrap rounded bg-brand/10 px-1.5 py-0.5 font-medium text-brand">
+                        {t.call}
+                      </span>
+                      <span className="text-slate-600">{t.detail}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
             {step.resource && (
               <div>
                 <div className="font-medium uppercase tracking-wide text-slate-500">

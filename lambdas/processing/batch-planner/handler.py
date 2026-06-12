@@ -154,12 +154,21 @@ def handler(event: dict[str, Any], _context: Any) -> dict[str, Any]:
         rate_periods = [d["period"] for d in planned if d["doc_type"] != "cba" and d["period"]]
         period = max(rate_periods) if rate_periods else (planned[0]["period"] if planned else "")
 
+    _bytype: dict[str, int] = {}
+    for d in planned:
+        _bytype[d["doc_type"]] = _bytype.get(d["doc_type"], 0) + 1
     result = {
         "batch_id": batch_id,
         "local": local or (planned[0]["local"] if planned else ""),
         "period": period,
         "doc_count": len(planned),
         "docs": planned,
+        "trace": [
+            {"call": "Classifier", "detail": f"Classified {len(planned)} document(s): "
+                                              + ", ".join(f"{n}×{t}" for t, n in _bytype.items())},
+            {"call": "Plan", "detail": f"Resolved Local {local or (planned[0]['local'] if planned else '')}, "
+                                        f"period {period}; ordered CBA→by date"},
+        ],
     }
     logger.info(
         "batch-planner: local=%s period=%s order=%s",

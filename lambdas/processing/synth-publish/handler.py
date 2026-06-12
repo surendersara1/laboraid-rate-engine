@@ -106,7 +106,9 @@ def handler(event: dict[str, Any], _context: Any) -> dict[str, Any]:
 
     # 3) new rate_period.
     period_id = str(uuid.uuid4())
-    source_files = {"uploads": event.get("uploads") or [], "output_csv": csv_key, "synthesized": True}
+    src_pdfs = result.get("source_files") or event.get("uploads") or []
+    source_files = {"uploads": src_pdfs, "output_csv": csv_key,
+                    "rate_notice": src_pdfs[0] if src_pdfs else "", "synthesized": True}
     canonical_json = {
         "rows": len(rows),
         "gap_count": len(result.get("gaps") or []),
@@ -167,7 +169,8 @@ def handler(event: dict[str, Any], _context: Any) -> dict[str, Any]:
                 {"name": "val", "value": {"doubleValue": fval}},
                 {"name": "vt", "value": _sv(vtype)},
                 {"name": "prov", "value": _sv(json.dumps(
-                    {"method": "synthesized", "source_csv": csv_key}))},
+                    {"method": "synthesized", "model": "claude-opus-4-5",
+                     "source_pdfs": src_pdfs, "source_csv": csv_key}))},
             ])
 
     cell_sql = (
@@ -192,4 +195,10 @@ def handler(event: dict[str, Any], _context: Any) -> dict[str, Any]:
         "row_count": len(rows),
         "cell_count": len(param_sets),
         "output_csv": csv_key,
+        "trace": [
+            {"call": "Aurora", "detail": f"Upserted union {local}; cleared any prior period (clean replace)"},
+            {"call": "Aurora", "detail": f"Inserted rate_period + {len(param_sets)} cells "
+                                          f"({len(rows)} rows; indenture cohorts in dimensions)"},
+            {"call": "S3", "detail": f"Canonical CSV recorded: {csv_key}"},
+        ],
     }

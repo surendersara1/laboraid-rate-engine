@@ -676,10 +676,14 @@ def handler(event: dict[str, Any], _context: Any) -> dict[str, Any]:
         config=Config(read_timeout=840, connect_timeout=10, retries={"max_attempts": 1}),
     )
 
+    trace: list[dict[str, Any]] = []
     profile = _load_profile(trade, local)
+    if profile:
+        trace.append({"call": "Aurora", "detail": f"Loaded profile for Local {local} (unions.profile_yaml)"})
     if not profile:
         # AUTO-ONBOARD: no profile for this local yet — build one from the
         # batch's CBA, save to Aurora, then continue in the same pass.
+        trace.append({"call": "Profile-builder", "detail": f"No profile for {local} — auto-onboarding from CBA"})
         profile = _ensure_profile(local, trade, docs)
     if profile and not trade:
         trade = profile.get("trade") or trade  # planner may omit trade
@@ -705,10 +709,8 @@ def handler(event: dict[str, Any], _context: Any) -> dict[str, Any]:
     # the rate notices / wage sheets; the CBA only carries STRUCTURE, which the
     # profile already encodes. So fetch all docs, fill the page budget with the
     # VALUE docs first, and drop the (large) CBA if it doesn't fit.
-    from pdf_utils import page_count
+    from pdf_utils import first_pages, page_count
 
-    _VALUE_FIRST = {"rate_notice": 0, "rate_sheet": 0, "apprentice_scale": 0,
-                    "wage": 0, "unknown": 1, "cba": 2}
     fetched = []
     for d in docs:
         s3_key = d.get("s3_key") or ""
@@ -720,15 +722,27 @@ def handler(event: dict[str, Any], _context: Any) -> dict[str, Any]:
             logger.warning("synthesizer: could not fetch %s", s3_key)
             continue
         fetched.append((d, pdf, page_count(pdf)))
-    fetched.sort(key=lambda t: _VALUE_FIRST.get((t[0].get("doc_type") or "").lower(), 1))
+
+    # The CBA carries STRUCTURE (Foreman/GF premiums, apprentice ladders,
+    # overtime rules) the rate notices don't — it must NOT be dropped. Order:
+    # CBA first (capped to 100pg if huge), then value docs LATEST-period first
+    # so it's the OLD/irrelevant notices that fall off the page budget, never
+    # the CBA or the current-period notice.
+    cba = [t for t in fetched if (t[0].get("doc_type") or "").lower() == "cba"]
+    val = sorted([t for t in fetched if (t[0].get("doc_type") or "").lower() != "cba"],
+                 key=lambda t: str(t[0].get("effective_date") or ""), reverse=True)
+    cba = [(d, first_pages(pdf, 100), min(pg, 100)) for d, pdf, pg in cba]
+    fetched = cba + val
 
     budget = 100
     used = 0
+    source_files: list[str] = []
     for d, pdf, pages in fetched:
         if used + min(pages, 100) > budget:
-            logger.info("synthesizer: page budget full — skipping %s (%d pages; profile carries its structure)",
+            logger.info("synthesizer: page budget full — skipping OLD doc %s (%d pages)",
                         d.get("filename"), pages)
             continue
+        source_files.append(d.get("filename") or d.get("s3_key") or "")
         hint = _pii_safe_lines(_fetch_layout(s3, s3_key=d.get("s3_key")))
         label = (
             f"\n===== DOCUMENT: type={d.get('doc_type')} "
@@ -754,6 +768,13 @@ def handler(event: dict[str, Any], _context: Any) -> dict[str, Any]:
         kwargs["guardrailIdentifier"] = GUARDRAIL_ID
         kwargs["guardrailVersion"] = "DRAFT"
 
+    dropped = len(fetched) - len(source_files)
+    trace.append({"call": "Documents",
+                  "detail": f"Prepared {len(source_files)} PDF(s) for the model"
+                            + (f"; dropped {dropped} older notice(s) to fit Bedrock's 100-page limit" if dropped else "")})
+    trace.append({"call": "Bedrock · Claude Opus 4.5",
+                  "detail": f"InvokeModel — reading {len(source_files)} document(s) against the profile"
+                            + (f" (guardrail {GUARDRAIL_ID})" if GUARDRAIL_ID else "")})
     logger.info("synthesizer: invoking %s with %d docs for local=%s period=%s",
                 MODEL_ID, len(docs), local, period)
     resp = bedrock.invoke_model(**kwargs)
@@ -790,12 +811,17 @@ def handler(event: dict[str, Any], _context: Any) -> dict[str, Any]:
     result["period"] = period
     result["trade"] = trade
     result["start_date"] = period
+    result["source_files"] = source_files  # PDFs the AI actually read (lineage)
     if profile:
         result["end_date"] = _us_to_iso(profile.get("period_end") or "")
         result["union_group"] = profile.get("union_group", "UA")
         result["percent_columns"] = [
             f["name"] for f in profile.get("fund_columns", []) if f.get("percent")
         ]
+    trace.append({"call": "Parse + compute",
+                  "detail": f"Extracted {len(result['rows'])} classifications; computed derived wage columns "
+                            f"({len(result.get('multipliers') or {})} multipliers); {len(result['gaps'])} gap(s) flagged"})
+    result["trace"] = trace
     logger.info("synthesizer: produced %d rows, %d gaps. notes=%s",
                 len(result["rows"]), len(result["gaps"]), str(result.get("notes"))[:200])
 
@@ -821,5 +847,6 @@ def handler(event: dict[str, Any], _context: Any) -> dict[str, Any]:
         "csv_key": csv_key,
         "row_count": len(result["rows"]),
         "gap_count": len(result["gaps"]),
+        "trace": trace,
         "synthesized": True,
     }
