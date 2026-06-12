@@ -71,6 +71,7 @@ gated to a maintenance window. Companion to `/DEPLOY_FREEZE.md`,
 > Run in a planned window, **never** in the 72h before a demo. One stack at a
 > time, smallest blast radius first, smoke-test between each.
 
+- [ ] 3.0 **Audit repo-vs-live code (R1)** — download every live function zip, diff against `lambdas/`; back-port any boto3 hot-fix not yet in the repo so deploy's code re-push never regresses live. (Decision R1 = audit before deploy.)
 - [ ] 3.1 Re-snapshot live (fresh SFN def + IAM) → `cdk/reconciliation/rollback/`
 - [ ] 3.2 `cdk import Laboraid-dev-Processing` — adopt synthesizer / synth-publish / profile-builder / batch-planner (map physical names; **non-destructive** — no recreate)
 - [ ] 3.3 `cdk import Laboraid-dev-Api` — adopt batch-process

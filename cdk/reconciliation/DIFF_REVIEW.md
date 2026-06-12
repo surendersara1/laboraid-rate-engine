@@ -90,12 +90,27 @@ source**. Safe **only if repo == intended live code** for each. Any function who
 code is newer than the repo (a boto3 hot-fix never back-ported) would be **reverted**.
 - We *did* back-port the demo hot-fixes (ratesheet approve/reject/publish/unapprove
   stale-build, presign expiry).
-- **Mitigation before P3:** spot-audit repo-vs-live for the API + validation functions
-  (download live zips, diff against `lambdas/`), OR accept that repo is canonical and
-  deploy intentionally re-pushes it. **Decision needed.**
+- **DECISION (chosen): audit repo-vs-live before any P3 deploy.** Phase 3 gains a
+  pre-step: download every live function zip and diff against `lambdas/` to catch any
+  boto3 hot-fix not back-ported; reconcile into the repo before deploying. No surprise
+  rollbacks. (Tracked as Phase-3 step 3.0 in `CDK_SYNC_FIX.md`.)
 
-### 🔴 R2 — Execution-role strategy for the 4 new processing functions
-Live reality vs CDK source disagree:
+### ✅ R2 — Execution-role strategy — RESOLVED: Option A (mirror live), applied
+**Decision:** mirror live. **Implemented** in `processing_stack.py` (commit on
+`fix/cdk-reconcile`): synthesizer + profile-builder now pass `role=self.llm_extractor.role`,
+synth-publish passes `role=self.publisher.role`. Re-diff confirms the dedicated
+Synthesizer/SynthPublish/ProfileBuilder role-creates are **gone**; their grants now
+accumulate onto `LlmExtractorServiceRole` / `PublisherServiceRole` (the `[~]` policies) —
+exactly matching live. Those two roles are already CDK-managed, so **no role import needed**
+for the reuse trio.
+
+**Remaining (minor):** `batch-planner`, `batch-process`, `ocr-preprocess` have their own
+dedicated boto3 roles live (`laboraid-dev-{l4,l2}-role-…`); CDK creates dedicated roles for
+them too (`[+]`). On Phase-3 import the function is adopted and CDK creates a fresh
+dedicated role, re-pointing the function — a small, controlled IAM change (the orphaned
+boto3 roles are deletable afterward). Acceptable; no action now.
+
+<details><summary>Original live-vs-source table (for reference)</summary>
 
 | Function | **Live role** | **CDK source creates** |
 |---|---|---|
@@ -117,7 +132,8 @@ Live reality vs CDK source disagree:
   need today (bedrock, s3 r/w, rds-data, kms) — must be verified or functions break.
 - **Recommendation:** **Option A for the sync** (get to IN_SYNC with minimal churn), then
   Option B as a separate, tested follow-up if we want per-function least privilege.
-  **Your call.**
+
+</details>
 
 ### 🟡 R3 — Import ordering (cross-stack exports)
 Processing exports (BatchPlanner/Synthesizer/SynthPublish ARNs) are consumed by

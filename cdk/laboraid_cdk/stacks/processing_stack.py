@@ -396,6 +396,11 @@ class ProcessingStack(Stack):
         )
 
         # Profile-builder: CBA -> union structure -> Aurora (unions.profile_yaml).
+        # Role: reuses the LlmExtractor execution role to MIRROR LIVE (the boto3
+        # build wired profile-builder + synthesizer onto LlmExtractorServiceRole;
+        # synth-publish onto PublisherServiceRole). Reusing the same roles here
+        # makes the Phase-3 cdk import clean with ZERO IAM change. The grants
+        # below add to that shared role (matches the live inline policies).
         self.profile_builder = TaggedLambda(
             self, "ProfileBuilder", env=env, layer="l4",
             function_name=name(env, "l4", "fn", "profile-builder"),
@@ -403,6 +408,7 @@ class ProcessingStack(Stack):
             code=lambda_.Code.from_asset("../lambdas/processing/profile-builder"),
             memory_size=1024, timeout=Duration.seconds(900),
             layers=[synth_deps_layer],
+            role=self.llm_extractor.role,
         )
         self.profile_builder.add_environment("INPUTS_BUCKET", inputs_bucket.bucket_name)
         self.profile_builder.add_environment("BEDROCK_GUARDRAIL_ID", guardrail_id)
@@ -421,6 +427,7 @@ class ProcessingStack(Stack):
             code=lambda_.Code.from_asset("../lambdas/processing/synthesizer"),
             memory_size=1024, timeout=Duration.seconds(900),
             layers=[synth_deps_layer],
+            role=self.llm_extractor.role,  # mirror live (see profile-builder note)
         )
         self.synthesizer_fn.add_environment("INPUTS_BUCKET", inputs_bucket.bucket_name)
         self.synthesizer_fn.add_environment("OUTPUTS_BUCKET", outputs_bucket.bucket_name)
@@ -444,6 +451,7 @@ class ProcessingStack(Stack):
             handler="handler.handler",
             code=lambda_.Code.from_asset("../lambdas/processing/synth-publish"),
             memory_size=512, timeout=Duration.seconds(300),
+            role=self.publisher.role,  # mirror live (see profile-builder note)
         )
         self.synth_publish.add_environment("OUTPUTS_BUCKET", outputs_bucket.bucket_name)
         outputs_bucket.grant_read_write(self.synth_publish)

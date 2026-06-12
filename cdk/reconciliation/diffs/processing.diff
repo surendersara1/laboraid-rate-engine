@@ -1,174 +1,101 @@
 start: Building Laboraid-dev-Processing Template
 success: Built Laboraid-dev-Processing Template
-start: Publishing Laboraid-dev-Processing Template (current_account-current_region-17bf98e2)
-success: Published Laboraid-dev-Processing Template (current_account-current_region-17bf98e2)
+start: Publishing Laboraid-dev-Processing Template (current_account-current_region-cea19c50)
+success: Published Laboraid-dev-Processing Template (current_account-current_region-cea19c50)
 Hold on while we create a read-only change set to get a diff with accurate replacement information (use --method=template to use a less accurate but faster template-only diff)
 
 Could not create a change set, will base the diff on template differences (run again with -v to see the reason)
 
 Stack Laboraid-dev-Processing
 IAM Statement Changes
-┌───┬──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┬────────┬───────────────────────────────────────┬───────────────────────────────────┬───────────┐
-│   │ Resource                                                                                                                                             │ Effect │ Action                                │ Principal                         │ Condition │
-├───┼──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┼────────┼───────────────────────────────────────┼───────────────────────────────────┼───────────┤
-│ + │ ${BatchPlanner/ServiceRole.Arn}                                                                                                                      │ Allow  │ sts:AssumeRole                        │ Service:lambda.amazonaws.com      │           │
-├───┼──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┼────────┼───────────────────────────────────────┼───────────────────────────────────┼───────────┤
-│ + │ ${Classifier.Arn}                                                                                                                                    │ Allow  │ lambda:InvokeFunction                 │ AWS:${BatchPlanner/ServiceRole}   │           │
-│   │ ${Classifier.Arn}:*                                                                                                                                  │        │                                       │                                   │           │
-├───┼──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┼────────┼───────────────────────────────────────┼───────────────────────────────────┼───────────┤
-│ + │ ${OcrPreprocess/ServiceRole.Arn}                                                                                                                     │ Allow  │ sts:AssumeRole                        │ Service:lambda.amazonaws.com      │           │
-├───┼──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┼────────┼───────────────────────────────────────┼───────────────────────────────────┼───────────┤
-│ + │ ${ProfileBuilder.Arn}                                                                                                                                │ Allow  │ lambda:InvokeFunction                 │ AWS:${Synthesizer/ServiceRole}    │           │
-│   │ ${ProfileBuilder.Arn}:*                                                                                                                              │        │                                       │                                   │           │
-├───┼──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┼────────┼───────────────────────────────────────┼───────────────────────────────────┼───────────┤
-│ + │ ${ProfileBuilder/ServiceRole.Arn}                                                                                                                    │ Allow  │ sts:AssumeRole                        │ Service:lambda.amazonaws.com      │           │
-├───┼──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┼────────┼───────────────────────────────────────┼───────────────────────────────────┼───────────┤
-│ + │ ${SynthPublish/ServiceRole.Arn}                                                                                                                      │ Allow  │ sts:AssumeRole                        │ Service:lambda.amazonaws.com      │           │
-├───┼──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┼────────┼───────────────────────────────────────┼───────────────────────────────────┼───────────┤
-│ + │ ${Synthesizer/ServiceRole.Arn}                                                                                                                       │ Allow  │ sts:AssumeRole                        │ Service:lambda.amazonaws.com      │           │
-├───┼──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┼────────┼───────────────────────────────────────┼───────────────────────────────────┼───────────┤
-│ + │ *                                                                                                                                                    │ Allow  │ textract:AnalyzeDocument              │ AWS:${OcrPreprocess/ServiceRole}  │           │
-│   │                                                                                                                                                      │        │ textract:GetDocumentAnalysis          │                                   │           │
-│   │                                                                                                                                                      │        │ textract:StartDocumentAnalysis        │                                   │           │
-│   │                                                                                                                                                      │        │ xray:PutTelemetryRecords              │                                   │           │
-│   │                                                                                                                                                      │        │ xray:PutTraceSegments                 │                                   │           │
-│ + │ *                                                                                                                                                    │ Allow  │ xray:PutTelemetryRecords              │ AWS:${ProfileBuilder/ServiceRole} │           │
-│   │                                                                                                                                                      │        │ xray:PutTraceSegments                 │                                   │           │
-│ + │ *                                                                                                                                                    │ Allow  │ xray:PutTelemetryRecords              │ AWS:${Synthesizer/ServiceRole}    │           │
-│   │                                                                                                                                                      │        │ xray:PutTraceSegments                 │                                   │           │
-│ + │ *                                                                                                                                                    │ Allow  │ xray:PutTelemetryRecords              │ AWS:${SynthPublish/ServiceRole}   │           │
-│   │                                                                                                                                                      │        │ xray:PutTraceSegments                 │                                   │           │
-│ + │ *                                                                                                                                                    │ Allow  │ xray:PutTelemetryRecords              │ AWS:${BatchPlanner/ServiceRole}   │           │
-│   │                                                                                                                                                      │        │ xray:PutTraceSegments                 │                                   │           │
-├───┼──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┼────────┼───────────────────────────────────────┼───────────────────────────────────┼───────────┤
-│ + │ arn:${AWS::Partition}:rds:${AWS::Region}:${AWS::AccountId}:cluster:{"Fn::ImportValue":"Laboraid-dev-Storage:ExportsOutputRefAurora2CBAB212533F1A7B"} │ Allow  │ rds-data:BatchExecuteStatement        │ AWS:${ProfileBuilder/ServiceRole} │           │
-│   │                                                                                                                                                      │        │ rds-data:BeginTransaction             │                                   │           │
-│   │                                                                                                                                                      │        │ rds-data:CommitTransaction            │                                   │           │
-│   │                                                                                                                                                      │        │ rds-data:ExecuteStatement             │                                   │           │
-│   │                                                                                                                                                      │        │ rds-data:RollbackTransaction          │                                   │           │
-│ + │ arn:${AWS::Partition}:rds:${AWS::Region}:${AWS::AccountId}:cluster:{"Fn::ImportValue":"Laboraid-dev-Storage:ExportsOutputRefAurora2CBAB212533F1A7B"} │ Allow  │ rds-data:BatchExecuteStatement        │ AWS:${Synthesizer/ServiceRole}    │           │
-│   │                                                                                                                                                      │        │ rds-data:BeginTransaction             │                                   │           │
-│   │                                                                                                                                                      │        │ rds-data:CommitTransaction            │                                   │           │
-│   │                                                                                                                                                      │        │ rds-data:ExecuteStatement             │                                   │           │
-│   │                                                                                                                                                      │        │ rds-data:RollbackTransaction          │                                   │           │
-│ + │ arn:${AWS::Partition}:rds:${AWS::Region}:${AWS::AccountId}:cluster:{"Fn::ImportValue":"Laboraid-dev-Storage:ExportsOutputRefAurora2CBAB212533F1A7B"} │ Allow  │ rds-data:BatchExecuteStatement        │ AWS:${SynthPublish/ServiceRole}   │           │
-│   │                                                                                                                                                      │        │ rds-data:BeginTransaction             │                                   │           │
-│   │                                                                                                                                                      │        │ rds-data:CommitTransaction            │                                   │           │
-│   │                                                                                                                                                      │        │ rds-data:ExecuteStatement             │                                   │           │
-│   │                                                                                                                                                      │        │ rds-data:RollbackTransaction          │                                   │           │
-├───┼──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┼────────┼───────────────────────────────────────┼───────────────────────────────────┼───────────┤
-│ + │ arn:aws:bedrock:*::foundation-model/anthropic.claude-*                                                                                               │ Allow  │ bedrock:InvokeModel                   │ AWS:${ProfileBuilder/ServiceRole} │           │
-│   │ arn:aws:bedrock:us-east-2:${AWS::AccountId}:guardrail/*                                                                                              │        │ bedrock:InvokeModelWithResponseStream │                                   │           │
-│   │ arn:aws:bedrock:us-east-2:${AWS::AccountId}:inference-profile/*                                                                                      │        │                                       │                                   │           │
-│ + │ arn:aws:bedrock:*::foundation-model/anthropic.claude-*                                                                                               │ Allow  │ bedrock:InvokeModel                   │ AWS:${Synthesizer/ServiceRole}    │           │
-│   │ arn:aws:bedrock:us-east-2:${AWS::AccountId}:guardrail/*                                                                                              │        │ bedrock:InvokeModelWithResponseStream │                                   │           │
-│   │ arn:aws:bedrock:us-east-2:${AWS::AccountId}:inference-profile/*                                                                                      │        │                                       │                                   │           │
-├───┼──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┼────────┼───────────────────────────────────────┼───────────────────────────────────┼───────────┤
-│ + │ {"Fn::ImportValue":"Laboraid-dev-Security:ExportsOutputFnGetAttMasterKey0175C9E2Arn2B8655C7"}                                                        │ Allow  │ kms:Decrypt                           │ AWS:${Publisher/ServiceRole}      │           │
-│   │                                                                                                                                                      │        │ kms:DescribeKey                       │                                   │           │
-│   │                                                                                                                                                      │        │ kms:Encrypt                           │                                   │           │
-│   │                                                                                                                                                      │        │ kms:GenerateDataKey*                  │                                   │           │
-│   │                                                                                                                                                      │        │ kms:ReEncrypt*                        │                                   │           │
-│ + │ {"Fn::ImportValue":"Laboraid-dev-Security:ExportsOutputFnGetAttMasterKey0175C9E2Arn2B8655C7"}                                                        │ Allow  │ kms:Decrypt                           │ AWS:${OcrPreprocess/ServiceRole}  │           │
-│   │                                                                                                                                                      │        │ kms:DescribeKey                       │                                   │           │
-│   │                                                                                                                                                      │        │ kms:Encrypt                           │                                   │           │
-│   │                                                                                                                                                      │        │ kms:GenerateDataKey*                  │                                   │           │
-│   │                                                                                                                                                      │        │ kms:ReEncrypt*                        │                                   │           │
-│ + │ {"Fn::ImportValue":"Laboraid-dev-Security:ExportsOutputFnGetAttMasterKey0175C9E2Arn2B8655C7"}                                                        │ Allow  │ kms:Decrypt                           │ AWS:${ProfileBuilder/ServiceRole} │           │
-│   │                                                                                                                                                      │        │ kms:DescribeKey                       │                                   │           │
-│ + │ {"Fn::ImportValue":"Laboraid-dev-Security:ExportsOutputFnGetAttMasterKey0175C9E2Arn2B8655C7"}                                                        │ Allow  │ kms:Decrypt                           │ AWS:${Synthesizer/ServiceRole}    │           │
-│   │                                                                                                                                                      │        │ kms:DescribeKey                       │                                   │           │
-│   │                                                                                                                                                      │        │ kms:Encrypt                           │                                   │           │
-│   │                                                                                                                                                      │        │ kms:GenerateDataKey*                  │                                   │           │
-│   │                                                                                                                                                      │        │ kms:ReEncrypt*                        │                                   │           │
-│ + │ {"Fn::ImportValue":"Laboraid-dev-Security:ExportsOutputFnGetAttMasterKey0175C9E2Arn2B8655C7"}                                                        │ Allow  │ kms:Decrypt                           │ AWS:${SynthPublish/ServiceRole}   │           │
-│   │                                                                                                                                                      │        │ kms:DescribeKey                       │                                   │           │
-│   │                                                                                                                                                      │        │ kms:Encrypt                           │                                   │           │
-│   │                                                                                                                                                      │        │ kms:GenerateDataKey*                  │                                   │           │
-│   │                                                                                                                                                      │        │ kms:ReEncrypt*                        │                                   │           │
-│ + │ {"Fn::ImportValue":"Laboraid-dev-Security:ExportsOutputFnGetAttMasterKey0175C9E2Arn2B8655C7"}                                                        │ Allow  │ kms:Decrypt                           │ AWS:${BatchPlanner/ServiceRole}   │           │
-│   │                                                                                                                                                      │        │ kms:DescribeKey                       │                                   │           │
-│ - │ {"Fn::ImportValue":"Laboraid-dev-Security:ExportsOutputFnGetAttMasterKey0175C9E2Arn2B8655C7"}                                                        │ Allow  │ kms:Decrypt                           │ AWS:${Publisher/ServiceRole}      │           │
-│   │                                                                                                                                                      │        │ kms:DescribeKey                       │                                   │           │
-├───┼──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┼────────┼───────────────────────────────────────┼───────────────────────────────────┼───────────┤
-│ + │ {"Fn::ImportValue":"Laboraid-dev-Storage:ExportsOutputFnGetAttInputsBucketC69D315FArnC7FFFA06"}                                                      │ Allow  │ s3:GetBucket*                         │ AWS:${OcrPreprocess/ServiceRole}  │           │
-│   │ {"Fn::ImportValue":"Laboraid-dev-Storage:ExportsOutputFnGetAttInputsBucketC69D315FArnC7FFFA06"}/*                                                    │        │ s3:GetObject*                         │                                   │           │
-│   │                                                                                                                                                      │        │ s3:List*                              │                                   │           │
-│ + │ {"Fn::ImportValue":"Laboraid-dev-Storage:ExportsOutputFnGetAttInputsBucketC69D315FArnC7FFFA06"}                                                      │ Allow  │ s3:GetBucket*                         │ AWS:${ProfileBuilder/ServiceRole} │           │
-│   │ {"Fn::ImportValue":"Laboraid-dev-Storage:ExportsOutputFnGetAttInputsBucketC69D315FArnC7FFFA06"}/*                                                    │        │ s3:GetObject*                         │                                   │           │
-│   │                                                                                                                                                      │        │ s3:List*                              │                                   │           │
-│ + │ {"Fn::ImportValue":"Laboraid-dev-Storage:ExportsOutputFnGetAttInputsBucketC69D315FArnC7FFFA06"}                                                      │ Allow  │ s3:GetBucket*                         │ AWS:${Synthesizer/ServiceRole}    │           │
-│   │ {"Fn::ImportValue":"Laboraid-dev-Storage:ExportsOutputFnGetAttInputsBucketC69D315FArnC7FFFA06"}/*                                                    │        │ s3:GetObject*                         │                                   │           │
-│   │                                                                                                                                                      │        │ s3:List*                              │                                   │           │
-│ + │ {"Fn::ImportValue":"Laboraid-dev-Storage:ExportsOutputFnGetAttInputsBucketC69D315FArnC7FFFA06"}                                                      │ Allow  │ s3:GetBucket*                         │ AWS:${BatchPlanner/ServiceRole}   │           │
-│   │ {"Fn::ImportValue":"Laboraid-dev-Storage:ExportsOutputFnGetAttInputsBucketC69D315FArnC7FFFA06"}/*                                                    │        │ s3:GetObject*                         │                                   │           │
-│   │                                                                                                                                                      │        │ s3:List*                              │                                   │           │
-├───┼──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┼────────┼───────────────────────────────────────┼───────────────────────────────────┼───────────┤
-│ + │ {"Fn::ImportValue":"Laboraid-dev-Storage:ExportsOutputFnGetAttOutputsBucket24CB89DFArnB6871253"}                                                     │ Allow  │ s3:Abort*                             │ AWS:${Publisher/ServiceRole}      │           │
-│   │ {"Fn::ImportValue":"Laboraid-dev-Storage:ExportsOutputFnGetAttOutputsBucket24CB89DFArnB6871253"}/*                                                   │        │ s3:DeleteObject*                      │                                   │           │
-│   │                                                                                                                                                      │        │ s3:GetBucket*                         │                                   │           │
-│   │                                                                                                                                                      │        │ s3:GetObject*                         │                                   │           │
-│   │                                                                                                                                                      │        │ s3:List*                              │                                   │           │
-│   │                                                                                                                                                      │        │ s3:PutObject                          │                                   │           │
-│   │                                                                                                                                                      │        │ s3:PutObjectLegalHold                 │                                   │           │
-│   │                                                                                                                                                      │        │ s3:PutObjectRetention                 │                                   │           │
-│   │                                                                                                                                                      │        │ s3:PutObjectTagging                   │                                   │           │
-│   │                                                                                                                                                      │        │ s3:PutObjectVersionTagging            │                                   │           │
-│ + │ {"Fn::ImportValue":"Laboraid-dev-Storage:ExportsOutputFnGetAttOutputsBucket24CB89DFArnB6871253"}                                                     │ Allow  │ s3:Abort*                             │ AWS:${OcrPreprocess/ServiceRole}  │           │
-│   │ {"Fn::ImportValue":"Laboraid-dev-Storage:ExportsOutputFnGetAttOutputsBucket24CB89DFArnB6871253"}/*                                                   │        │ s3:DeleteObject*                      │                                   │           │
-│   │                                                                                                                                                      │        │ s3:GetBucket*                         │                                   │           │
-│   │                                                                                                                                                      │        │ s3:GetObject*                         │                                   │           │
-│   │                                                                                                                                                      │        │ s3:List*                              │                                   │           │
-│   │                                                                                                                                                      │        │ s3:PutObject                          │                                   │           │
-│   │                                                                                                                                                      │        │ s3:PutObjectLegalHold                 │                                   │           │
-│   │                                                                                                                                                      │        │ s3:PutObjectRetention                 │                                   │           │
-│   │                                                                                                                                                      │        │ s3:PutObjectTagging                   │                                   │           │
-│   │                                                                                                                                                      │        │ s3:PutObjectVersionTagging            │                                   │           │
-│ + │ {"Fn::ImportValue":"Laboraid-dev-Storage:ExportsOutputFnGetAttOutputsBucket24CB89DFArnB6871253"}                                                     │ Allow  │ s3:Abort*                             │ AWS:${Synthesizer/ServiceRole}    │           │
-│   │ {"Fn::ImportValue":"Laboraid-dev-Storage:ExportsOutputFnGetAttOutputsBucket24CB89DFArnB6871253"}/*                                                   │        │ s3:DeleteObject*                      │                                   │           │
-│   │                                                                                                                                                      │        │ s3:GetBucket*                         │                                   │           │
-│   │                                                                                                                                                      │        │ s3:GetObject*                         │                                   │           │
-│   │                                                                                                                                                      │        │ s3:List*                              │                                   │           │
-│   │                                                                                                                                                      │        │ s3:PutObject                          │                                   │           │
-│   │                                                                                                                                                      │        │ s3:PutObjectLegalHold                 │                                   │           │
-│   │                                                                                                                                                      │        │ s3:PutObjectRetention                 │                                   │           │
-│   │                                                                                                                                                      │        │ s3:PutObjectTagging                   │                                   │           │
-│   │                                                                                                                                                      │        │ s3:PutObjectVersionTagging            │                                   │           │
-│ + │ {"Fn::ImportValue":"Laboraid-dev-Storage:ExportsOutputFnGetAttOutputsBucket24CB89DFArnB6871253"}                                                     │ Allow  │ s3:Abort*                             │ AWS:${SynthPublish/ServiceRole}   │           │
-│   │ {"Fn::ImportValue":"Laboraid-dev-Storage:ExportsOutputFnGetAttOutputsBucket24CB89DFArnB6871253"}/*                                                   │        │ s3:DeleteObject*                      │                                   │           │
-│   │                                                                                                                                                      │        │ s3:GetBucket*                         │                                   │           │
-│   │                                                                                                                                                      │        │ s3:GetObject*                         │                                   │           │
-│   │                                                                                                                                                      │        │ s3:List*                              │                                   │           │
-│   │                                                                                                                                                      │        │ s3:PutObject                          │                                   │           │
-│   │                                                                                                                                                      │        │ s3:PutObjectLegalHold                 │                                   │           │
-│   │                                                                                                                                                      │        │ s3:PutObjectRetention                 │                                   │           │
-│   │                                                                                                                                                      │        │ s3:PutObjectTagging                   │                                   │           │
-│   │                                                                                                                                                      │        │ s3:PutObjectVersionTagging            │                                   │           │
-│ - │ {"Fn::ImportValue":"Laboraid-dev-Storage:ExportsOutputFnGetAttOutputsBucket24CB89DFArnB6871253"}                                                     │ Allow  │ s3:GetBucket*                         │ AWS:${Publisher/ServiceRole}      │           │
-│   │ {"Fn::ImportValue":"Laboraid-dev-Storage:ExportsOutputFnGetAttOutputsBucket24CB89DFArnB6871253"}/*                                                   │        │ s3:GetObject*                         │                                   │           │
-│   │                                                                                                                                                      │        │ s3:List*                              │                                   │           │
-├───┼──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┼────────┼───────────────────────────────────────┼───────────────────────────────────┼───────────┤
-│ + │ {"Fn::ImportValue":"Laboraid-dev-Storage:ExportsOutputRefAuroraSecretAttachmentEAAB0558D3F1C641"}                                                    │ Allow  │ secretsmanager:DescribeSecret         │ AWS:${ProfileBuilder/ServiceRole} │           │
-│   │                                                                                                                                                      │        │ secretsmanager:GetSecretValue         │                                   │           │
-│ + │ {"Fn::ImportValue":"Laboraid-dev-Storage:ExportsOutputRefAuroraSecretAttachmentEAAB0558D3F1C641"}                                                    │ Allow  │ secretsmanager:DescribeSecret         │ AWS:${Synthesizer/ServiceRole}    │           │
-│   │                                                                                                                                                      │        │ secretsmanager:GetSecretValue         │                                   │           │
-│ + │ {"Fn::ImportValue":"Laboraid-dev-Storage:ExportsOutputRefAuroraSecretAttachmentEAAB0558D3F1C641"}                                                    │ Allow  │ secretsmanager:DescribeSecret         │ AWS:${SynthPublish/ServiceRole}   │           │
-│   │                                                                                                                                                      │        │ secretsmanager:GetSecretValue         │                                   │           │
-└───┴──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┴────────┴───────────────────────────────────────┴───────────────────────────────────┴───────────┘
+┌───┬──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┬────────┬───────────────────────────────────────┬──────────────────────────────────┬───────────┐
+│   │ Resource                                                                                                                                             │ Effect │ Action                                │ Principal                        │ Condition │
+├───┼──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┼────────┼───────────────────────────────────────┼──────────────────────────────────┼───────────┤
+│ + │ ${BatchPlanner/ServiceRole.Arn}                                                                                                                      │ Allow  │ sts:AssumeRole                        │ Service:lambda.amazonaws.com     │           │
+├───┼──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┼────────┼───────────────────────────────────────┼──────────────────────────────────┼───────────┤
+│ + │ ${Classifier.Arn}                                                                                                                                    │ Allow  │ lambda:InvokeFunction                 │ AWS:${BatchPlanner/ServiceRole}  │           │
+│   │ ${Classifier.Arn}:*                                                                                                                                  │        │                                       │                                  │           │
+├───┼──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┼────────┼───────────────────────────────────────┼──────────────────────────────────┼───────────┤
+│ + │ ${OcrPreprocess/ServiceRole.Arn}                                                                                                                     │ Allow  │ sts:AssumeRole                        │ Service:lambda.amazonaws.com     │           │
+├───┼──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┼────────┼───────────────────────────────────────┼──────────────────────────────────┼───────────┤
+│ + │ ${ProfileBuilder.Arn}                                                                                                                                │ Allow  │ lambda:InvokeFunction                 │ AWS:${LlmExtractor/ServiceRole}  │           │
+│   │ ${ProfileBuilder.Arn}:*                                                                                                                              │        │                                       │                                  │           │
+├───┼──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┼────────┼───────────────────────────────────────┼──────────────────────────────────┼───────────┤
+│ + │ *                                                                                                                                                    │ Allow  │ textract:AnalyzeDocument              │ AWS:${OcrPreprocess/ServiceRole} │           │
+│   │                                                                                                                                                      │        │ textract:GetDocumentAnalysis          │                                  │           │
+│   │                                                                                                                                                      │        │ textract:StartDocumentAnalysis        │                                  │           │
+│   │                                                                                                                                                      │        │ xray:PutTelemetryRecords              │                                  │           │
+│   │                                                                                                                                                      │        │ xray:PutTraceSegments                 │                                  │           │
+│ + │ *                                                                                                                                                    │ Allow  │ xray:PutTelemetryRecords              │ AWS:${BatchPlanner/ServiceRole}  │           │
+│   │                                                                                                                                                      │        │ xray:PutTraceSegments                 │                                  │           │
+├───┼──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┼────────┼───────────────────────────────────────┼──────────────────────────────────┼───────────┤
+│ + │ arn:${AWS::Partition}:rds:${AWS::Region}:${AWS::AccountId}:cluster:{"Fn::ImportValue":"Laboraid-dev-Storage:ExportsOutputRefAurora2CBAB212533F1A7B"} │ Allow  │ rds-data:BatchExecuteStatement        │ AWS:${LlmExtractor/ServiceRole}  │           │
+│   │                                                                                                                                                      │        │ rds-data:BeginTransaction             │                                  │           │
+│   │                                                                                                                                                      │        │ rds-data:CommitTransaction            │                                  │           │
+│   │                                                                                                                                                      │        │ rds-data:ExecuteStatement             │                                  │           │
+│   │                                                                                                                                                      │        │ rds-data:RollbackTransaction          │                                  │           │
+├───┼──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┼────────┼───────────────────────────────────────┼──────────────────────────────────┼───────────┤
+│ + │ arn:aws:bedrock:*::foundation-model/anthropic.claude-*                                                                                               │ Allow  │ bedrock:InvokeModel                   │ AWS:${LlmExtractor/ServiceRole}  │           │
+│   │ arn:aws:bedrock:us-east-2:${AWS::AccountId}:guardrail/*                                                                                              │        │ bedrock:InvokeModelWithResponseStream │                                  │           │
+│   │ arn:aws:bedrock:us-east-2:${AWS::AccountId}:inference-profile/*                                                                                      │        │                                       │                                  │           │
+├───┼──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┼────────┼───────────────────────────────────────┼──────────────────────────────────┼───────────┤
+│ + │ {"Fn::ImportValue":"Laboraid-dev-Security:ExportsOutputFnGetAttMasterKey0175C9E2Arn2B8655C7"}                                                        │ Allow  │ kms:Decrypt                           │ AWS:${Publisher/ServiceRole}     │           │
+│   │                                                                                                                                                      │        │ kms:DescribeKey                       │                                  │           │
+│   │                                                                                                                                                      │        │ kms:Encrypt                           │                                  │           │
+│   │                                                                                                                                                      │        │ kms:GenerateDataKey*                  │                                  │           │
+│   │                                                                                                                                                      │        │ kms:ReEncrypt*                        │                                  │           │
+│ + │ {"Fn::ImportValue":"Laboraid-dev-Security:ExportsOutputFnGetAttMasterKey0175C9E2Arn2B8655C7"}                                                        │ Allow  │ kms:Decrypt                           │ AWS:${OcrPreprocess/ServiceRole} │           │
+│   │                                                                                                                                                      │        │ kms:DescribeKey                       │                                  │           │
+│   │                                                                                                                                                      │        │ kms:Encrypt                           │                                  │           │
+│   │                                                                                                                                                      │        │ kms:GenerateDataKey*                  │                                  │           │
+│   │                                                                                                                                                      │        │ kms:ReEncrypt*                        │                                  │           │
+│ + │ {"Fn::ImportValue":"Laboraid-dev-Security:ExportsOutputFnGetAttMasterKey0175C9E2Arn2B8655C7"}                                                        │ Allow  │ kms:Decrypt                           │ AWS:${BatchPlanner/ServiceRole}  │           │
+│   │                                                                                                                                                      │        │ kms:DescribeKey                       │                                  │           │
+│ - │ {"Fn::ImportValue":"Laboraid-dev-Security:ExportsOutputFnGetAttMasterKey0175C9E2Arn2B8655C7"}                                                        │ Allow  │ kms:Decrypt                           │ AWS:${Publisher/ServiceRole}     │           │
+│   │                                                                                                                                                      │        │ kms:DescribeKey                       │                                  │           │
+├───┼──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┼────────┼───────────────────────────────────────┼──────────────────────────────────┼───────────┤
+│ + │ {"Fn::ImportValue":"Laboraid-dev-Storage:ExportsOutputFnGetAttInputsBucketC69D315FArnC7FFFA06"}                                                      │ Allow  │ s3:GetBucket*                         │ AWS:${OcrPreprocess/ServiceRole} │           │
+│   │ {"Fn::ImportValue":"Laboraid-dev-Storage:ExportsOutputFnGetAttInputsBucketC69D315FArnC7FFFA06"}/*                                                    │        │ s3:GetObject*                         │                                  │           │
+│   │                                                                                                                                                      │        │ s3:List*                              │                                  │           │
+│ + │ {"Fn::ImportValue":"Laboraid-dev-Storage:ExportsOutputFnGetAttInputsBucketC69D315FArnC7FFFA06"}                                                      │ Allow  │ s3:GetBucket*                         │ AWS:${BatchPlanner/ServiceRole}  │           │
+│   │ {"Fn::ImportValue":"Laboraid-dev-Storage:ExportsOutputFnGetAttInputsBucketC69D315FArnC7FFFA06"}/*                                                    │        │ s3:GetObject*                         │                                  │           │
+│   │                                                                                                                                                      │        │ s3:List*                              │                                  │           │
+├───┼──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┼────────┼───────────────────────────────────────┼──────────────────────────────────┼───────────┤
+│ + │ {"Fn::ImportValue":"Laboraid-dev-Storage:ExportsOutputFnGetAttOutputsBucket24CB89DFArnB6871253"}                                                     │ Allow  │ s3:Abort*                             │ AWS:${Publisher/ServiceRole}     │           │
+│   │ {"Fn::ImportValue":"Laboraid-dev-Storage:ExportsOutputFnGetAttOutputsBucket24CB89DFArnB6871253"}/*                                                   │        │ s3:DeleteObject*                      │                                  │           │
+│   │                                                                                                                                                      │        │ s3:GetBucket*                         │                                  │           │
+│   │                                                                                                                                                      │        │ s3:GetObject*                         │                                  │           │
+│   │                                                                                                                                                      │        │ s3:List*                              │                                  │           │
+│   │                                                                                                                                                      │        │ s3:PutObject                          │                                  │           │
+│   │                                                                                                                                                      │        │ s3:PutObjectLegalHold                 │                                  │           │
+│   │                                                                                                                                                      │        │ s3:PutObjectRetention                 │                                  │           │
+│   │                                                                                                                                                      │        │ s3:PutObjectTagging                   │                                  │           │
+│   │                                                                                                                                                      │        │ s3:PutObjectVersionTagging            │                                  │           │
+│ + │ {"Fn::ImportValue":"Laboraid-dev-Storage:ExportsOutputFnGetAttOutputsBucket24CB89DFArnB6871253"}                                                     │ Allow  │ s3:Abort*                             │ AWS:${OcrPreprocess/ServiceRole} │           │
+│   │ {"Fn::ImportValue":"Laboraid-dev-Storage:ExportsOutputFnGetAttOutputsBucket24CB89DFArnB6871253"}/*                                                   │        │ s3:DeleteObject*                      │                                  │           │
+│   │                                                                                                                                                      │        │ s3:GetBucket*                         │                                  │           │
+│   │                                                                                                                                                      │        │ s3:GetObject*                         │                                  │           │
+│   │                                                                                                                                                      │        │ s3:List*                              │                                  │           │
+│   │                                                                                                                                                      │        │ s3:PutObject                          │                                  │           │
+│   │                                                                                                                                                      │        │ s3:PutObjectLegalHold                 │                                  │           │
+│   │                                                                                                                                                      │        │ s3:PutObjectRetention                 │                                  │           │
+│   │                                                                                                                                                      │        │ s3:PutObjectTagging                   │                                  │           │
+│   │                                                                                                                                                      │        │ s3:PutObjectVersionTagging            │                                  │           │
+│ - │ {"Fn::ImportValue":"Laboraid-dev-Storage:ExportsOutputFnGetAttOutputsBucket24CB89DFArnB6871253"}                                                     │ Allow  │ s3:GetBucket*                         │ AWS:${Publisher/ServiceRole}     │           │
+│   │ {"Fn::ImportValue":"Laboraid-dev-Storage:ExportsOutputFnGetAttOutputsBucket24CB89DFArnB6871253"}/*                                                   │        │ s3:GetObject*                         │                                  │           │
+│   │                                                                                                                                                      │        │ s3:List*                              │                                  │           │
+├───┼──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┼────────┼───────────────────────────────────────┼──────────────────────────────────┼───────────┤
+│ + │ {"Fn::ImportValue":"Laboraid-dev-Storage:ExportsOutputRefAuroraSecretAttachmentEAAB0558D3F1C641"}                                                    │ Allow  │ secretsmanager:DescribeSecret         │ AWS:${LlmExtractor/ServiceRole}  │           │
+│   │                                                                                                                                                      │        │ secretsmanager:GetSecretValue         │                                  │           │
+└───┴──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┴────────┴───────────────────────────────────────┴──────────────────────────────────┴───────────┘
 IAM Policy Changes
-┌───┬───────────────────────────────┬────────────────────────────────────────────────────────────────────────────────┐
-│   │ Resource                      │ Managed Policy ARN                                                             │
-├───┼───────────────────────────────┼────────────────────────────────────────────────────────────────────────────────┤
-│ + │ ${BatchPlanner/ServiceRole}   │ arn:${AWS::Partition}:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole │
-├───┼───────────────────────────────┼────────────────────────────────────────────────────────────────────────────────┤
-│ + │ ${OcrPreprocess/ServiceRole}  │ arn:${AWS::Partition}:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole │
-├───┼───────────────────────────────┼────────────────────────────────────────────────────────────────────────────────┤
-│ + │ ${ProfileBuilder/ServiceRole} │ arn:${AWS::Partition}:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole │
-├───┼───────────────────────────────┼────────────────────────────────────────────────────────────────────────────────┤
-│ + │ ${SynthPublish/ServiceRole}   │ arn:${AWS::Partition}:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole │
-├───┼───────────────────────────────┼────────────────────────────────────────────────────────────────────────────────┤
-│ + │ ${Synthesizer/ServiceRole}    │ arn:${AWS::Partition}:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole │
-└───┴───────────────────────────────┴────────────────────────────────────────────────────────────────────────────────┘
+┌───┬──────────────────────────────┬────────────────────────────────────────────────────────────────────────────────┐
+│   │ Resource                     │ Managed Policy ARN                                                             │
+├───┼──────────────────────────────┼────────────────────────────────────────────────────────────────────────────────┤
+│ + │ ${BatchPlanner/ServiceRole}  │ arn:${AWS::Partition}:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole │
+├───┼──────────────────────────────┼────────────────────────────────────────────────────────────────────────────────┤
+│ + │ ${OcrPreprocess/ServiceRole} │ arn:${AWS::Partition}:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole │
+└───┴──────────────────────────────┴────────────────────────────────────────────────────────────────────────────────┘
 (NOTE: There may be security-related changes not in this list. See https://github.com/aws/aws-cdk/issues/1299)
 
 Resources
@@ -178,16 +105,10 @@ Resources
 [+] AWS::Lambda::Function OcrPreprocess OcrPreprocessCB7C8D69
 [+] AWS::Lambda::LayerVersion SynthDepsLayer SynthDepsLayer823BD987
 [+] AWS::Logs::LogGroup ProfileBuilderLogGroup ProfileBuilderLogGroupCC0C2C71
-[+] AWS::IAM::Role ProfileBuilder/ServiceRole ProfileBuilderServiceRoleE7DB93B2
-[+] AWS::IAM::Policy ProfileBuilder/ServiceRole/DefaultPolicy ProfileBuilderServiceRoleDefaultPolicy3ACA150F
 [+] AWS::Lambda::Function ProfileBuilder ProfileBuilder711E886A
 [+] AWS::Logs::LogGroup SynthesizerLogGroup SynthesizerLogGroupD6C8E1E8
-[+] AWS::IAM::Role Synthesizer/ServiceRole SynthesizerServiceRoleC338D70D
-[+] AWS::IAM::Policy Synthesizer/ServiceRole/DefaultPolicy SynthesizerServiceRoleDefaultPolicy2AE21A49
 [+] AWS::Lambda::Function Synthesizer SynthesizerBB2B8A5A
 [+] AWS::Logs::LogGroup SynthPublishLogGroup SynthPublishLogGroupED920930
-[+] AWS::IAM::Role SynthPublish/ServiceRole SynthPublishServiceRole3A3B358B
-[+] AWS::IAM::Policy SynthPublish/ServiceRole/DefaultPolicy SynthPublishServiceRoleDefaultPolicy9CAD7EBA
 [+] AWS::Lambda::Function SynthPublish SynthPublish29601B35
 [+] AWS::Logs::LogGroup BatchPlannerLogGroup BatchPlannerLogGroup85195D9C
 [+] AWS::IAM::Role BatchPlanner/ServiceRole BatchPlannerServiceRoleE9CD6C9E
@@ -202,6 +123,118 @@ Resources
      └─ [~] .aws:asset:path:
          ├─ [-] asset.eff84a6039f8715f84bb8279264c22c6f223d79dea6ec8b490a9fb01469085fc
          └─ [+] asset.fa0b0bc513ef1c6b90ad0b3859e0b642e6a7f6c53abf90dc0bc35eba584298d1
+[~] AWS::IAM::Policy LlmExtractor/ServiceRole/DefaultPolicy LlmExtractorServiceRoleDefaultPolicy98A9102E
+ └─ [~] PolicyDocument
+     └─ [~] .Statement:
+         └─ @@ -117,5 +117,108 @@
+            [ ]         ]
+            [ ]       ]
+            [ ]     }
+            [+]   },
+            [+]   {
+            [+]     "Action": [
+            [+]       "bedrock:InvokeModel",
+            [+]       "bedrock:InvokeModelWithResponseStream"
+            [+]     ],
+            [+]     "Effect": "Allow",
+            [+]     "Resource": [
+            [+]       "arn:aws:bedrock:*::foundation-model/anthropic.claude-*",
+            [+]       {
+            [+]         "Fn::Join": [
+            [+]           "",
+            [+]           [
+            [+]             "arn:aws:bedrock:us-east-2:",
+            [+]             {
+            [+]               "Ref": "AWS::AccountId"
+            [+]             },
+            [+]             ":guardrail/*"
+            [+]           ]
+            [+]         ]
+            [+]       },
+            [+]       {
+            [+]         "Fn::Join": [
+            [+]           "",
+            [+]           [
+            [+]             "arn:aws:bedrock:us-east-2:",
+            [+]             {
+            [+]               "Ref": "AWS::AccountId"
+            [+]             },
+            [+]             ":inference-profile/*"
+            [+]           ]
+            [+]         ]
+            [+]       }
+            [+]     ]
+            [+]   },
+            [+]   {
+            [+]     "Action": "lambda:InvokeFunction",
+            [+]     "Effect": "Allow",
+            [+]     "Resource": [
+            [+]       {
+            [+]         "Fn::GetAtt": [
+            [+]           "ProfileBuilder711E886A",
+            [+]           "Arn"
+            [+]         ]
+            [+]       },
+            [+]       {
+            [+]         "Fn::Join": [
+            [+]           "",
+            [+]           [
+            [+]             {
+            [+]               "Fn::GetAtt": [
+            [+]                 "ProfileBuilder711E886A",
+            [+]                 "Arn"
+            [+]               ]
+            [+]             },
+            [+]             ":*"
+            [+]           ]
+            [+]         ]
+            [+]       }
+            [+]     ]
+            [+]   },
+            [+]   {
+            [+]     "Action": [
+            [+]       "rds-data:BatchExecuteStatement",
+            [+]       "rds-data:BeginTransaction",
+            [+]       "rds-data:CommitTransaction",
+            [+]       "rds-data:ExecuteStatement",
+            [+]       "rds-data:RollbackTransaction"
+            [+]     ],
+            [+]     "Effect": "Allow",
+            [+]     "Resource": {
+            [+]       "Fn::Join": [
+            [+]         "",
+            [+]         [
+            [+]           "arn:",
+            [+]           {
+            [+]             "Ref": "AWS::Partition"
+            [+]           },
+            [+]           ":rds:",
+            [+]           {
+            [+]             "Ref": "AWS::Region"
+            [+]           },
+            [+]           ":",
+            [+]           {
+            [+]             "Ref": "AWS::AccountId"
+            [+]           },
+            [+]           ":cluster:",
+            [+]           {
+            [+]             "Fn::ImportValue": "Laboraid-dev-Storage:ExportsOutputRefAurora2CBAB212533F1A7B"
+            [+]           }
+            [+]         ]
+            [+]       ]
+            [+]     }
+            [+]   },
+            [+]   {
+            [+]     "Action": [
+            [+]       "secretsmanager:DescribeSecret",
+            [+]       "secretsmanager:GetSecretValue"
+            [+]     ],
+            [+]     "Effect": "Allow",
+            [+]     "Resource": {
+            [+]       "Fn::ImportValue": "Laboraid-dev-Storage:ExportsOutputRefAuroraSecretAttachmentEAAB0558D3F1C641"
+            [+]     }
+            [ ]   }
+            [ ] ]
 [~] AWS::Lambda::Function LlmExtractor LlmExtractor3E28FC44
  ├─ [~] Code
  │   └─ [~] .S3Key:
