@@ -17,37 +17,37 @@ gated to a maintenance window. Companion to `/DEPLOY_FREEZE.md`,
 
 ---
 
-## Phase 1 — Author CDK to match live  🟢 (no AWS changes)
+## Phase 1 — Author CDK to match live  ✅ DONE (commit 9927d92, branch fix/cdk-reconcile — no AWS changes)
 
 ### 1A · Orchestration stack (highest risk — the SFN)
-- [ ] 1A.1 Rewrite `cdk/laboraid_cdk/sfn/main_pipeline.py` → `Plan → Synthesize → SynthPublish` (+ `Published`/`PipelineFailed`), matching retry/catch in `sfn_definition.json`
-- [ ] 1A.2 Update `stacks/orchestration_stack.py` — `build_definition` now takes `batch_planner`, `synthesizer`, `synth_publish` (drop classifier/checksum/range/confidence/render wiring)
-- [ ] 1A.3 Add MainPipelineRole grants: planner/synthesizer/synth-publish `grant_invoke`
-- [ ] 1A.4 Set the upload EventBridge rule `enabled=False` (matches live DISABLED)
+- [x] 1A.1 Rewrite `cdk/laboraid_cdk/sfn/main_pipeline.py` → `Plan → Synthesize → SynthPublish` (+ `Published`/`PipelineFailed`), matching retry/catch in `sfn_definition.json`
+- [x] 1A.2 Update `stacks/orchestration_stack.py` — `build_definition` now takes `batch_planner`, `synthesizer`, `synth_publish` (drop classifier/checksum/range/confidence/render wiring)
+- [x] 1A.3 Add MainPipelineRole grants: planner/synthesizer/synth-publish `grant_invoke`
+- [x] 1A.4 Set the upload EventBridge rule `enabled=False` (matches live DISABLED)
 
 ### 1B · Processing stack (the 4 new Lambdas + IAM + deps)
-- [ ] 1B.1 Add `synthesizer` Lambda (config from `new_lambda_configs.json`: py3.12 arm64, 1024MB, 900s, powertools layer; env INPUTS/OUTPUTS_BUCKET, BEDROCK_GUARDRAIL_ID, SYNTH_MODEL_ID=opus-4-5, AURORA_CLUSTER_ARN, AURORA_SECRET_ARN, PROFILE_BUILDER_FN, PROFILES_DIR)
-- [ ] 1B.2 Add `synth-publish` Lambda (Aurora env; role w/ RDS Data API)
-- [ ] 1B.3 Add `profile-builder` Lambda (Bedrock + S3 + RDS env)
-- [ ] 1B.4 Add `batch-planner` Lambda (invokes classifier)
-- [ ] 1B.5 **Declare runtime deps** `pypdf` + `openpyxl` — chosen approach: a shared **Lambda layer** built from `requirements.txt` (used by synthesizer + profile-builder). (Alt: per-function `BundlingOptions`.)
-- [ ] 1B.6 Bundle shared modules into the assets: `master_data.py`, `pdf_utils.py`, and `profiles/*.json` for the synthesizer
-- [ ] 1B.7 IAM: `LlmExtractorServiceRole` += inline `rds-data-profiles` (ExecuteStatement/BatchExecuteStatement on cluster + GetSecretValue on secret) and `invoke-profile-builder` — verbatim from `iam_inline_policies.json`
-- [ ] 1B.8 Grants for new roles: `bedrock:InvokeModel` (+ guardrail), S3 read inputs / read-write outputs, RDS Data API on cluster + secret
+- [x] 1B.1 Add `synthesizer` Lambda (config from `new_lambda_configs.json`: py3.12 arm64, 1024MB, 900s, powertools layer; env INPUTS/OUTPUTS_BUCKET, BEDROCK_GUARDRAIL_ID, SYNTH_MODEL_ID=opus-4-5, AURORA_CLUSTER_ARN, AURORA_SECRET_ARN, PROFILE_BUILDER_FN, PROFILES_DIR)
+- [x] 1B.2 Add `synth-publish` Lambda (Aurora env; role w/ RDS Data API)
+- [x] 1B.3 Add `profile-builder` Lambda (Bedrock + S3 + RDS env)
+- [x] 1B.4 Add `batch-planner` Lambda (invokes classifier)
+- [x] 1B.5 **Declare runtime deps** `pypdf` + `openpyxl` — chosen approach: a shared **Lambda layer** built from `requirements.txt` (used by synthesizer + profile-builder). (Alt: per-function `BundlingOptions`.)
+- [x] 1B.6 Bundle shared modules into the assets: `master_data.py`, `pdf_utils.py`, and `profiles/*.json` for the synthesizer
+- [x] 1B.7 IAM: `LlmExtractorServiceRole` += inline `rds-data-profiles` (ExecuteStatement/BatchExecuteStatement on cluster + GetSecretValue on secret) and `invoke-profile-builder` — verbatim from `iam_inline_policies.json`
+- [x] 1B.8 Grants for new roles: `bedrock:InvokeModel` (+ guardrail), S3 read inputs / read-write outputs, RDS Data API on cluster + secret
 
 ### 1C · Api stack (batch endpoint + IAM)
-- [ ] 1C.1 Add `batch-process` Lambda + route `POST /v1/batches/process` (JWT authorizer, Business/Operations/Admins gate, `STATE_MACHINE_ARN` env, `states:StartExecution` grant)
-- [ ] 1C.2 IAM: `ProfileListServiceRole` + `ProfileUpdateServiceRole` += inline `rds-data-profiles`
-- [ ] 1C.3 Verify `ratesheet-get` / `job-status` env (presign expiry) + roles match live
+- [x] 1C.1 Add `batch-process` Lambda + route `POST /v1/batches/process` (JWT authorizer, Business/Operations/Admins gate, `STATE_MACHINE_ARN` env, `states:StartExecution` grant)
+- [x] 1C.2 IAM: `ProfileListServiceRole` + `ProfileUpdateServiceRole` += inline `rds-data-profiles`
+- [x] 1C.3 Verify `ratesheet-get` / `job-status` env (presign expiry) + roles match live
 
 ### 1D · Ai / Storage / Validation
-- [ ] 1D.1 Ai: confirm `PiiGuardrail` = ANONYMIZE (already in source — verify only)
-- [ ] 1D.2 Storage: inspect the 6 S3-bucket drifts (likely notification/policy config) — absorb if real, document if benign
-- [ ] 1D.3 Validation: inspect the 2 SNS-topic drifts — same treatment
+- [x] 1D.1 Ai: confirm `PiiGuardrail` = ANONYMIZE (already in source — verify only)
+- [x] 1D.2 Storage: inspect the 6 S3-bucket drifts (likely notification/policy config) — absorb if real, document if benign
+- [x] 1D.3 Validation: inspect the 2 SNS-topic drifts — same treatment
 
 ### 1E · Build gate
-- [ ] 1E.1 `cdk synth` the whole app — **must template with no errors**
-- [ ] 1E.2 Commit Phase 1 on a branch `fix/cdk-reconcile` (not main) for review
+- [x] 1E.1 `cdk synth` the whole app — **must template with no errors**
+- [x] 1E.2 Commit Phase 1 on a branch `fix/cdk-reconcile` (not main) for review
 
 **Phase 1 acceptance:** `cdk synth` clean; CDK source describes the live system.
 
