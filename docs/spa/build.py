@@ -18,15 +18,17 @@ import pathlib
 import subprocess
 
 HERE = pathlib.Path(__file__).resolve().parent
-RUNBOOKS = HERE.parent / "Runbooks"
+CONTENT = HERE / "content"
 TEMPLATE = HERE / "template.html"
 OUT_DIR = HERE / "dist"
 OUT = OUT_DIR / "index.html"
 
+# Client-facing walkthrough: Overview / Architecture / Status. (Placeholder
+# names are historical; the tab IDs flow/services/errors still drive the UI.)
 DOCS = {
-    "__DOC_FLOW_PLACEHOLDER__": RUNBOOKS / "PRODUCT_END_TO_END_FLOW.md",
-    "__DOC_SERVICES_PLACEHOLDER__": RUNBOOKS / "PRODUCT_SERVICE_INVENTORY.md",
-    "__DOC_ERRORS_PLACEHOLDER__": RUNBOOKS / "PRODUCT_ERROR_AND_LOGGING_REFERENCE.md",
+    "__DOC_FLOW_PLACEHOLDER__": CONTENT / "01_overview.md",
+    "__DOC_SERVICES_PLACEHOLDER__": CONTENT / "02_architecture.md",
+    "__DOC_ERRORS_PLACEHOLDER__": CONTENT / "03_status.md",
 }
 
 
