@@ -1,0 +1,98 @@
+trade: Sprinkler
+local: '268'
+union_group: UA
+period_start: 1/1/26
+period_end: 8/31/26
+row_template:
+- zone: Building
+  package: Foreman
+  indentured_before: null
+  indentured_after: null
+- zone: Building
+  package: Journeyman
+  indentured_before: null
+  indentured_after: null
+- zone: Building
+  package: Apprentice Year 5
+  indentured_before: null
+  indentured_after: null
+- zone: Building
+  package: Apprentice Year 4
+  indentured_before: null
+  indentured_after: null
+- zone: Building
+  package: Apprentice Year 3
+  indentured_before: null
+  indentured_after: null
+- zone: Building
+  package: Apprentice Year 2
+  indentured_before: null
+  indentured_after: null
+- zone: Building
+  package: Apprentice Year 1
+  indentured_before: null
+  indentured_after: null
+source_cba_folder: From Customer/CBAs/Sprinkler/268
+oracle_sheet: From Customer/Rate Sheets/Sprinkler/268/2026.01.01.268 Rate Sheet.csv
+has_cohorts: false
+cohorts: []
+zones:
+- Building
+packages:
+- Foreman
+- Journeyman
+- Apprentice Year 5
+- Apprentice Year 4
+- Apprentice Year 3
+- Apprentice Year 2
+- Apprentice Year 1
+wage:
+  base: Wage
+  derived_multipliers:
+    Wage Differential: 1.15
+    Wage 1.5x: 1.5
+    Wage 2.0x: 2.0
+fund_columns:
+- name: Health & Welfare
+  percent: false
+- name: Health & Welfare Metal
+  percent: false
+- name: RESA
+  percent: false
+- name: Pension
+  percent: false
+- name: SIS
+  percent: false
+- name: UA International Training
+  percent: false
+- name: Apprenticeship Training
+  percent: false
+- name: Industry Promotion Local Use
+  percent: false
+- name: Industry Promotion National Use
+  percent: false
+- name: Vacation 268
+  percent: false
+column_order:
+- Union Group
+- Trade
+- Union Local
+- Zone
+- Package
+- Start Date
+- End Date
+- Wage
+- Wage Differential
+- Wage 1.5x
+- Wage 2.0x
+- Health & Welfare
+- Health & Welfare Metal
+- RESA
+- Pension
+- SIS
+- UA International Training
+- Apprenticeship Training
+- Industry Promotion Local Use
+- Industry Promotion National Use
+- Vacation 268
+row_count: 7

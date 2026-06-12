@@ -6,6 +6,7 @@ import { CellCommentModal } from "../components/CellCommentModal";
 import { CellOverrideModal } from "../components/CellOverrideModal";
 import { ProvenancePanel } from "../components/ProvenancePanel";
 import { RateCellTable } from "../components/RateCellTable";
+import { RateSheetGrid } from "../components/RateSheetGrid";
 import { ReworkBar } from "../components/ReworkBar";
 import { api } from "../lib/api";
 import { getCurrentActor } from "../lib/auth";
@@ -589,8 +590,24 @@ export function RateSheetReview(): JSX.Element {
         onChanged={onActionChanged}
       />
 
-      {/* MAIN BODY — table + provenance. PDF is opened on demand via the
-          Source PDF artifact card above; the data table gets the room. */}
+      {/* HERO — the rate sheet as the client sees it: classifications +
+          indenture cohorts as rows, funds as columns. */}
+      {cells.length > 0 && (
+        <div className="overflow-hidden rounded-md border border-slate-200 bg-white shadow-sm">
+          <div className="flex items-center justify-between border-b border-slate-200 px-4 py-2">
+            <h3 className="text-sm font-semibold text-slate-800">Rate Sheet</h3>
+            <span className="text-xs text-slate-500">
+              {new Set(cells.map((c) => `${c.zone}|${c.package}|${JSON.stringify(c.dimensions ?? {})}`)).size}{" "}
+              classifications · click any value for provenance
+            </span>
+          </div>
+          <div className="max-h-[520px] overflow-auto">
+            <RateSheetGrid cells={cells} onSelect={setSelected} />
+          </div>
+        </div>
+      )}
+
+      {/* DETAIL — flat cell list + provenance for cell-level review/comments. */}
       <div className="grid grid-cols-12 gap-3">
         <div className="col-span-9 overflow-hidden rounded-md border border-slate-200 bg-white shadow-sm">
           <div className="max-h-[640px] overflow-auto">

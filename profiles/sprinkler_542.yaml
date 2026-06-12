@@ -1,0 +1,190 @@
+trade: Sprinkler
+local: '542'
+union_group: UA
+period_start: 1/1/26
+period_end: 6/30/26
+row_template:
+- zone: Building
+  package: Foreman
+  indentured_before: null
+  indentured_after: null
+- zone: Building
+  package: Journeyman
+  indentured_before: null
+  indentured_after: null
+- zone: Building
+  package: Apprentice Class 10
+  indentured_before: null
+  indentured_after: null
+- zone: Building
+  package: Apprentice Class 9
+  indentured_before: null
+  indentured_after: null
+- zone: Building
+  package: Apprentice Class 8
+  indentured_before: null
+  indentured_after: null
+- zone: Building
+  package: Apprentice Class 7
+  indentured_before: null
+  indentured_after: null
+- zone: Building
+  package: Apprentice Class 6
+  indentured_before: null
+  indentured_after: null
+- zone: Building
+  package: Apprentice Class 5
+  indentured_before: null
+  indentured_after: null
+- zone: Building
+  package: Apprentice Class 4
+  indentured_before: null
+  indentured_after: null
+- zone: Building
+  package: Apprentice Class 3
+  indentured_before: null
+  indentured_after: null
+- zone: Building
+  package: Apprentice Class 2
+  indentured_before: null
+  indentured_after: null
+- zone: Building
+  package: Apprentice Class 1
+  indentured_before: null
+  indentured_after: null
+- zone: Residential
+  package: Foreman
+  indentured_before: null
+  indentured_after: null
+- zone: Residential
+  package: Journeyman
+  indentured_before: null
+  indentured_after: null
+- zone: Residential
+  package: Apprentice Class 10
+  indentured_before: null
+  indentured_after: null
+- zone: Residential
+  package: Apprentice Class 9
+  indentured_before: null
+  indentured_after: null
+- zone: Residential
+  package: Apprentice Class 8
+  indentured_before: null
+  indentured_after: null
+- zone: Residential
+  package: Apprentice Class 7
+  indentured_before: null
+  indentured_after: null
+- zone: Residential
+  package: Apprentice Class 6
+  indentured_before: null
+  indentured_after: null
+- zone: Residential
+  package: Apprentice Class 5
+  indentured_before: null
+  indentured_after: null
+- zone: Residential
+  package: Apprentice Class 4
+  indentured_before: null
+  indentured_after: null
+- zone: Residential
+  package: Apprentice Class 3
+  indentured_before: null
+  indentured_after: null
+- zone: Residential
+  package: Apprentice Class 2
+  indentured_before: null
+  indentured_after: null
+- zone: Residential
+  package: Apprentice Class 1
+  indentured_before: null
+  indentured_after: null
+source_cba_folder: From Customer/CBAs/Sprinkler/542
+oracle_sheet: From Customer/Rate Sheets/Sprinkler/542/2026.01.01.542 Rate Sheet.csv
+has_cohorts: false
+cohorts: []
+zones:
+- Building
+- Residential
+packages:
+- Foreman
+- Journeyman
+- Apprentice Class 10
+- Apprentice Class 9
+- Apprentice Class 8
+- Apprentice Class 7
+- Apprentice Class 6
+- Apprentice Class 5
+- Apprentice Class 4
+- Apprentice Class 3
+- Apprentice Class 2
+- Apprentice Class 1
+wage:
+  base: Wage
+  derived_multipliers:
+    Wage Differential: 1.15
+    Wage 1.5x: 1.5
+    Wage 2.0x: 2.0
+fund_columns:
+- name: Health & Welfare
+  percent: false
+- name: RESA
+  percent: false
+- name: Pension
+  percent: false
+- name: SIS
+  percent: false
+- name: UA International Training
+  percent: false
+- name: Apprenticeship Training
+  percent: false
+- name: Industry Promotion National Use
+  percent: false
+- name: Industry Promotion Local Use
+  percent: false
+- name: Fraternal Fund 542
+  percent: false
+- name: Union Dues 1 542
+  percent: true
+- name: Union Dues 2 542
+  percent: false
+- name: UA Organizing 542
+  percent: false
+- name: UA PAC Fund 542
+  percent: false
+- name: Savings Plan 542
+  percent: false
+- name: Building 542
+  percent: false
+- name: Market Recovery 542
+  percent: false
+column_order:
+- Union Group
+- Trade
+- Union Local
+- Zone
+- Package
+- Start Date
+- End Date
+- Wage
+- Wage Differential
+- Wage 1.5x
+- Wage 2.0x
+- Health & Welfare
+- RESA
+- Pension
+- SIS
+- UA International Training
+- Apprenticeship Training
+- Industry Promotion National Use
+- Industry Promotion Local Use
+- Fraternal Fund 542
+- Union Dues 1 542
+- Union Dues 2 542
+- UA Organizing 542
+- UA PAC Fund 542
+- Savings Plan 542
+- Building 542
+- Market Recovery 542
+row_count: 24

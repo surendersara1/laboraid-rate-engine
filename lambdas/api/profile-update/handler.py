@@ -1,8 +1,11 @@
-"""Profile update Lambda (Spec/09 §4 L2). POC: profile edits happen in-repo (§15.6)."""
+"""Profile update Lambda (Spec/09 §4 L2). Writes the union's profile to Aurora
+(unions.profile_yaml) — the system of record, editable from the Admin Profiles
+tab."""
 
 from __future__ import annotations
 
 import json
+import os
 from typing import Any
 
 import authz  # shared Lambda layer (/opt/python/authz.py)
@@ -44,7 +47,31 @@ def handler(event: dict[str, Any], _context: Any) -> dict[str, Any]:
         if denied:
             return denied
         local = event["pathParameters"]["local"]
-        return _resp({"local": local, "status": "edit_profiles_in_repo"}, 501)
+        body = json.loads(event.get("body") or "{}")
+        raw = body.get("profile_yaml", body.get("profile"))
+        if raw is None:
+            return _resp({"error": "profile_yaml required"}, 400)
+        # Accept either a JSON object or a JSON/YAML string; store canonical JSON.
+        profile = raw if isinstance(raw, dict) else json.loads(raw)
+        version = body.get("profile_version") or "edited"
+
+        import boto3
+
+        rds = boto3.client("rds-data")
+        rds.execute_statement(
+            resourceArn=os.environ["AURORA_CLUSTER_ARN"],
+            secretArn=os.environ["AURORA_SECRET_ARN"],
+            database="laboraid",
+            sql="UPDATE unions SET profile_yaml = :p::jsonb, profile_version = :v "
+                "WHERE local = :l::int",
+            parameters=[
+                {"name": "p", "value": {"stringValue": json.dumps(profile)}},
+                {"name": "v", "value": {"stringValue": str(version)}},
+                {"name": "l", "value": {"stringValue": str(local)}},
+            ],
+        )
+        logger.info("profile-update: saved profile for local=%s", local)
+        return _resp({"local": local, "status": "saved", "profile_version": version})
     except Exception:
         logger.exception("profile-update failed")
         raise

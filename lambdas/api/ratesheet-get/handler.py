@@ -196,7 +196,9 @@ def handler(event: dict[str, Any], _context: Any) -> dict[str, Any]:
             sql=(
                 "SELECT id::text, zone, package, column_name, value::text, "
                 "       COALESCE(confidence, 1.0)::text, "
-                "       COALESCE(provenance::text, '{}') "
+                "       COALESCE(provenance::text, '{}'), "
+                "       COALESCE(dimensions::text, '{}'), "
+                "       COALESCE(value_type, 'currency') "
                 "  FROM rate_cells "
                 " WHERE period_id = :pid::uuid "
                 " ORDER BY package, column_name"
@@ -213,6 +215,11 @@ def handler(event: dict[str, Any], _context: Any) -> dict[str, Any]:
                 "value": float(row[4].get("stringValue", "0")),
                 "confidence": float(row[5].get("stringValue", "1.0")),
                 "provenance": json.loads(row[6].get("stringValue", "{}")),
+                # Indenture cohort (and any future row dimension). Empty {} for
+                # non-cohort rows. The grid keys rows by (zone, package,
+                # dimensions) so the two apprentice cohorts stay distinct.
+                "dimensions": json.loads(row[7].get("stringValue", "{}")),
+                "value_type": row[8].get("stringValue", "currency"),
             })
 
         # Apply reviewer overrides on top of raw cell values. Overrides
@@ -332,7 +339,8 @@ def handler(event: dict[str, Any], _context: Any) -> dict[str, Any]:
         # in merge mode, which under-counts when multiple extractors
         # contribute to the same period).
         distinct_pairs = {
-            (c.get("zone") or "", c.get("package") or "")
+            (c.get("zone") or "", c.get("package") or "",
+             json.dumps(c.get("dimensions") or {}, sort_keys=True))
             for c in cells
             if c.get("package")
         }

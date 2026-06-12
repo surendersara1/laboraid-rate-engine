@@ -1,0 +1,148 @@
+trade: Sprinkler
+local: '417'
+union_group: UA
+period_start: 1/1/26
+period_end: 5/31/26
+row_template:
+- zone: Building
+  package: Above Foreman
+  indentured_before: null
+  indentured_after: null
+- zone: Building
+  package: Foreman
+  indentured_before: null
+  indentured_after: null
+- zone: Building
+  package: Journeyman
+  indentured_before: null
+  indentured_after: null
+- zone: Building
+  package: Apprentice Class 10
+  indentured_before: null
+  indentured_after: null
+- zone: Building
+  package: Apprentice Class 9
+  indentured_before: null
+  indentured_after: null
+- zone: Building
+  package: Apprentice Class 8
+  indentured_before: null
+  indentured_after: null
+- zone: Building
+  package: Apprentice Class 7
+  indentured_before: null
+  indentured_after: null
+- zone: Building
+  package: Apprentice Class 6
+  indentured_before: null
+  indentured_after: null
+- zone: Building
+  package: Apprentice Class 5
+  indentured_before: null
+  indentured_after: null
+- zone: Building
+  package: Apprentice Class 4
+  indentured_before: null
+  indentured_after: null
+- zone: Building
+  package: Apprentice Class 3
+  indentured_before: null
+  indentured_after: null
+- zone: Building
+  package: Apprentice Class 2
+  indentured_before: null
+  indentured_after: null
+- zone: Building
+  package: Apprentice Class 1
+  indentured_before: null
+  indentured_after: null
+- zone: Building
+  package: Probationary Apprentice
+  indentured_before: null
+  indentured_after: null
+source_cba_folder: From Customer/CBAs/Sprinkler/417
+oracle_sheet: From Customer/Rate Sheets/Sprinkler/417/2024-2027.417 Rate Sheet.csv
+has_cohorts: false
+cohorts: []
+zones:
+- Building
+packages:
+- Above Foreman
+- Foreman
+- Journeyman
+- Apprentice Class 10
+- Apprentice Class 9
+- Apprentice Class 8
+- Apprentice Class 7
+- Apprentice Class 6
+- Apprentice Class 5
+- Apprentice Class 4
+- Apprentice Class 3
+- Apprentice Class 2
+- Apprentice Class 1
+- Probationary Apprentice
+wage:
+  base: Wage
+  derived_multipliers:
+    Wage Differential: 1.15
+    Wage 1.5x: 1.5
+    Wage 2.0x: 2.0
+fund_columns:
+- name: Health & Welfare
+  percent: false
+- name: Health & Welfare 1.5x
+  percent: false
+- name: Health & Welfare 2.0x
+  percent: false
+- name: RESA
+  percent: false
+- name: RESA 1.5x
+  percent: false
+- name: RESA 2.0x
+  percent: false
+- name: Pension
+  percent: false
+- name: SIS
+  percent: false
+- name: UA International Training
+  percent: false
+- name: Apprenticeship Training
+  percent: false
+- name: Industry Promotion National Use
+  percent: false
+- name: Industry Promotion Local Use
+  percent: false
+- name: Vacation 417
+  percent: false
+- name: Union Dues 417
+  percent: true
+- name: UA Organizing 417
+  percent: false
+column_order:
+- Union Group
+- Trade
+- Union Local
+- Zone
+- Package
+- Start Date
+- End Date
+- Wage
+- Wage Differential
+- Wage 1.5x
+- Wage 2.0x
+- Health & Welfare
+- Health & Welfare 1.5x
+- Health & Welfare 2.0x
+- RESA
+- RESA 1.5x
+- RESA 2.0x
+- Pension
+- SIS
+- UA International Training
+- Apprenticeship Training
+- Industry Promotion National Use
+- Industry Promotion Local Use
+- Vacation 417
+- Union Dues 417
+- UA Organizing 417
+row_count: 14

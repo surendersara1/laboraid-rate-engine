@@ -1,0 +1,206 @@
+{
+  "trade": "Pipefitter",
+  "local": "537",
+  "union_group": "SMART",
+  "period_start": "2026-03-01 00:00:00",
+  "period_end": "2026-08-31 00:00:00",
+  "row_template": [
+    {
+      "zone": "Power & Gas",
+      "package": "General Foreman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Power & Gas",
+      "package": "Area Foreman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Power & Gas",
+      "package": "Foreman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Building",
+      "package": "Foreman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Building",
+      "package": "Journeyman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Building",
+      "package": "Apprentice Year 5",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Building",
+      "package": "Apprentice Year 4",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Building",
+      "package": "Apprentice Year 3",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Building",
+      "package": "Apprentice Year 2",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Building",
+      "package": "Apprentice Year 1",
+      "indentured_before": null,
+      "indentured_after": null
+    }
+  ],
+  "source_cba_folder": "From Customer/CBAs/Pipefitter/537",
+  "oracle_sheet": "From Customer/Rate Sheets/Pipefitters/537/2026.03.01.537 Rate Sheet.xlsx",
+  "has_cohorts": false,
+  "cohorts": [],
+  "zones": [
+    "Building",
+    "Power & Gas"
+  ],
+  "packages": [
+    "General Foreman",
+    "Area Foreman",
+    "Foreman",
+    "Journeyman",
+    "Apprentice Year 5",
+    "Apprentice Year 4",
+    "Apprentice Year 3",
+    "Apprentice Year 2",
+    "Apprentice Year 1"
+  ],
+  "wage": {
+    "base": "Wage",
+    "derived_multipliers": {
+      "Wage 1.1x": 1.1,
+      "Wage 1.5x": 1.5,
+      "Temporary Heat": 0.6,
+      "Temporary Heat 1.1x": 0.66,
+      "Temporary Heat 1.5x": 0.9
+    }
+  },
+  "fund_columns": [
+    {
+      "name": "Pension Local",
+      "percent": false
+    },
+    {
+      "name": "Health & Welfare",
+      "percent": false
+    },
+    {
+      "name": "Annuity",
+      "percent": false
+    },
+    {
+      "name": "Industry Improvement",
+      "percent": false
+    },
+    {
+      "name": "Education",
+      "percent": false
+    },
+    {
+      "name": "Labor/Mgt. Trust Fund",
+      "percent": false
+    },
+    {
+      "name": "Pension National",
+      "percent": false
+    },
+    {
+      "name": "Union Dues 537",
+      "percent": false
+    },
+    {
+      "name": "Organizing Fund 537",
+      "percent": false
+    },
+    {
+      "name": "C.O.P.E. 537",
+      "percent": false
+    },
+    {
+      "name": "Vacation 1 537",
+      "percent": false
+    },
+    {
+      "name": "Vacation 2 537",
+      "percent": false
+    },
+    {
+      "name": "Vacation 3 537",
+      "percent": false
+    },
+    {
+      "name": "Vacation 4 537",
+      "percent": false
+    },
+    {
+      "name": "Vacation 5 537",
+      "percent": false
+    },
+    {
+      "name": "Vacation 6 537",
+      "percent": false
+    },
+    {
+      "name": "Public Relations",
+      "percent": false
+    },
+    {
+      "name": "UA PAC",
+      "percent": false
+    }
+  ],
+  "column_order": [
+    "Union Group",
+    "Trade",
+    "Union Local",
+    "Zone",
+    "Package",
+    "Start Date",
+    "End Date",
+    "Wage",
+    "Wage 1.1x",
+    "Wage 1.5x",
+    "Temporary Heat",
+    "Temporary Heat 1.1x",
+    "Temporary Heat 1.5x",
+    "Pension Local",
+    "Health & Welfare",
+    "Annuity",
+    "Industry Improvement",
+    "Education",
+    "Labor/Mgt. Trust Fund",
+    "Pension National",
+    "Union Dues 537",
+    "Organizing Fund 537",
+    "C.O.P.E. 537",
+    "Vacation 1 537",
+    "Vacation 2 537",
+    "Vacation 3 537",
+    "Vacation 4 537",
+    "Vacation 5 537",
+    "Vacation 6 537",
+    "Public Relations",
+    "UA PAC"
+  ],
+  "row_count": 10
+}

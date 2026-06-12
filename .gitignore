@@ -68,3 +68,8 @@ htmlcov/
 
 # Lockfiles we DO track (uv.lock, package-lock.json)
 # (deliberately not ignored — pin transitive deps)
+
+# Local deploy/test scripts + vendored deps (AWS scripts, pypdf) — never commit
+_TMP_/
+# CDK deploy outputs (env-specific, not source)
+cdk/cdk-outputs*.json

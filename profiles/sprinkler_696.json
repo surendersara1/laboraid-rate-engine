@@ -1,0 +1,356 @@
+{
+  "trade": "Sprinkler",
+  "local": "696",
+  "union_group": "UA",
+  "period_start": "1/1/26",
+  "period_end": "6/30/26",
+  "row_template": [
+    {
+      "zone": "Building",
+      "package": "Foreman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Building",
+      "package": "Journeyman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Building",
+      "package": "Apprentice Class 10",
+      "indentured_before": "7/1/13",
+      "indentured_after": null
+    },
+    {
+      "zone": "Building",
+      "package": "Apprentice Class 9",
+      "indentured_before": "7/1/13",
+      "indentured_after": null
+    },
+    {
+      "zone": "Building",
+      "package": "Apprentice Class 10",
+      "indentured_before": "7/1/22",
+      "indentured_after": "6/30/13"
+    },
+    {
+      "zone": "Building",
+      "package": "Apprentice Class 9",
+      "indentured_before": "7/1/22",
+      "indentured_after": "6/30/13"
+    },
+    {
+      "zone": "Building",
+      "package": "Apprentice Class 8",
+      "indentured_before": "7/1/22",
+      "indentured_after": "6/30/13"
+    },
+    {
+      "zone": "Building",
+      "package": "Apprentice Class 7",
+      "indentured_before": "7/1/22",
+      "indentured_after": "6/30/13"
+    },
+    {
+      "zone": "Building",
+      "package": "Apprentice Class 6",
+      "indentured_before": "7/1/22",
+      "indentured_after": "6/30/13"
+    },
+    {
+      "zone": "Building",
+      "package": "Apprentice Class 5",
+      "indentured_before": "7/1/22",
+      "indentured_after": "6/30/13"
+    },
+    {
+      "zone": "Building",
+      "package": "Apprentice Class 4",
+      "indentured_before": "7/1/22",
+      "indentured_after": "6/30/13"
+    },
+    {
+      "zone": "Building",
+      "package": "Apprentice Class 3",
+      "indentured_before": "7/1/22",
+      "indentured_after": "6/30/13"
+    },
+    {
+      "zone": "Building",
+      "package": "Apprentice Class 2",
+      "indentured_before": "7/1/22",
+      "indentured_after": "6/30/13"
+    },
+    {
+      "zone": "Building",
+      "package": "Apprentice Class 1",
+      "indentured_before": "7/1/22",
+      "indentured_after": "6/30/13"
+    },
+    {
+      "zone": "Building",
+      "package": "Apprentice Class 10",
+      "indentured_before": null,
+      "indentured_after": "7/1/22"
+    },
+    {
+      "zone": "Building",
+      "package": "Apprentice Class 9",
+      "indentured_before": null,
+      "indentured_after": "7/1/22"
+    },
+    {
+      "zone": "Building",
+      "package": "Apprentice Class 8",
+      "indentured_before": null,
+      "indentured_after": "7/1/22"
+    },
+    {
+      "zone": "Building",
+      "package": "Apprentice Class 7",
+      "indentured_before": null,
+      "indentured_after": "7/1/22"
+    },
+    {
+      "zone": "Building",
+      "package": "Apprentice Class 6",
+      "indentured_before": null,
+      "indentured_after": "7/1/22"
+    },
+    {
+      "zone": "Building",
+      "package": "Apprentice Class 5",
+      "indentured_before": null,
+      "indentured_after": "7/1/22"
+    },
+    {
+      "zone": "Building",
+      "package": "Apprentice Class 4",
+      "indentured_before": null,
+      "indentured_after": "7/1/22"
+    },
+    {
+      "zone": "Building",
+      "package": "Apprentice Class 3",
+      "indentured_before": null,
+      "indentured_after": "7/1/22"
+    },
+    {
+      "zone": "Building",
+      "package": "Apprentice Class 2",
+      "indentured_before": null,
+      "indentured_after": "7/1/22"
+    },
+    {
+      "zone": "Building",
+      "package": "Apprentice Class 1",
+      "indentured_before": null,
+      "indentured_after": "7/1/22"
+    },
+    {
+      "zone": "Residential",
+      "package": "Foreman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Residential",
+      "package": "Journeyman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Residential",
+      "package": "Metal Shop Foreman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Residential",
+      "package": "Tradesman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Residential",
+      "package": "Apprentice Class 6",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Residential",
+      "package": "Apprentice Class 5",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Residential",
+      "package": "Apprentice Class 4",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Residential",
+      "package": "Apprentice Class 3",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Residential",
+      "package": "Apprentice Class 2",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Residential",
+      "package": "Apprentice Class 1",
+      "indentured_before": null,
+      "indentured_after": null
+    }
+  ],
+  "source_cba_folder": "From Customer/CBAs/Sprinkler/696",
+  "oracle_sheet": "From Customer/Rate Sheets/Sprinkler/696/2026.01.01.696 Rate Sheet.csv",
+  "has_cohorts": true,
+  "cohorts": [
+    {
+      "before": "7/1/13",
+      "after": ""
+    },
+    {
+      "before": "7/1/22",
+      "after": "6/30/13"
+    },
+    {
+      "before": "",
+      "after": "7/1/22"
+    }
+  ],
+  "zones": [
+    "Building",
+    "Residential"
+  ],
+  "packages": [
+    "Foreman",
+    "Journeyman",
+    "Apprentice Class 10",
+    "Apprentice Class 9",
+    "Apprentice Class 8",
+    "Apprentice Class 7",
+    "Apprentice Class 6",
+    "Apprentice Class 5",
+    "Apprentice Class 4",
+    "Apprentice Class 3",
+    "Apprentice Class 2",
+    "Apprentice Class 1",
+    "Metal Shop Foreman",
+    "Tradesman"
+  ],
+  "wage": {
+    "base": "Wage",
+    "derived_multipliers": {
+      "Wage Differential": 1.15,
+      "Wage 1.5x": 1.5,
+      "Wage 2.0x": 2.0
+    }
+  },
+  "fund_columns": [
+    {
+      "name": "Health & Welfare",
+      "percent": false
+    },
+    {
+      "name": "RESA",
+      "percent": false
+    },
+    {
+      "name": "Health & Welfare Metal",
+      "percent": false
+    },
+    {
+      "name": "Pension",
+      "percent": false
+    },
+    {
+      "name": "Pension Metal",
+      "percent": false
+    },
+    {
+      "name": "SIS",
+      "percent": false
+    },
+    {
+      "name": "UA International Training",
+      "percent": false
+    },
+    {
+      "name": "Apprenticeship Training",
+      "percent": false
+    },
+    {
+      "name": "Industry Promotion National Use",
+      "percent": false
+    },
+    {
+      "name": "Industry Promotion Local Use",
+      "percent": false
+    },
+    {
+      "name": "Union Dues 696",
+      "percent": true
+    },
+    {
+      "name": "Work Assessment 696",
+      "percent": false
+    },
+    {
+      "name": "UA Organizing 696",
+      "percent": false
+    },
+    {
+      "name": "PAC 696",
+      "percent": false
+    },
+    {
+      "name": "Building 696",
+      "percent": false
+    },
+    {
+      "name": "Market Recovery 696",
+      "percent": false
+    }
+  ],
+  "column_order": [
+    "Union Group",
+    "Trade",
+    "Union Local",
+    "Zone",
+    "Package",
+    "Indentured Date is Before",
+    "Indentured Date is After",
+    "Start Date",
+    "End Date",
+    "Wage",
+    "Wage Differential",
+    "Wage 1.5x",
+    "Wage 2.0x",
+    "Health & Welfare",
+    "RESA",
+    "Health & Welfare Metal",
+    "Pension",
+    "Pension Metal",
+    "SIS",
+    "UA International Training",
+    "Apprenticeship Training",
+    "Industry Promotion National Use",
+    "Industry Promotion Local Use",
+    "Union Dues 696",
+    "Work Assessment 696",
+    "UA Organizing 696",
+    "PAC 696",
+    "Building 696",
+    "Market Recovery 696"
+  ],
+  "row_count": 34
+}

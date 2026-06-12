@@ -1,0 +1,7211 @@
+{
+  "trade": "Sprinkler",
+  "local": "669",
+  "union_group": "UA",
+  "period_start": "2025-01-01 00:00:00",
+  "period_end": "2025-03-31 00:00:00",
+  "row_template": [
+    {
+      "zone": "Alabama - Building",
+      "package": "Master Foreman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Alabama - Building",
+      "package": "General Foreman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Alabama - Building",
+      "package": "Foreman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Alabama - Building",
+      "package": "Journeyman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Alabama - Building",
+      "package": "Apprentice Class 10",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Alabama - Building",
+      "package": "Apprentice Class 9",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Alabama - Building",
+      "package": "Apprentice Class 8",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Alabama - Building",
+      "package": "Apprentice Class 7",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Alabama - Building",
+      "package": "Apprentice Class 6",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Alabama - Building",
+      "package": "Apprentice Class 5",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Alabama - Building",
+      "package": "Apprentice Class 4",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Alabama - Building",
+      "package": "Apprentice Class 3",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Alabama - Building",
+      "package": "Apprentice Class 2",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Alabama - Building",
+      "package": "Apprentice Class 1",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Alabama - Residential",
+      "package": "Journeyman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Alabama - Residential",
+      "package": "Apprentice Class 4",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Alabama - Residential",
+      "package": "Apprentice Class 3",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Alabama - Residential",
+      "package": "Apprentice Class 2",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Alabama - Residential",
+      "package": "Apprentice Class 1",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Alaska - Building",
+      "package": "Master Foreman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Alaska - Building",
+      "package": "General Foreman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Alaska - Building",
+      "package": "Foreman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Alaska - Building",
+      "package": "Journeyman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Alaska - Building",
+      "package": "Apprentice Class 10",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Alaska - Building",
+      "package": "Apprentice Class 9",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Alaska - Building",
+      "package": "Apprentice Class 8",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Alaska - Building",
+      "package": "Apprentice Class 7",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Alaska - Building",
+      "package": "Apprentice Class 6",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Alaska - Building",
+      "package": "Apprentice Class 5",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Alaska - Building",
+      "package": "Apprentice Class 4",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Alaska - Building",
+      "package": "Apprentice Class 3",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Alaska - Building",
+      "package": "Apprentice Class 2",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Alaska - Building",
+      "package": "Apprentice Class 1",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Alaska - Residential",
+      "package": "Journeyman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Alaska - Residential",
+      "package": "Apprentice Class 4",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Alaska - Residential",
+      "package": "Apprentice Class 3",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Alaska - Residential",
+      "package": "Apprentice Class 2",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Alaska - Residential",
+      "package": "Apprentice Class 1",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Arizona - Building",
+      "package": "Master Foreman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Arizona - Building",
+      "package": "General Foreman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Arizona - Building",
+      "package": "Foreman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Arizona - Building",
+      "package": "Journeyman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Arizona - Building",
+      "package": "Apprentice Class 10",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Arizona - Building",
+      "package": "Apprentice Class 9",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Arizona - Building",
+      "package": "Apprentice Class 8",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Arizona - Building",
+      "package": "Apprentice Class 7",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Arizona - Building",
+      "package": "Apprentice Class 6",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Arizona - Building",
+      "package": "Apprentice Class 5",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Arizona - Building",
+      "package": "Apprentice Class 4",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Arizona - Building",
+      "package": "Apprentice Class 3",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Arizona - Building",
+      "package": "Apprentice Class 2",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Arizona - Building",
+      "package": "Apprentice Class 1",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Arizona - Residential",
+      "package": "Journeyman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Arizona - Residential",
+      "package": "Apprentice Class 4",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Arizona - Residential",
+      "package": "Apprentice Class 3",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Arizona - Residential",
+      "package": "Apprentice Class 2",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Arizona - Residential",
+      "package": "Apprentice Class 1",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Arkansas - Building",
+      "package": "Master Foreman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Arkansas - Building",
+      "package": "General Foreman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Arkansas - Building",
+      "package": "Foreman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Arkansas - Building",
+      "package": "Journeyman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Arkansas - Building",
+      "package": "Apprentice Class 10",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Arkansas - Building",
+      "package": "Apprentice Class 9",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Arkansas - Building",
+      "package": "Apprentice Class 8",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Arkansas - Building",
+      "package": "Apprentice Class 7",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Arkansas - Building",
+      "package": "Apprentice Class 6",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Arkansas - Building",
+      "package": "Apprentice Class 5",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Arkansas - Building",
+      "package": "Apprentice Class 4",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Arkansas - Building",
+      "package": "Apprentice Class 3",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Arkansas - Building",
+      "package": "Apprentice Class 2",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Arkansas - Building",
+      "package": "Apprentice Class 1",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Arkansas - Residential",
+      "package": "Journeyman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Arkansas - Residential",
+      "package": "Apprentice Class 4",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Arkansas - Residential",
+      "package": "Apprentice Class 3",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Arkansas - Residential",
+      "package": "Apprentice Class 2",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Arkansas - Residential",
+      "package": "Apprentice Class 1",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "California 1 - Building",
+      "package": "Master Foreman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "California 1 - Building",
+      "package": "General Foreman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "California 1 - Building",
+      "package": "Foreman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "California 1 - Building",
+      "package": "Journeyman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "California 1 - Building",
+      "package": "Apprentice Class 10",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "California 1 - Building",
+      "package": "Apprentice Class 9",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "California 1 - Building",
+      "package": "Apprentice Class 8",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "California 1 - Building",
+      "package": "Apprentice Class 7",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "California 1 - Building",
+      "package": "Apprentice Class 6",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "California 1 - Building",
+      "package": "Apprentice Class 5",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "California 1 - Building",
+      "package": "Apprentice Class 4",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "California 1 - Building",
+      "package": "Apprentice Class 3",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "California 1 - Building",
+      "package": "Apprentice Class 2",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "California 1 - Building",
+      "package": "Apprentice Class 1",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "California 1 - Residential",
+      "package": "Journeyman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "California 1 - Residential",
+      "package": "Apprentice Class 4",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "California 1 - Residential",
+      "package": "Apprentice Class 3",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "California 1 - Residential",
+      "package": "Apprentice Class 2",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "California 1 - Residential",
+      "package": "Apprentice Class 1",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "California 2 - Building",
+      "package": "Master Foreman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "California 2 - Building",
+      "package": "General Foreman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "California 2 - Building",
+      "package": "Foreman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "California 2 - Building",
+      "package": "Journeyman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "California 2 - Building",
+      "package": "Apprentice Class 10",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "California 2 - Building",
+      "package": "Apprentice Class 9",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "California 2 - Building",
+      "package": "Apprentice Class 8",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "California 2 - Building",
+      "package": "Apprentice Class 7",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "California 2 - Building",
+      "package": "Apprentice Class 6",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "California 2 - Building",
+      "package": "Apprentice Class 5",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "California 2 - Building",
+      "package": "Apprentice Class 4",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "California 2 - Building",
+      "package": "Apprentice Class 3",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "California 2 - Building",
+      "package": "Apprentice Class 2",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "California 2 - Building",
+      "package": "Apprentice Class 1",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "California 2 - Residential",
+      "package": "Journeyman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "California 2 - Residential",
+      "package": "Apprentice Class 4",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "California 2 - Residential",
+      "package": "Apprentice Class 3",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "California 2 - Residential",
+      "package": "Apprentice Class 2",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "California 2 - Residential",
+      "package": "Apprentice Class 1",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "California 3 - Building",
+      "package": "Master Foreman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "California 3 - Building",
+      "package": "General Foreman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "California 3 - Building",
+      "package": "Foreman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "California 3 - Building",
+      "package": "Journeyman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "California 3 - Building",
+      "package": "Apprentice Class 10",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "California 3 - Building",
+      "package": "Apprentice Class 9",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "California 3 - Building",
+      "package": "Apprentice Class 8",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "California 3 - Building",
+      "package": "Apprentice Class 7",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "California 3 - Building",
+      "package": "Apprentice Class 6",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "California 3 - Building",
+      "package": "Apprentice Class 5",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "California 3 - Building",
+      "package": "Apprentice Class 4",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "California 3 - Building",
+      "package": "Apprentice Class 3",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "California 3 - Building",
+      "package": "Apprentice Class 2",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "California 3 - Building",
+      "package": "Apprentice Class 1",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "California 3 - Residential",
+      "package": "Journeyman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "California 3 - Residential",
+      "package": "Apprentice Class 4",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "California 3 - Residential",
+      "package": "Apprentice Class 3",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "California 3 - Residential",
+      "package": "Apprentice Class 2",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "California 3 - Residential",
+      "package": "Apprentice Class 1",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "California 4 - Building",
+      "package": "Master Foreman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "California 4 - Building",
+      "package": "General Foreman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "California 4 - Building",
+      "package": "Foreman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "California 4 - Building",
+      "package": "Journeyman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "California 4 - Building",
+      "package": "Apprentice Class 10",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "California 4 - Building",
+      "package": "Apprentice Class 9",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "California 4 - Building",
+      "package": "Apprentice Class 8",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "California 4 - Building",
+      "package": "Apprentice Class 7",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "California 4 - Building",
+      "package": "Apprentice Class 6",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "California 4 - Building",
+      "package": "Apprentice Class 5",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "California 4 - Building",
+      "package": "Apprentice Class 4",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "California 4 - Building",
+      "package": "Apprentice Class 3",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "California 4 - Building",
+      "package": "Apprentice Class 2",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "California 4 - Building",
+      "package": "Apprentice Class 1",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "California 4 - Residential",
+      "package": "Journeyman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "California 4 - Residential",
+      "package": "Apprentice Class 4",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "California 4 - Residential",
+      "package": "Apprentice Class 3",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "California 4 - Residential",
+      "package": "Apprentice Class 2",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "California 4 - Residential",
+      "package": "Apprentice Class 1",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Colorado - Building",
+      "package": "Master Foreman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Colorado - Building",
+      "package": "General Foreman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Colorado - Building",
+      "package": "Foreman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Colorado - Building",
+      "package": "Journeyman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Colorado - Building",
+      "package": "Apprentice Class 10",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Colorado - Building",
+      "package": "Apprentice Class 9",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Colorado - Building",
+      "package": "Apprentice Class 8",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Colorado - Building",
+      "package": "Apprentice Class 7",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Colorado - Building",
+      "package": "Apprentice Class 6",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Colorado - Building",
+      "package": "Apprentice Class 5",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Colorado - Building",
+      "package": "Apprentice Class 4",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Colorado - Building",
+      "package": "Apprentice Class 3",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Colorado - Building",
+      "package": "Apprentice Class 2",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Colorado - Building",
+      "package": "Apprentice Class 1",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Colorado - Residential",
+      "package": "Journeyman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Colorado - Residential",
+      "package": "Apprentice Class 4",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Colorado - Residential",
+      "package": "Apprentice Class 3",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Colorado - Residential",
+      "package": "Apprentice Class 2",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Colorado - Residential",
+      "package": "Apprentice Class 1",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Connecticut - Building",
+      "package": "Master Foreman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Connecticut - Building",
+      "package": "General Foreman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Connecticut - Building",
+      "package": "Foreman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Connecticut - Building",
+      "package": "Journeyman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Connecticut - Building",
+      "package": "Apprentice Class 10",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Connecticut - Building",
+      "package": "Apprentice Class 9",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Connecticut - Building",
+      "package": "Apprentice Class 8",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Connecticut - Building",
+      "package": "Apprentice Class 7",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Connecticut - Building",
+      "package": "Apprentice Class 6",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Connecticut - Building",
+      "package": "Apprentice Class 5",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Connecticut - Building",
+      "package": "Apprentice Class 4",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Connecticut - Building",
+      "package": "Apprentice Class 3",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Connecticut - Building",
+      "package": "Apprentice Class 2",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Connecticut - Building",
+      "package": "Apprentice Class 1",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Connecticut - Residential",
+      "package": "Journeyman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Connecticut - Residential",
+      "package": "Apprentice Class 4",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Connecticut - Residential",
+      "package": "Apprentice Class 3",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Connecticut - Residential",
+      "package": "Apprentice Class 2",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Connecticut - Residential",
+      "package": "Apprentice Class 1",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Delaware - Building",
+      "package": "Master Foreman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Delaware - Building",
+      "package": "General Foreman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Delaware - Building",
+      "package": "Foreman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Delaware - Building",
+      "package": "Journeyman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Delaware - Building",
+      "package": "Apprentice Class 10",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Delaware - Building",
+      "package": "Apprentice Class 9",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Delaware - Building",
+      "package": "Apprentice Class 8",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Delaware - Building",
+      "package": "Apprentice Class 7",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Delaware - Building",
+      "package": "Apprentice Class 6",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Delaware - Building",
+      "package": "Apprentice Class 5",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Delaware - Building",
+      "package": "Apprentice Class 4",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Delaware - Building",
+      "package": "Apprentice Class 3",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Delaware - Building",
+      "package": "Apprentice Class 2",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Delaware - Building",
+      "package": "Apprentice Class 1",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Delaware - Residential",
+      "package": "Journeyman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Delaware - Residential",
+      "package": "Apprentice Class 4",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Delaware - Residential",
+      "package": "Apprentice Class 3",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Delaware - Residential",
+      "package": "Apprentice Class 2",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Delaware - Residential",
+      "package": "Apprentice Class 1",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "DC - Building",
+      "package": "Master Foreman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "DC - Building",
+      "package": "General Foreman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "DC - Building",
+      "package": "Foreman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "DC - Building",
+      "package": "Journeyman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "DC - Building",
+      "package": "Apprentice Class 10",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "DC - Building",
+      "package": "Apprentice Class 9",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "DC - Building",
+      "package": "Apprentice Class 8",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "DC - Building",
+      "package": "Apprentice Class 7",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "DC - Building",
+      "package": "Apprentice Class 6",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "DC - Building",
+      "package": "Apprentice Class 5",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "DC - Building",
+      "package": "Apprentice Class 4",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "DC - Building",
+      "package": "Apprentice Class 3",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "DC - Building",
+      "package": "Apprentice Class 2",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "DC - Building",
+      "package": "Apprentice Class 1",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "DC - Residential",
+      "package": "Journeyman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "DC - Residential",
+      "package": "Apprentice Class 4",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "DC - Residential",
+      "package": "Apprentice Class 3",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "DC - Residential",
+      "package": "Apprentice Class 2",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "DC - Residential",
+      "package": "Apprentice Class 1",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Georgia - Building",
+      "package": "Master Foreman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Georgia - Building",
+      "package": "General Foreman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Georgia - Building",
+      "package": "Foreman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Georgia - Building",
+      "package": "Journeyman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Georgia - Building",
+      "package": "Apprentice Class 10",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Georgia - Building",
+      "package": "Apprentice Class 9",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Georgia - Building",
+      "package": "Apprentice Class 8",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Georgia - Building",
+      "package": "Apprentice Class 7",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Georgia - Building",
+      "package": "Apprentice Class 6",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Georgia - Building",
+      "package": "Apprentice Class 5",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Georgia - Building",
+      "package": "Apprentice Class 4",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Georgia - Building",
+      "package": "Apprentice Class 3",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Georgia - Building",
+      "package": "Apprentice Class 2",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Georgia - Building",
+      "package": "Apprentice Class 1",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Georgia - Residential",
+      "package": "Journeyman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Georgia - Residential",
+      "package": "Apprentice Class 4",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Georgia - Residential",
+      "package": "Apprentice Class 3",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Georgia - Residential",
+      "package": "Apprentice Class 2",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Georgia - Residential",
+      "package": "Apprentice Class 1",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Idaho 21 - Building",
+      "package": "Master Foreman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Idaho 21 - Building",
+      "package": "General Foreman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Idaho 21 - Building",
+      "package": "Foreman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Idaho 21 - Building",
+      "package": "Journeyman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Idaho 21 - Building",
+      "package": "Apprentice Class 10",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Idaho 21 - Building",
+      "package": "Apprentice Class 9",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Idaho 21 - Building",
+      "package": "Apprentice Class 8",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Idaho 21 - Building",
+      "package": "Apprentice Class 7",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Idaho 21 - Building",
+      "package": "Apprentice Class 6",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Idaho 21 - Building",
+      "package": "Apprentice Class 5",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Idaho 21 - Building",
+      "package": "Apprentice Class 4",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Idaho 21 - Building",
+      "package": "Apprentice Class 3",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Idaho 21 - Building",
+      "package": "Apprentice Class 2",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Idaho 21 - Building",
+      "package": "Apprentice Class 1",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Idaho 21 - Residential",
+      "package": "Journeyman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Idaho 21 - Residential",
+      "package": "Apprentice Class 4",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Idaho 21 - Residential",
+      "package": "Apprentice Class 3",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Idaho 21 - Residential",
+      "package": "Apprentice Class 2",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Idaho 21 - Residential",
+      "package": "Apprentice Class 1",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Idaho 40 - Building",
+      "package": "Master Foreman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Idaho 40 - Building",
+      "package": "General Foreman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Idaho 40 - Building",
+      "package": "Foreman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Idaho 40 - Building",
+      "package": "Journeyman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Idaho 40 - Building",
+      "package": "Apprentice Class 10",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Idaho 40 - Building",
+      "package": "Apprentice Class 9",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Idaho 40 - Building",
+      "package": "Apprentice Class 8",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Idaho 40 - Building",
+      "package": "Apprentice Class 7",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Idaho 40 - Building",
+      "package": "Apprentice Class 6",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Idaho 40 - Building",
+      "package": "Apprentice Class 5",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Idaho 40 - Building",
+      "package": "Apprentice Class 4",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Idaho 40 - Building",
+      "package": "Apprentice Class 3",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Idaho 40 - Building",
+      "package": "Apprentice Class 2",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Idaho 40 - Building",
+      "package": "Apprentice Class 1",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Idaho 40 - Residential",
+      "package": "Journeyman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Idaho 40 - Residential",
+      "package": "Apprentice Class 4",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Idaho 40 - Residential",
+      "package": "Apprentice Class 3",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Idaho 40 - Residential",
+      "package": "Apprentice Class 2",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Idaho 40 - Residential",
+      "package": "Apprentice Class 1",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Illinois - Building",
+      "package": "Master Foreman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Illinois - Building",
+      "package": "General Foreman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Illinois - Building",
+      "package": "Foreman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Illinois - Building",
+      "package": "Journeyman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Illinois - Building",
+      "package": "Apprentice Class 10",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Illinois - Building",
+      "package": "Apprentice Class 9",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Illinois - Building",
+      "package": "Apprentice Class 8",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Illinois - Building",
+      "package": "Apprentice Class 7",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Illinois - Building",
+      "package": "Apprentice Class 6",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Illinois - Building",
+      "package": "Apprentice Class 5",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Illinois - Building",
+      "package": "Apprentice Class 4",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Illinois - Building",
+      "package": "Apprentice Class 3",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Illinois - Building",
+      "package": "Apprentice Class 2",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Illinois - Building",
+      "package": "Apprentice Class 1",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Illinois - Residential",
+      "package": "Journeyman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Illinois - Residential",
+      "package": "Apprentice Class 4",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Illinois - Residential",
+      "package": "Apprentice Class 3",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Illinois - Residential",
+      "package": "Apprentice Class 2",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Illinois - Residential",
+      "package": "Apprentice Class 1",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Indiana - Building",
+      "package": "Master Foreman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Indiana - Building",
+      "package": "General Foreman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Indiana - Building",
+      "package": "Foreman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Indiana - Building",
+      "package": "Journeyman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Indiana - Building",
+      "package": "Apprentice Class 10",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Indiana - Building",
+      "package": "Apprentice Class 9",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Indiana - Building",
+      "package": "Apprentice Class 8",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Indiana - Building",
+      "package": "Apprentice Class 7",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Indiana - Building",
+      "package": "Apprentice Class 6",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Indiana - Building",
+      "package": "Apprentice Class 5",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Indiana - Building",
+      "package": "Apprentice Class 4",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Indiana - Building",
+      "package": "Apprentice Class 3",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Indiana - Building",
+      "package": "Apprentice Class 2",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Indiana - Building",
+      "package": "Apprentice Class 1",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Indiana - Residential",
+      "package": "Journeyman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Indiana - Residential",
+      "package": "Apprentice Class 4",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Indiana - Residential",
+      "package": "Apprentice Class 3",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Indiana - Residential",
+      "package": "Apprentice Class 2",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Indiana - Residential",
+      "package": "Apprentice Class 1",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Iowa - Building",
+      "package": "Master Foreman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Iowa - Building",
+      "package": "General Foreman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Iowa - Building",
+      "package": "Foreman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Iowa - Building",
+      "package": "Journeyman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Iowa - Building",
+      "package": "Apprentice Class 10",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Iowa - Building",
+      "package": "Apprentice Class 9",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Iowa - Building",
+      "package": "Apprentice Class 8",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Iowa - Building",
+      "package": "Apprentice Class 7",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Iowa - Building",
+      "package": "Apprentice Class 6",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Iowa - Building",
+      "package": "Apprentice Class 5",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Iowa - Building",
+      "package": "Apprentice Class 4",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Iowa - Building",
+      "package": "Apprentice Class 3",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Iowa - Building",
+      "package": "Apprentice Class 2",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Iowa - Building",
+      "package": "Apprentice Class 1",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Iowa - Residential",
+      "package": "Journeyman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Iowa - Residential",
+      "package": "Apprentice Class 4",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Iowa - Residential",
+      "package": "Apprentice Class 3",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Iowa - Residential",
+      "package": "Apprentice Class 2",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Iowa - Residential",
+      "package": "Apprentice Class 1",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Kansas - Building",
+      "package": "Master Foreman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Kansas - Building",
+      "package": "General Foreman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Kansas - Building",
+      "package": "Foreman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Kansas - Building",
+      "package": "Journeyman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Kansas - Building",
+      "package": "Apprentice Class 10",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Kansas - Building",
+      "package": "Apprentice Class 9",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Kansas - Building",
+      "package": "Apprentice Class 8",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Kansas - Building",
+      "package": "Apprentice Class 7",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Kansas - Building",
+      "package": "Apprentice Class 6",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Kansas - Building",
+      "package": "Apprentice Class 5",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Kansas - Building",
+      "package": "Apprentice Class 4",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Kansas - Building",
+      "package": "Apprentice Class 3",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Kansas - Building",
+      "package": "Apprentice Class 2",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Kansas - Building",
+      "package": "Apprentice Class 1",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Kansas - Residential",
+      "package": "Journeyman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Kansas - Residential",
+      "package": "Apprentice Class 4",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Kansas - Residential",
+      "package": "Apprentice Class 3",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Kansas - Residential",
+      "package": "Apprentice Class 2",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Kansas - Residential",
+      "package": "Apprentice Class 1",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Kentucky - Building",
+      "package": "Master Foreman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Kentucky - Building",
+      "package": "General Foreman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Kentucky - Building",
+      "package": "Foreman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Kentucky - Building",
+      "package": "Journeyman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Kentucky - Building",
+      "package": "Apprentice Class 10",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Kentucky - Building",
+      "package": "Apprentice Class 9",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Kentucky - Building",
+      "package": "Apprentice Class 8",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Kentucky - Building",
+      "package": "Apprentice Class 7",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Kentucky - Building",
+      "package": "Apprentice Class 6",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Kentucky - Building",
+      "package": "Apprentice Class 5",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Kentucky - Building",
+      "package": "Apprentice Class 4",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Kentucky - Building",
+      "package": "Apprentice Class 3",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Kentucky - Building",
+      "package": "Apprentice Class 2",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Kentucky - Building",
+      "package": "Apprentice Class 1",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Kentucky - Residential",
+      "package": "Journeyman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Kentucky - Residential",
+      "package": "Apprentice Class 4",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Kentucky - Residential",
+      "package": "Apprentice Class 3",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Kentucky - Residential",
+      "package": "Apprentice Class 2",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Kentucky - Residential",
+      "package": "Apprentice Class 1",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Louisiana - Building",
+      "package": "Master Foreman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Louisiana - Building",
+      "package": "General Foreman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Louisiana - Building",
+      "package": "Foreman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Louisiana - Building",
+      "package": "Journeyman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Louisiana - Building",
+      "package": "Apprentice Class 10",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Louisiana - Building",
+      "package": "Apprentice Class 9",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Louisiana - Building",
+      "package": "Apprentice Class 8",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Louisiana - Building",
+      "package": "Apprentice Class 7",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Louisiana - Building",
+      "package": "Apprentice Class 6",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Louisiana - Building",
+      "package": "Apprentice Class 5",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Louisiana - Building",
+      "package": "Apprentice Class 4",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Louisiana - Building",
+      "package": "Apprentice Class 3",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Louisiana - Building",
+      "package": "Apprentice Class 2",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Louisiana - Building",
+      "package": "Apprentice Class 1",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Louisiana - Residential",
+      "package": "Journeyman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Louisiana - Residential",
+      "package": "Apprentice Class 4",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Louisiana - Residential",
+      "package": "Apprentice Class 3",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Louisiana - Residential",
+      "package": "Apprentice Class 2",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Louisiana - Residential",
+      "package": "Apprentice Class 1",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Maine - Building",
+      "package": "Master Foreman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Maine - Building",
+      "package": "General Foreman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Maine - Building",
+      "package": "Foreman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Maine - Building",
+      "package": "Journeyman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Maine - Building",
+      "package": "Apprentice Class 10",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Maine - Building",
+      "package": "Apprentice Class 9",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Maine - Building",
+      "package": "Apprentice Class 8",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Maine - Building",
+      "package": "Apprentice Class 7",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Maine - Building",
+      "package": "Apprentice Class 6",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Maine - Building",
+      "package": "Apprentice Class 5",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Maine - Building",
+      "package": "Apprentice Class 4",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Maine - Building",
+      "package": "Apprentice Class 3",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Maine - Building",
+      "package": "Apprentice Class 2",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Maine - Building",
+      "package": "Apprentice Class 1",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Maine - Residential",
+      "package": "Journeyman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Maine - Residential",
+      "package": "Apprentice Class 4",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Maine - Residential",
+      "package": "Apprentice Class 3",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Maine - Residential",
+      "package": "Apprentice Class 2",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Maine - Residential",
+      "package": "Apprentice Class 1",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Maryland - Building",
+      "package": "Master Foreman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Maryland - Building",
+      "package": "General Foreman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Maryland - Building",
+      "package": "Foreman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Maryland - Building",
+      "package": "Journeyman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Maryland - Building",
+      "package": "Apprentice Class 10",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Maryland - Building",
+      "package": "Apprentice Class 9",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Maryland - Building",
+      "package": "Apprentice Class 8",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Maryland - Building",
+      "package": "Apprentice Class 7",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Maryland - Building",
+      "package": "Apprentice Class 6",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Maryland - Building",
+      "package": "Apprentice Class 5",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Maryland - Building",
+      "package": "Apprentice Class 4",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Maryland - Building",
+      "package": "Apprentice Class 3",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Maryland - Building",
+      "package": "Apprentice Class 2",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Maryland - Building",
+      "package": "Apprentice Class 1",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Maryland - Residential",
+      "package": "Journeyman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Maryland - Residential",
+      "package": "Apprentice Class 4",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Maryland - Residential",
+      "package": "Apprentice Class 3",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Maryland - Residential",
+      "package": "Apprentice Class 2",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Maryland - Residential",
+      "package": "Apprentice Class 1",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Massachusetts - Building",
+      "package": "Master Foreman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Massachusetts - Building",
+      "package": "General Foreman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Massachusetts - Building",
+      "package": "Foreman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Massachusetts - Building",
+      "package": "Journeyman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Massachusetts - Building",
+      "package": "Apprentice Class 10",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Massachusetts - Building",
+      "package": "Apprentice Class 9",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Massachusetts - Building",
+      "package": "Apprentice Class 8",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Massachusetts - Building",
+      "package": "Apprentice Class 7",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Massachusetts - Building",
+      "package": "Apprentice Class 6",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Massachusetts - Building",
+      "package": "Apprentice Class 5",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Massachusetts - Building",
+      "package": "Apprentice Class 4",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Massachusetts - Building",
+      "package": "Apprentice Class 3",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Massachusetts - Building",
+      "package": "Apprentice Class 2",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Massachusetts - Building",
+      "package": "Apprentice Class 1",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Massachusetts - Residential",
+      "package": "Journeyman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Massachusetts - Residential",
+      "package": "Apprentice Class 4",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Massachusetts - Residential",
+      "package": "Apprentice Class 3",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Massachusetts - Residential",
+      "package": "Apprentice Class 2",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Massachusetts - Residential",
+      "package": "Apprentice Class 1",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Michigan - Building",
+      "package": "Master Foreman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Michigan - Building",
+      "package": "General Foreman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Michigan - Building",
+      "package": "Foreman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Michigan - Building",
+      "package": "Journeyman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Michigan - Building",
+      "package": "Apprentice Class 10",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Michigan - Building",
+      "package": "Apprentice Class 9",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Michigan - Building",
+      "package": "Apprentice Class 8",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Michigan - Building",
+      "package": "Apprentice Class 7",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Michigan - Building",
+      "package": "Apprentice Class 6",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Michigan - Building",
+      "package": "Apprentice Class 5",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Michigan - Building",
+      "package": "Apprentice Class 4",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Michigan - Building",
+      "package": "Apprentice Class 3",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Michigan - Building",
+      "package": "Apprentice Class 2",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Michigan - Building",
+      "package": "Apprentice Class 1",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Michigan - Residential",
+      "package": "Journeyman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Michigan - Residential",
+      "package": "Apprentice Class 4",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Michigan - Residential",
+      "package": "Apprentice Class 3",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Michigan - Residential",
+      "package": "Apprentice Class 2",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Michigan - Residential",
+      "package": "Apprentice Class 1",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Minnesota - Building",
+      "package": "Master Foreman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Minnesota - Building",
+      "package": "General Foreman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Minnesota - Building",
+      "package": "Foreman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Minnesota - Building",
+      "package": "Journeyman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Minnesota - Building",
+      "package": "Apprentice Class 10",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Minnesota - Building",
+      "package": "Apprentice Class 9",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Minnesota - Building",
+      "package": "Apprentice Class 8",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Minnesota - Building",
+      "package": "Apprentice Class 7",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Minnesota - Building",
+      "package": "Apprentice Class 6",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Minnesota - Building",
+      "package": "Apprentice Class 5",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Minnesota - Building",
+      "package": "Apprentice Class 4",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Minnesota - Building",
+      "package": "Apprentice Class 3",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Minnesota - Building",
+      "package": "Apprentice Class 2",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Minnesota - Building",
+      "package": "Apprentice Class 1",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Minnesota - Residential",
+      "package": "Journeyman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Minnesota - Residential",
+      "package": "Apprentice Class 4",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Minnesota - Residential",
+      "package": "Apprentice Class 3",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Minnesota - Residential",
+      "package": "Apprentice Class 2",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Minnesota - Residential",
+      "package": "Apprentice Class 1",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Mississippi - Building",
+      "package": "Master Foreman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Mississippi - Building",
+      "package": "General Foreman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Mississippi - Building",
+      "package": "Foreman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Mississippi - Building",
+      "package": "Journeyman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Mississippi - Building",
+      "package": "Apprentice Class 10",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Mississippi - Building",
+      "package": "Apprentice Class 9",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Mississippi - Building",
+      "package": "Apprentice Class 8",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Mississippi - Building",
+      "package": "Apprentice Class 7",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Mississippi - Building",
+      "package": "Apprentice Class 6",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Mississippi - Building",
+      "package": "Apprentice Class 5",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Mississippi - Building",
+      "package": "Apprentice Class 4",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Mississippi - Building",
+      "package": "Apprentice Class 3",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Mississippi - Building",
+      "package": "Apprentice Class 2",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Mississippi - Building",
+      "package": "Apprentice Class 1",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Mississippi - Residential",
+      "package": "Journeyman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Mississippi - Residential",
+      "package": "Apprentice Class 4",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Mississippi - Residential",
+      "package": "Apprentice Class 3",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Mississippi - Residential",
+      "package": "Apprentice Class 2",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Mississippi - Residential",
+      "package": "Apprentice Class 1",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Missouri - Building",
+      "package": "Master Foreman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Missouri - Building",
+      "package": "General Foreman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Missouri - Building",
+      "package": "Foreman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Missouri - Building",
+      "package": "Journeyman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Missouri - Building",
+      "package": "Apprentice Class 10",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Missouri - Building",
+      "package": "Apprentice Class 9",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Missouri - Building",
+      "package": "Apprentice Class 8",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Missouri - Building",
+      "package": "Apprentice Class 7",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Missouri - Building",
+      "package": "Apprentice Class 6",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Missouri - Building",
+      "package": "Apprentice Class 5",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Missouri - Building",
+      "package": "Apprentice Class 4",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Missouri - Building",
+      "package": "Apprentice Class 3",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Missouri - Building",
+      "package": "Apprentice Class 2",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Missouri - Building",
+      "package": "Apprentice Class 1",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Missouri - Residential",
+      "package": "Journeyman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Missouri - Residential",
+      "package": "Apprentice Class 4",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Missouri - Residential",
+      "package": "Apprentice Class 3",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Missouri - Residential",
+      "package": "Apprentice Class 2",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Missouri - Residential",
+      "package": "Apprentice Class 1",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Montana - Building",
+      "package": "Master Foreman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Montana - Building",
+      "package": "General Foreman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Montana - Building",
+      "package": "Foreman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Montana - Building",
+      "package": "Journeyman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Montana - Building",
+      "package": "Apprentice Class 10",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Montana - Building",
+      "package": "Apprentice Class 9",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Montana - Building",
+      "package": "Apprentice Class 8",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Montana - Building",
+      "package": "Apprentice Class 7",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Montana - Building",
+      "package": "Apprentice Class 6",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Montana - Building",
+      "package": "Apprentice Class 5",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Montana - Building",
+      "package": "Apprentice Class 4",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Montana - Building",
+      "package": "Apprentice Class 3",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Montana - Building",
+      "package": "Apprentice Class 2",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Montana - Building",
+      "package": "Apprentice Class 1",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Montana - Residential",
+      "package": "Journeyman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Montana - Residential",
+      "package": "Apprentice Class 4",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Montana - Residential",
+      "package": "Apprentice Class 3",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Montana - Residential",
+      "package": "Apprentice Class 2",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Montana - Residential",
+      "package": "Apprentice Class 1",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Nebraska - Building",
+      "package": "Master Foreman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Nebraska - Building",
+      "package": "General Foreman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Nebraska - Building",
+      "package": "Foreman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Nebraska - Building",
+      "package": "Journeyman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Nebraska - Building",
+      "package": "Apprentice Class 10",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Nebraska - Building",
+      "package": "Apprentice Class 9",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Nebraska - Building",
+      "package": "Apprentice Class 8",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Nebraska - Building",
+      "package": "Apprentice Class 7",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Nebraska - Building",
+      "package": "Apprentice Class 6",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Nebraska - Building",
+      "package": "Apprentice Class 5",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Nebraska - Building",
+      "package": "Apprentice Class 4",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Nebraska - Building",
+      "package": "Apprentice Class 3",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Nebraska - Building",
+      "package": "Apprentice Class 2",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Nebraska - Building",
+      "package": "Apprentice Class 1",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Nebraska - Residential",
+      "package": "Journeyman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Nebraska - Residential",
+      "package": "Apprentice Class 4",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Nebraska - Residential",
+      "package": "Apprentice Class 3",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Nebraska - Residential",
+      "package": "Apprentice Class 2",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Nebraska - Residential",
+      "package": "Apprentice Class 1",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Nevada 1 - Building",
+      "package": "Master Foreman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Nevada 1 - Building",
+      "package": "General Foreman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Nevada 1 - Building",
+      "package": "Foreman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Nevada 1 - Building",
+      "package": "Journeyman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Nevada 1 - Building",
+      "package": "Apprentice Class 10",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Nevada 1 - Building",
+      "package": "Apprentice Class 9",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Nevada 1 - Building",
+      "package": "Apprentice Class 8",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Nevada 1 - Building",
+      "package": "Apprentice Class 7",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Nevada 1 - Building",
+      "package": "Apprentice Class 6",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Nevada 1 - Building",
+      "package": "Apprentice Class 5",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Nevada 1 - Building",
+      "package": "Apprentice Class 4",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Nevada 1 - Building",
+      "package": "Apprentice Class 3",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Nevada 1 - Building",
+      "package": "Apprentice Class 2",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Nevada 1 - Building",
+      "package": "Apprentice Class 1",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Nevada 1 - Residential",
+      "package": "Journeyman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Nevada 1 - Residential",
+      "package": "Apprentice Class 4",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Nevada 1 - Residential",
+      "package": "Apprentice Class 3",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Nevada 1 - Residential",
+      "package": "Apprentice Class 2",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Nevada 1 - Residential",
+      "package": "Apprentice Class 1",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Nevada 2 - Building",
+      "package": "Master Foreman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Nevada 2 - Building",
+      "package": "General Foreman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Nevada 2 - Building",
+      "package": "Foreman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Nevada 2 - Building",
+      "package": "Journeyman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Nevada 2 - Building",
+      "package": "Apprentice Class 10",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Nevada 2 - Building",
+      "package": "Apprentice Class 9",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Nevada 2 - Building",
+      "package": "Apprentice Class 8",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Nevada 2 - Building",
+      "package": "Apprentice Class 7",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Nevada 2 - Building",
+      "package": "Apprentice Class 6",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Nevada 2 - Building",
+      "package": "Apprentice Class 5",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Nevada 2 - Building",
+      "package": "Apprentice Class 4",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Nevada 2 - Building",
+      "package": "Apprentice Class 3",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Nevada 2 - Building",
+      "package": "Apprentice Class 2",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Nevada 2 - Building",
+      "package": "Apprentice Class 1",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Nevada 2 - Residential",
+      "package": "Journeyman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Nevada 2 - Residential",
+      "package": "Apprentice Class 4",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Nevada 2 - Residential",
+      "package": "Apprentice Class 3",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Nevada 2 - Residential",
+      "package": "Apprentice Class 2",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Nevada 2 - Residential",
+      "package": "Apprentice Class 1",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "New Hampshire - Building",
+      "package": "Master Foreman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "New Hampshire - Building",
+      "package": "General Foreman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "New Hampshire - Building",
+      "package": "Foreman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "New Hampshire - Building",
+      "package": "Journeyman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "New Hampshire - Building",
+      "package": "Apprentice Class 10",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "New Hampshire - Building",
+      "package": "Apprentice Class 9",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "New Hampshire - Building",
+      "package": "Apprentice Class 8",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "New Hampshire - Building",
+      "package": "Apprentice Class 7",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "New Hampshire - Building",
+      "package": "Apprentice Class 6",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "New Hampshire - Building",
+      "package": "Apprentice Class 5",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "New Hampshire - Building",
+      "package": "Apprentice Class 4",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "New Hampshire - Building",
+      "package": "Apprentice Class 3",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "New Hampshire - Building",
+      "package": "Apprentice Class 2",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "New Hampshire - Building",
+      "package": "Apprentice Class 1",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "New Hampshire - Residential",
+      "package": "Journeyman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "New Hampshire - Residential",
+      "package": "Apprentice Class 4",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "New Hampshire - Residential",
+      "package": "Apprentice Class 3",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "New Hampshire - Residential",
+      "package": "Apprentice Class 2",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "New Hampshire - Residential",
+      "package": "Apprentice Class 1",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "New Jersey - Building",
+      "package": "Master Foreman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "New Jersey - Building",
+      "package": "General Foreman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "New Jersey - Building",
+      "package": "Foreman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "New Jersey - Building",
+      "package": "Journeyman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "New Jersey - Building",
+      "package": "Apprentice Class 10",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "New Jersey - Building",
+      "package": "Apprentice Class 9",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "New Jersey - Building",
+      "package": "Apprentice Class 8",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "New Jersey - Building",
+      "package": "Apprentice Class 7",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "New Jersey - Building",
+      "package": "Apprentice Class 6",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "New Jersey - Building",
+      "package": "Apprentice Class 5",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "New Jersey - Building",
+      "package": "Apprentice Class 4",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "New Jersey - Building",
+      "package": "Apprentice Class 3",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "New Jersey - Building",
+      "package": "Apprentice Class 2",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "New Jersey - Building",
+      "package": "Apprentice Class 1",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "New Jersey - Residential",
+      "package": "Journeyman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "New Jersey - Residential",
+      "package": "Apprentice Class 4",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "New Jersey - Residential",
+      "package": "Apprentice Class 3",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "New Jersey - Residential",
+      "package": "Apprentice Class 2",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "New Jersey - Residential",
+      "package": "Apprentice Class 1",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "New Mexico - Building",
+      "package": "Master Foreman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "New Mexico - Building",
+      "package": "General Foreman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "New Mexico - Building",
+      "package": "Foreman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "New Mexico - Building",
+      "package": "Journeyman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "New Mexico - Building",
+      "package": "Apprentice Class 10",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "New Mexico - Building",
+      "package": "Apprentice Class 9",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "New Mexico - Building",
+      "package": "Apprentice Class 8",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "New Mexico - Building",
+      "package": "Apprentice Class 7",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "New Mexico - Building",
+      "package": "Apprentice Class 6",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "New Mexico - Building",
+      "package": "Apprentice Class 5",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "New Mexico - Building",
+      "package": "Apprentice Class 4",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "New Mexico - Building",
+      "package": "Apprentice Class 3",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "New Mexico - Building",
+      "package": "Apprentice Class 2",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "New Mexico - Building",
+      "package": "Apprentice Class 1",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "New Mexico - Residential",
+      "package": "Journeyman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "New Mexico - Residential",
+      "package": "Apprentice Class 4",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "New Mexico - Residential",
+      "package": "Apprentice Class 3",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "New Mexico - Residential",
+      "package": "Apprentice Class 2",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "New Mexico - Residential",
+      "package": "Apprentice Class 1",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "New York 1 Dist 34 - Building",
+      "package": "Master Foreman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "New York 1 Dist 34 - Building",
+      "package": "General Foreman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "New York 1 Dist 34 - Building",
+      "package": "Foreman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "New York 1 Dist 34 - Building",
+      "package": "Journeyman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "New York 1 Dist 34 - Building",
+      "package": "Apprentice Class 10",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "New York 1 Dist 34 - Building",
+      "package": "Apprentice Class 9",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "New York 1 Dist 34 - Building",
+      "package": "Apprentice Class 8",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "New York 1 Dist 34 - Building",
+      "package": "Apprentice Class 7",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "New York 1 Dist 34 - Building",
+      "package": "Apprentice Class 6",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "New York 1 Dist 34 - Building",
+      "package": "Apprentice Class 5",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "New York 1 Dist 34 - Building",
+      "package": "Apprentice Class 4",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "New York 1 Dist 34 - Building",
+      "package": "Apprentice Class 3",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "New York 1 Dist 34 - Building",
+      "package": "Apprentice Class 2",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "New York 1 Dist 34 - Building",
+      "package": "Apprentice Class 1",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "New York 1 Dist 34 - Residential",
+      "package": "Journeyman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "New York 1 Dist 34 - Residential",
+      "package": "Apprentice Class 4",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "New York 1 Dist 34 - Residential",
+      "package": "Apprentice Class 3",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "New York 1 Dist 34 - Residential",
+      "package": "Apprentice Class 2",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "New York 1 Dist 34 - Residential",
+      "package": "Apprentice Class 1",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "New York 1 Dist 19- Building",
+      "package": "Master Foreman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "New York 1 Dist 19- Building",
+      "package": "General Foreman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "New York 1 Dist 19- Building",
+      "package": "Foreman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "New York 1 Dist 19- Building",
+      "package": "Journeyman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "New York 1 Dist 19- Building",
+      "package": "Apprentice Class 10",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "New York 1 Dist 19- Building",
+      "package": "Apprentice Class 9",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "New York 1 Dist 19- Building",
+      "package": "Apprentice Class 8",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "New York 1 Dist 19- Building",
+      "package": "Apprentice Class 7",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "New York 1 Dist 19- Building",
+      "package": "Apprentice Class 6",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "New York 1 Dist 19- Building",
+      "package": "Apprentice Class 5",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "New York 1 Dist 19- Building",
+      "package": "Apprentice Class 4",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "New York 1 Dist 19- Building",
+      "package": "Apprentice Class 3",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "New York 1 Dist 19- Building",
+      "package": "Apprentice Class 2",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "New York 1 Dist 19- Building",
+      "package": "Apprentice Class 1",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "New York 1 Dist 19 - Residential",
+      "package": "Journeyman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "New York 1 Dist 19 - Residential",
+      "package": "Apprentice Class 4",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "New York 1 Dist 19 - Residential",
+      "package": "Apprentice Class 3",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "New York 1 Dist 19 - Residential",
+      "package": "Apprentice Class 2",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "New York 1 Dist 19 - Residential",
+      "package": "Apprentice Class 1",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "New York 2 - Building",
+      "package": "Master Foreman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "New York 2 - Building",
+      "package": "General Foreman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "New York 2 - Building",
+      "package": "Foreman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "New York 2 - Building",
+      "package": "Journeyman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "New York 2 - Building",
+      "package": "Apprentice Class 10",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "New York 2 - Building",
+      "package": "Apprentice Class 9",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "New York 2 - Building",
+      "package": "Apprentice Class 8",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "New York 2 - Building",
+      "package": "Apprentice Class 7",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "New York 2 - Building",
+      "package": "Apprentice Class 6",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "New York 2 - Building",
+      "package": "Apprentice Class 5",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "New York 2 - Building",
+      "package": "Apprentice Class 4",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "New York 2 - Building",
+      "package": "Apprentice Class 3",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "New York 2 - Building",
+      "package": "Apprentice Class 2",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "New York 2 - Building",
+      "package": "Apprentice Class 1",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "New York 2 - Residential",
+      "package": "Journeyman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "New York 2 - Residential",
+      "package": "Apprentice Class 4",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "New York 2 - Residential",
+      "package": "Apprentice Class 3",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "New York 2 - Residential",
+      "package": "Apprentice Class 2",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "New York 2 - Residential",
+      "package": "Apprentice Class 1",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "New York 3 - Building",
+      "package": "Master Foreman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "New York 3 - Building",
+      "package": "General Foreman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "New York 3 - Building",
+      "package": "Foreman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "New York 3 - Building",
+      "package": "Journeyman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "New York 3 - Building",
+      "package": "Apprentice Class 10",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "New York 3 - Building",
+      "package": "Apprentice Class 9",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "New York 3 - Building",
+      "package": "Apprentice Class 8",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "New York 3 - Building",
+      "package": "Apprentice Class 7",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "New York 3 - Building",
+      "package": "Apprentice Class 6",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "New York 3 - Building",
+      "package": "Apprentice Class 5",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "New York 3 - Building",
+      "package": "Apprentice Class 4",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "New York 3 - Building",
+      "package": "Apprentice Class 3",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "New York 3 - Building",
+      "package": "Apprentice Class 2",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "New York 3 - Building",
+      "package": "Apprentice Class 1",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "New York 3 - Residential",
+      "package": "Journeyman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "New York 3 - Residential",
+      "package": "Apprentice Class 4",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "New York 3 - Residential",
+      "package": "Apprentice Class 3",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "New York 3 - Residential",
+      "package": "Apprentice Class 2",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "New York 3 - Residential",
+      "package": "Apprentice Class 1",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "North Carolina - Building",
+      "package": "Master Foreman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "North Carolina - Building",
+      "package": "General Foreman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "North Carolina - Building",
+      "package": "Foreman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "North Carolina - Building",
+      "package": "Journeyman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "North Carolina - Building",
+      "package": "Apprentice Class 10",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "North Carolina - Building",
+      "package": "Apprentice Class 9",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "North Carolina - Building",
+      "package": "Apprentice Class 8",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "North Carolina - Building",
+      "package": "Apprentice Class 7",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "North Carolina - Building",
+      "package": "Apprentice Class 6",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "North Carolina - Building",
+      "package": "Apprentice Class 5",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "North Carolina - Building",
+      "package": "Apprentice Class 4",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "North Carolina - Building",
+      "package": "Apprentice Class 3",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "North Carolina - Building",
+      "package": "Apprentice Class 2",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "North Carolina - Building",
+      "package": "Apprentice Class 1",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "North Carolina - Residential",
+      "package": "Journeyman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "North Carolina - Residential",
+      "package": "Apprentice Class 4",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "North Carolina - Residential",
+      "package": "Apprentice Class 3",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "North Carolina - Residential",
+      "package": "Apprentice Class 2",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "North Carolina - Residential",
+      "package": "Apprentice Class 1",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "North Dakota - Building",
+      "package": "Master Foreman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "North Dakota - Building",
+      "package": "General Foreman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "North Dakota - Building",
+      "package": "Foreman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "North Dakota - Building",
+      "package": "Journeyman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "North Dakota - Building",
+      "package": "Apprentice Class 10",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "North Dakota - Building",
+      "package": "Apprentice Class 9",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "North Dakota - Building",
+      "package": "Apprentice Class 8",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "North Dakota - Building",
+      "package": "Apprentice Class 7",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "North Dakota - Building",
+      "package": "Apprentice Class 6",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "North Dakota - Building",
+      "package": "Apprentice Class 5",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "North Dakota - Building",
+      "package": "Apprentice Class 4",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "North Dakota - Building",
+      "package": "Apprentice Class 3",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "North Dakota - Building",
+      "package": "Apprentice Class 2",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "North Dakota - Building",
+      "package": "Apprentice Class 1",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "North Dakota - Residential",
+      "package": "Journeyman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "North Dakota - Residential",
+      "package": "Apprentice Class 4",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "North Dakota - Residential",
+      "package": "Apprentice Class 3",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "North Dakota - Residential",
+      "package": "Apprentice Class 2",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "North Dakota - Residential",
+      "package": "Apprentice Class 1",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Ohio - Building",
+      "package": "Master Foreman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Ohio - Building",
+      "package": "General Foreman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Ohio - Building",
+      "package": "Foreman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Ohio - Building",
+      "package": "Journeyman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Ohio - Building",
+      "package": "Apprentice Class 10",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Ohio - Building",
+      "package": "Apprentice Class 9",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Ohio - Building",
+      "package": "Apprentice Class 8",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Ohio - Building",
+      "package": "Apprentice Class 7",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Ohio - Building",
+      "package": "Apprentice Class 6",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Ohio - Building",
+      "package": "Apprentice Class 5",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Ohio - Building",
+      "package": "Apprentice Class 4",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Ohio - Building",
+      "package": "Apprentice Class 3",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Ohio - Building",
+      "package": "Apprentice Class 2",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Ohio - Building",
+      "package": "Apprentice Class 1",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Ohio - Residential",
+      "package": "Journeyman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Ohio - Residential",
+      "package": "Apprentice Class 4",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Ohio - Residential",
+      "package": "Apprentice Class 3",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Ohio - Residential",
+      "package": "Apprentice Class 2",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Ohio - Residential",
+      "package": "Apprentice Class 1",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Oklahoma - Building",
+      "package": "Master Foreman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Oklahoma - Building",
+      "package": "General Foreman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Oklahoma - Building",
+      "package": "Foreman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Oklahoma - Building",
+      "package": "Journeyman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Oklahoma - Building",
+      "package": "Apprentice Class 10",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Oklahoma - Building",
+      "package": "Apprentice Class 9",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Oklahoma - Building",
+      "package": "Apprentice Class 8",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Oklahoma - Building",
+      "package": "Apprentice Class 7",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Oklahoma - Building",
+      "package": "Apprentice Class 6",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Oklahoma - Building",
+      "package": "Apprentice Class 5",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Oklahoma - Building",
+      "package": "Apprentice Class 4",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Oklahoma - Building",
+      "package": "Apprentice Class 3",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Oklahoma - Building",
+      "package": "Apprentice Class 2",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Oklahoma - Building",
+      "package": "Apprentice Class 1",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Oklahoma - Residential",
+      "package": "Journeyman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Oklahoma - Residential",
+      "package": "Apprentice Class 4",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Oklahoma - Residential",
+      "package": "Apprentice Class 3",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Oklahoma - Residential",
+      "package": "Apprentice Class 2",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Oklahoma - Residential",
+      "package": "Apprentice Class 1",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Oregon 1 - Building",
+      "package": "Master Foreman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Oregon 1 - Building",
+      "package": "General Foreman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Oregon 1 - Building",
+      "package": "Foreman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Oregon 1 - Building",
+      "package": "Journeyman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Oregon 1 - Building",
+      "package": "Apprentice Class 10",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Oregon 1 - Building",
+      "package": "Apprentice Class 9",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Oregon 1 - Building",
+      "package": "Apprentice Class 8",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Oregon 1 - Building",
+      "package": "Apprentice Class 7",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Oregon 1 - Building",
+      "package": "Apprentice Class 6",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Oregon 1 - Building",
+      "package": "Apprentice Class 5",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Oregon 1 - Building",
+      "package": "Apprentice Class 4",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Oregon 1 - Building",
+      "package": "Apprentice Class 3",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Oregon 1 - Building",
+      "package": "Apprentice Class 2",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Oregon 1 - Building",
+      "package": "Apprentice Class 1",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Oregon 1 - Residential",
+      "package": "Journeyman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Oregon 1 - Residential",
+      "package": "Apprentice Class 4",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Oregon 1 - Residential",
+      "package": "Apprentice Class 3",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Oregon 1 - Residential",
+      "package": "Apprentice Class 2",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Oregon 1 - Residential",
+      "package": "Apprentice Class 1",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Oregon 21 - Building",
+      "package": "Master Foreman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Oregon 21 - Building",
+      "package": "General Foreman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Oregon 21 - Building",
+      "package": "Foreman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Oregon 21 - Building",
+      "package": "Journeyman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Oregon 21 - Building",
+      "package": "Apprentice Class 10",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Oregon 21 - Building",
+      "package": "Apprentice Class 9",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Oregon 21 - Building",
+      "package": "Apprentice Class 8",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Oregon 21 - Building",
+      "package": "Apprentice Class 7",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Oregon 21 - Building",
+      "package": "Apprentice Class 6",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Oregon 21 - Building",
+      "package": "Apprentice Class 5",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Oregon 21 - Building",
+      "package": "Apprentice Class 4",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Oregon 21 - Building",
+      "package": "Apprentice Class 3",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Oregon 21 - Building",
+      "package": "Apprentice Class 2",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Oregon 21 - Building",
+      "package": "Apprentice Class 1",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Oregon 21 - Residential",
+      "package": "Journeyman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Oregon 21 - Residential",
+      "package": "Apprentice Class 4",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Oregon 21 - Residential",
+      "package": "Apprentice Class 3",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Oregon 21 - Residential",
+      "package": "Apprentice Class 2",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Oregon 21 - Residential",
+      "package": "Apprentice Class 1",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Pennsylvania - Building",
+      "package": "Master Foreman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Pennsylvania - Building",
+      "package": "General Foreman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Pennsylvania - Building",
+      "package": "Foreman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Pennsylvania - Building",
+      "package": "Journeyman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Pennsylvania - Building",
+      "package": "Apprentice Class 10",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Pennsylvania - Building",
+      "package": "Apprentice Class 9",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Pennsylvania - Building",
+      "package": "Apprentice Class 8",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Pennsylvania - Building",
+      "package": "Apprentice Class 7",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Pennsylvania - Building",
+      "package": "Apprentice Class 6",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Pennsylvania - Building",
+      "package": "Apprentice Class 5",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Pennsylvania - Building",
+      "package": "Apprentice Class 4",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Pennsylvania - Building",
+      "package": "Apprentice Class 3",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Pennsylvania - Building",
+      "package": "Apprentice Class 2",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Pennsylvania - Building",
+      "package": "Apprentice Class 1",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Pennsylvania - Residential",
+      "package": "Journeyman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Pennsylvania - Residential",
+      "package": "Apprentice Class 4",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Pennsylvania - Residential",
+      "package": "Apprentice Class 3",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Pennsylvania - Residential",
+      "package": "Apprentice Class 2",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Pennsylvania - Residential",
+      "package": "Apprentice Class 1",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Rhode Island - Building",
+      "package": "Master Foreman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Rhode Island - Building",
+      "package": "General Foreman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Rhode Island - Building",
+      "package": "Foreman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Rhode Island - Building",
+      "package": "Journeyman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Rhode Island - Building",
+      "package": "Apprentice Class 10",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Rhode Island - Building",
+      "package": "Apprentice Class 9",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Rhode Island - Building",
+      "package": "Apprentice Class 8",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Rhode Island - Building",
+      "package": "Apprentice Class 7",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Rhode Island - Building",
+      "package": "Apprentice Class 6",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Rhode Island - Building",
+      "package": "Apprentice Class 5",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Rhode Island - Building",
+      "package": "Apprentice Class 4",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Rhode Island - Building",
+      "package": "Apprentice Class 3",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Rhode Island - Building",
+      "package": "Apprentice Class 2",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Rhode Island - Building",
+      "package": "Apprentice Class 1",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Rhode Island - Residential",
+      "package": "Journeyman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Rhode Island - Residential",
+      "package": "Apprentice Class 4",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Rhode Island - Residential",
+      "package": "Apprentice Class 3",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Rhode Island - Residential",
+      "package": "Apprentice Class 2",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Rhode Island - Residential",
+      "package": "Apprentice Class 1",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "South Carolina - Building",
+      "package": "Master Foreman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "South Carolina - Building",
+      "package": "General Foreman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "South Carolina - Building",
+      "package": "Foreman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "South Carolina - Building",
+      "package": "Journeyman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "South Carolina - Building",
+      "package": "Apprentice Class 10",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "South Carolina - Building",
+      "package": "Apprentice Class 9",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "South Carolina - Building",
+      "package": "Apprentice Class 8",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "South Carolina - Building",
+      "package": "Apprentice Class 7",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "South Carolina - Building",
+      "package": "Apprentice Class 6",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "South Carolina - Building",
+      "package": "Apprentice Class 5",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "South Carolina - Building",
+      "package": "Apprentice Class 4",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "South Carolina - Building",
+      "package": "Apprentice Class 3",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "South Carolina - Building",
+      "package": "Apprentice Class 2",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "South Carolina - Building",
+      "package": "Apprentice Class 1",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "South Carolina - Residential",
+      "package": "Journeyman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "South Carolina - Residential",
+      "package": "Apprentice Class 4",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "South Carolina - Residential",
+      "package": "Apprentice Class 3",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "South Carolina - Residential",
+      "package": "Apprentice Class 2",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "South Carolina - Residential",
+      "package": "Apprentice Class 1",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "South Dakota - Building",
+      "package": "Master Foreman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "South Dakota - Building",
+      "package": "General Foreman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "South Dakota - Building",
+      "package": "Foreman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "South Dakota - Building",
+      "package": "Journeyman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "South Dakota - Building",
+      "package": "Apprentice Class 10",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "South Dakota - Building",
+      "package": "Apprentice Class 9",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "South Dakota - Building",
+      "package": "Apprentice Class 8",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "South Dakota - Building",
+      "package": "Apprentice Class 7",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "South Dakota - Building",
+      "package": "Apprentice Class 6",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "South Dakota - Building",
+      "package": "Apprentice Class 5",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "South Dakota - Building",
+      "package": "Apprentice Class 4",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "South Dakota - Building",
+      "package": "Apprentice Class 3",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "South Dakota - Building",
+      "package": "Apprentice Class 2",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "South Dakota - Building",
+      "package": "Apprentice Class 1",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "South Dakota - Residential",
+      "package": "Journeyman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "South Dakota - Residential",
+      "package": "Apprentice Class 4",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "South Dakota - Residential",
+      "package": "Apprentice Class 3",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "South Dakota - Residential",
+      "package": "Apprentice Class 2",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "South Dakota - Residential",
+      "package": "Apprentice Class 1",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Tennessee - Building",
+      "package": "Master Foreman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Tennessee - Building",
+      "package": "General Foreman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Tennessee - Building",
+      "package": "Foreman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Tennessee - Building",
+      "package": "Journeyman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Tennessee - Building",
+      "package": "Apprentice Class 10",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Tennessee - Building",
+      "package": "Apprentice Class 9",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Tennessee - Building",
+      "package": "Apprentice Class 8",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Tennessee - Building",
+      "package": "Apprentice Class 7",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Tennessee - Building",
+      "package": "Apprentice Class 6",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Tennessee - Building",
+      "package": "Apprentice Class 5",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Tennessee - Building",
+      "package": "Apprentice Class 4",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Tennessee - Building",
+      "package": "Apprentice Class 3",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Tennessee - Building",
+      "package": "Apprentice Class 2",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Tennessee - Building",
+      "package": "Apprentice Class 1",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Tennessee - Residential",
+      "package": "Journeyman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Tennessee - Residential",
+      "package": "Apprentice Class 4",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Tennessee - Residential",
+      "package": "Apprentice Class 3",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Tennessee - Residential",
+      "package": "Apprentice Class 2",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Tennessee - Residential",
+      "package": "Apprentice Class 1",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Texas Dist 5 - Building",
+      "package": "Master Foreman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Texas Dist 5 - Building",
+      "package": "General Foreman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Texas Dist 5 - Building",
+      "package": "Foreman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Texas Dist 5 - Building",
+      "package": "Journeyman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Texas Dist 5 - Building",
+      "package": "Apprentice Class 10",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Texas Dist 5 - Building",
+      "package": "Apprentice Class 9",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Texas Dist 5 - Building",
+      "package": "Apprentice Class 8",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Texas Dist 5 - Building",
+      "package": "Apprentice Class 7",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Texas Dist 5 - Building",
+      "package": "Apprentice Class 6",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Texas Dist 5 - Building",
+      "package": "Apprentice Class 5",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Texas Dist 5 - Building",
+      "package": "Apprentice Class 4",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Texas Dist 5 - Building",
+      "package": "Apprentice Class 3",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Texas Dist 5 - Building",
+      "package": "Apprentice Class 2",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Texas Dist 5 - Building",
+      "package": "Apprentice Class 1",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Texas Dist 5 - Residential",
+      "package": "Journeyman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Texas Dist 5 - Residential",
+      "package": "Apprentice Class 4",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Texas Dist 5 - Residential",
+      "package": "Apprentice Class 3",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Texas Dist 5 - Residential",
+      "package": "Apprentice Class 2",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Texas Dist 5 - Residential",
+      "package": "Apprentice Class 1",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Texas Dist 26 - Building",
+      "package": "Master Foreman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Texas Dist 26 - Building",
+      "package": "General Foreman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Texas Dist 26 - Building",
+      "package": "Foreman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Texas Dist 26 - Building",
+      "package": "Journeyman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Texas Dist 26 - Building",
+      "package": "Apprentice Class 10",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Texas Dist 26 - Building",
+      "package": "Apprentice Class 9",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Texas Dist 26 - Building",
+      "package": "Apprentice Class 8",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Texas Dist 26 - Building",
+      "package": "Apprentice Class 7",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Texas Dist 26 - Building",
+      "package": "Apprentice Class 6",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Texas Dist 26 - Building",
+      "package": "Apprentice Class 5",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Texas Dist 26 - Building",
+      "package": "Apprentice Class 4",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Texas Dist 26 - Building",
+      "package": "Apprentice Class 3",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Texas Dist 26 - Building",
+      "package": "Apprentice Class 2",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Texas Dist 26 - Building",
+      "package": "Apprentice Class 1",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Texas Dist 26 - Residential",
+      "package": "Journeyman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Texas Dist 26 - Residential",
+      "package": "Apprentice Class 4",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Texas Dist 26 - Residential",
+      "package": "Apprentice Class 3",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Texas Dist 26 - Residential",
+      "package": "Apprentice Class 2",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Texas Dist 26 - Residential",
+      "package": "Apprentice Class 1",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Utah 40 - Building",
+      "package": "Master Foreman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Utah 40 - Building",
+      "package": "General Foreman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Utah 40 - Building",
+      "package": "Foreman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Utah 40 - Building",
+      "package": "Journeyman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Utah 40 - Building",
+      "package": "Apprentice Class 10",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Utah 40 - Building",
+      "package": "Apprentice Class 9",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Utah 40 - Building",
+      "package": "Apprentice Class 8",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Utah 40 - Building",
+      "package": "Apprentice Class 7",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Utah 40 - Building",
+      "package": "Apprentice Class 6",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Utah 40 - Building",
+      "package": "Apprentice Class 5",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Utah 40 - Building",
+      "package": "Apprentice Class 4",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Utah 40 - Building",
+      "package": "Apprentice Class 3",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Utah 40 - Building",
+      "package": "Apprentice Class 2",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Utah 40 - Building",
+      "package": "Apprentice Class 1",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Utah 40 - Residential",
+      "package": "Journeyman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Utah 40 - Residential",
+      "package": "Apprentice Class 4",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Utah 40 - Residential",
+      "package": "Apprentice Class 3",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Utah 40 - Residential",
+      "package": "Apprentice Class 2",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Utah 40 - Residential",
+      "package": "Apprentice Class 1",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Vermont - Building",
+      "package": "Master Foreman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Vermont - Building",
+      "package": "General Foreman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Vermont - Building",
+      "package": "Foreman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Vermont - Building",
+      "package": "Journeyman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Vermont - Building",
+      "package": "Apprentice Class 10",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Vermont - Building",
+      "package": "Apprentice Class 9",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Vermont - Building",
+      "package": "Apprentice Class 8",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Vermont - Building",
+      "package": "Apprentice Class 7",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Vermont - Building",
+      "package": "Apprentice Class 6",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Vermont - Building",
+      "package": "Apprentice Class 5",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Vermont - Building",
+      "package": "Apprentice Class 4",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Vermont - Building",
+      "package": "Apprentice Class 3",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Vermont - Building",
+      "package": "Apprentice Class 2",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Vermont - Building",
+      "package": "Apprentice Class 1",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Vermont - Residential",
+      "package": "Journeyman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Vermont - Residential",
+      "package": "Apprentice Class 4",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Vermont - Residential",
+      "package": "Apprentice Class 3",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Vermont - Residential",
+      "package": "Apprentice Class 2",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Vermont - Residential",
+      "package": "Apprentice Class 1",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Virginia 1 - Building",
+      "package": "Master Foreman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Virginia 1 - Building",
+      "package": "General Foreman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Virginia 1 - Building",
+      "package": "Foreman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Virginia 1 - Building",
+      "package": "Journeyman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Virginia 1 - Building",
+      "package": "Apprentice Class 10",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Virginia 1 - Building",
+      "package": "Apprentice Class 9",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Virginia 1 - Building",
+      "package": "Apprentice Class 8",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Virginia 1 - Building",
+      "package": "Apprentice Class 7",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Virginia 1 - Building",
+      "package": "Apprentice Class 6",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Virginia 1 - Building",
+      "package": "Apprentice Class 5",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Virginia 1 - Building",
+      "package": "Apprentice Class 4",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Virginia 1 - Building",
+      "package": "Apprentice Class 3",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Virginia 1 - Building",
+      "package": "Apprentice Class 2",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Virginia 1 - Building",
+      "package": "Apprentice Class 1",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Virginia 1 - Residential",
+      "package": "Journeyman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Virginia 1 - Residential",
+      "package": "Apprentice Class 4",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Virginia 1 - Residential",
+      "package": "Apprentice Class 3",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Virginia 1 - Residential",
+      "package": "Apprentice Class 2",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Virginia 1 - Residential",
+      "package": "Apprentice Class 1",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Virginia 2 - Building",
+      "package": "Master Foreman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Virginia 2 - Building",
+      "package": "General Foreman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Virginia 2 - Building",
+      "package": "Foreman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Virginia 2 - Building",
+      "package": "Journeyman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Virginia 2 - Building",
+      "package": "Apprentice Class 10",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Virginia 2 - Building",
+      "package": "Apprentice Class 9",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Virginia 2 - Building",
+      "package": "Apprentice Class 8",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Virginia 2 - Building",
+      "package": "Apprentice Class 7",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Virginia 2 - Building",
+      "package": "Apprentice Class 6",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Virginia 2 - Building",
+      "package": "Apprentice Class 5",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Virginia 2 - Building",
+      "package": "Apprentice Class 4",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Virginia 2 - Building",
+      "package": "Apprentice Class 3",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Virginia 2 - Building",
+      "package": "Apprentice Class 2",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Virginia 2 - Building",
+      "package": "Apprentice Class 1",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Virginia 2 - Residential",
+      "package": "Journeyman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Virginia 2 - Residential",
+      "package": "Apprentice Class 4",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Virginia 2 - Residential",
+      "package": "Apprentice Class 3",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Virginia 2 - Residential",
+      "package": "Apprentice Class 2",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Virginia 2 - Residential",
+      "package": "Apprentice Class 1",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Washington 1 - Building",
+      "package": "Master Foreman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Washington 1 - Building",
+      "package": "General Foreman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Washington 1 - Building",
+      "package": "Foreman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Washington 1 - Building",
+      "package": "Journeyman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Washington 1 - Building",
+      "package": "Apprentice Class 10",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Washington 1 - Building",
+      "package": "Apprentice Class 9",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Washington 1 - Building",
+      "package": "Apprentice Class 8",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Washington 1 - Building",
+      "package": "Apprentice Class 7",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Washington 1 - Building",
+      "package": "Apprentice Class 6",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Washington 1 - Building",
+      "package": "Apprentice Class 5",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Washington 1 - Building",
+      "package": "Apprentice Class 4",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Washington 1 - Building",
+      "package": "Apprentice Class 3",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Washington 1 - Building",
+      "package": "Apprentice Class 2",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Washington 1 - Building",
+      "package": "Apprentice Class 1",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Washington 1 - Residential",
+      "package": "Journeyman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Washington 1 - Residential",
+      "package": "Apprentice Class 4",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Washington 1 - Residential",
+      "package": "Apprentice Class 3",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Washington 1 - Residential",
+      "package": "Apprentice Class 2",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Washington 1 - Residential",
+      "package": "Apprentice Class 1",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Washington 21 - Building",
+      "package": "Master Foreman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Washington 21 - Building",
+      "package": "General Foreman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Washington 21 - Building",
+      "package": "Foreman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Washington 21 - Building",
+      "package": "Journeyman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Washington 21 - Building",
+      "package": "Apprentice Class 10",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Washington 21 - Building",
+      "package": "Apprentice Class 9",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Washington 21 - Building",
+      "package": "Apprentice Class 8",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Washington 21 - Building",
+      "package": "Apprentice Class 7",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Washington 21 - Building",
+      "package": "Apprentice Class 6",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Washington 21 - Building",
+      "package": "Apprentice Class 5",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Washington 21 - Building",
+      "package": "Apprentice Class 4",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Washington 21 - Building",
+      "package": "Apprentice Class 3",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Washington 21 - Building",
+      "package": "Apprentice Class 2",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Washington 21 - Building",
+      "package": "Apprentice Class 1",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Washington 21 - Residential",
+      "package": "Journeyman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Washington 21 - Residential",
+      "package": "Apprentice Class 4",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Washington 21 - Residential",
+      "package": "Apprentice Class 3",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Washington 21 - Residential",
+      "package": "Apprentice Class 2",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Washington 21 - Residential",
+      "package": "Apprentice Class 1",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "West Virginia - Building",
+      "package": "Master Foreman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "West Virginia - Building",
+      "package": "General Foreman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "West Virginia - Building",
+      "package": "Foreman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "West Virginia - Building",
+      "package": "Journeyman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "West Virginia - Building",
+      "package": "Apprentice Class 10",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "West Virginia - Building",
+      "package": "Apprentice Class 9",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "West Virginia - Building",
+      "package": "Apprentice Class 8",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "West Virginia - Building",
+      "package": "Apprentice Class 7",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "West Virginia - Building",
+      "package": "Apprentice Class 6",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "West Virginia - Building",
+      "package": "Apprentice Class 5",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "West Virginia - Building",
+      "package": "Apprentice Class 4",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "West Virginia - Building",
+      "package": "Apprentice Class 3",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "West Virginia - Building",
+      "package": "Apprentice Class 2",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "West Virginia - Building",
+      "package": "Apprentice Class 1",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "West Virginia - Residential",
+      "package": "Journeyman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "West Virginia - Residential",
+      "package": "Apprentice Class 4",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "West Virginia - Residential",
+      "package": "Apprentice Class 3",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "West Virginia - Residential",
+      "package": "Apprentice Class 2",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "West Virginia - Residential",
+      "package": "Apprentice Class 1",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Wisconsin - Building",
+      "package": "Master Foreman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Wisconsin - Building",
+      "package": "General Foreman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Wisconsin - Building",
+      "package": "Foreman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Wisconsin - Building",
+      "package": "Journeyman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Wisconsin - Building",
+      "package": "Apprentice Class 10",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Wisconsin - Building",
+      "package": "Apprentice Class 9",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Wisconsin - Building",
+      "package": "Apprentice Class 8",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Wisconsin - Building",
+      "package": "Apprentice Class 7",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Wisconsin - Building",
+      "package": "Apprentice Class 6",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Wisconsin - Building",
+      "package": "Apprentice Class 5",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Wisconsin - Building",
+      "package": "Apprentice Class 4",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Wisconsin - Building",
+      "package": "Apprentice Class 3",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Wisconsin - Building",
+      "package": "Apprentice Class 2",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Wisconsin - Building",
+      "package": "Apprentice Class 1",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Wisconsin - Residential",
+      "package": "Journeyman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Wisconsin - Residential",
+      "package": "Apprentice Class 4",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Wisconsin - Residential",
+      "package": "Apprentice Class 3",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Wisconsin - Residential",
+      "package": "Apprentice Class 2",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Wisconsin - Residential",
+      "package": "Apprentice Class 1",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Wyoming - Building",
+      "package": "Master Foreman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Wyoming - Building",
+      "package": "General Foreman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Wyoming - Building",
+      "package": "Foreman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Wyoming - Building",
+      "package": "Journeyman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Wyoming - Building",
+      "package": "Apprentice Class 10",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Wyoming - Building",
+      "package": "Apprentice Class 9",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Wyoming - Building",
+      "package": "Apprentice Class 8",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Wyoming - Building",
+      "package": "Apprentice Class 7",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Wyoming - Building",
+      "package": "Apprentice Class 6",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Wyoming - Building",
+      "package": "Apprentice Class 5",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Wyoming - Building",
+      "package": "Apprentice Class 4",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Wyoming - Building",
+      "package": "Apprentice Class 3",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Wyoming - Building",
+      "package": "Apprentice Class 2",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Wyoming - Building",
+      "package": "Apprentice Class 1",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Wyoming - Residential",
+      "package": "Journeyman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Wyoming - Residential",
+      "package": "Apprentice Class 4",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Wyoming - Residential",
+      "package": "Apprentice Class 3",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Wyoming - Residential",
+      "package": "Apprentice Class 2",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Wyoming - Residential",
+      "package": "Apprentice Class 1",
+      "indentured_before": null,
+      "indentured_after": null
+    }
+  ],
+  "source_cba_folder": "From Customer/CBAs/Sprinkler/669",
+  "oracle_sheet": "From Customer/Rate Sheets/Sprinkler/669/2025.01.01.669 Rate Sheet.xlsx",
+  "has_cohorts": false,
+  "cohorts": [],
+  "zones": [
+    "Alabama - Building",
+    "Alabama - Residential",
+    "Alaska - Building",
+    "Alaska - Residential",
+    "Arizona - Building",
+    "Arizona - Residential",
+    "Arkansas - Building",
+    "Arkansas - Residential",
+    "California 1 - Building",
+    "California 1 - Residential",
+    "California 2 - Building",
+    "California 2 - Residential",
+    "California 3 - Building",
+    "California 3 - Residential",
+    "California 4 - Building",
+    "California 4 - Residential",
+    "Colorado - Building",
+    "Colorado - Residential",
+    "Connecticut - Building",
+    "Connecticut - Residential",
+    "DC - Building",
+    "DC - Residential",
+    "Delaware - Building",
+    "Delaware - Residential",
+    "Georgia - Building",
+    "Georgia - Residential",
+    "Idaho 21 - Building",
+    "Idaho 21 - Residential",
+    "Idaho 40 - Building",
+    "Idaho 40 - Residential",
+    "Illinois - Building",
+    "Illinois - Residential",
+    "Indiana - Building",
+    "Indiana - Residential",
+    "Iowa - Building",
+    "Iowa - Residential",
+    "Kansas - Building",
+    "Kansas - Residential",
+    "Kentucky - Building",
+    "Kentucky - Residential",
+    "Louisiana - Building",
+    "Louisiana - Residential",
+    "Maine - Building",
+    "Maine - Residential",
+    "Maryland - Building",
+    "Maryland - Residential",
+    "Massachusetts - Building",
+    "Massachusetts - Residential",
+    "Michigan - Building",
+    "Michigan - Residential",
+    "Minnesota - Building",
+    "Minnesota - Residential",
+    "Mississippi - Building",
+    "Mississippi - Residential",
+    "Missouri - Building",
+    "Missouri - Residential",
+    "Montana - Building",
+    "Montana - Residential",
+    "Nebraska - Building",
+    "Nebraska - Residential",
+    "Nevada 1 - Building",
+    "Nevada 1 - Residential",
+    "Nevada 2 - Building",
+    "Nevada 2 - Residential",
+    "New Hampshire - Building",
+    "New Hampshire - Residential",
+    "New Jersey - Building",
+    "New Jersey - Residential",
+    "New Mexico - Building",
+    "New Mexico - Residential",
+    "New York 1 Dist 19 - Residential",
+    "New York 1 Dist 19- Building",
+    "New York 1 Dist 34 - Building",
+    "New York 1 Dist 34 - Residential",
+    "New York 2 - Building",
+    "New York 2 - Residential",
+    "New York 3 - Building",
+    "New York 3 - Residential",
+    "North Carolina - Building",
+    "North Carolina - Residential",
+    "North Dakota - Building",
+    "North Dakota - Residential",
+    "Ohio - Building",
+    "Ohio - Residential",
+    "Oklahoma - Building",
+    "Oklahoma - Residential",
+    "Oregon 1 - Building",
+    "Oregon 1 - Residential",
+    "Oregon 21 - Building",
+    "Oregon 21 - Residential",
+    "Pennsylvania - Building",
+    "Pennsylvania - Residential",
+    "Rhode Island - Building",
+    "Rhode Island - Residential",
+    "South Carolina - Building",
+    "South Carolina - Residential",
+    "South Dakota - Building",
+    "South Dakota - Residential",
+    "Tennessee - Building",
+    "Tennessee - Residential",
+    "Texas Dist 26 - Building",
+    "Texas Dist 26 - Residential",
+    "Texas Dist 5 - Building",
+    "Texas Dist 5 - Residential",
+    "Utah 40 - Building",
+    "Utah 40 - Residential",
+    "Vermont - Building",
+    "Vermont - Residential",
+    "Virginia 1 - Building",
+    "Virginia 1 - Residential",
+    "Virginia 2 - Building",
+    "Virginia 2 - Residential",
+    "Washington 1 - Building",
+    "Washington 1 - Residential",
+    "Washington 21 - Building",
+    "Washington 21 - Residential",
+    "West Virginia - Building",
+    "West Virginia - Residential",
+    "Wisconsin - Building",
+    "Wisconsin - Residential",
+    "Wyoming - Building",
+    "Wyoming - Residential"
+  ],
+  "packages": [
+    "Master Foreman",
+    "General Foreman",
+    "Foreman",
+    "Journeyman",
+    "Apprentice Class 10",
+    "Apprentice Class 9",
+    "Apprentice Class 8",
+    "Apprentice Class 7",
+    "Apprentice Class 6",
+    "Apprentice Class 5",
+    "Apprentice Class 4",
+    "Apprentice Class 3",
+    "Apprentice Class 2",
+    "Apprentice Class 1"
+  ],
+  "wage": {
+    "base": "Wage",
+    "derived_multipliers": {
+      "Wage Differential": 1.15,
+      "Wage 1.5x": 1.5,
+      "Wage 2.0x": 2.0
+    }
+  },
+  "fund_columns": [
+    {
+      "name": "Health & Welfare",
+      "percent": false
+    },
+    {
+      "name": "R.E.S.A",
+      "percent": false
+    },
+    {
+      "name": "Health & Welfare Level 2",
+      "percent": false
+    },
+    {
+      "name": "Health & Welfare Metal",
+      "percent": false
+    },
+    {
+      "name": "Pension",
+      "percent": false
+    },
+    {
+      "name": "Pension Metal",
+      "percent": false
+    },
+    {
+      "name": "SIS",
+      "percent": false
+    },
+    {
+      "name": "UA International Training",
+      "percent": false
+    },
+    {
+      "name": "Apprenticeship Training",
+      "percent": false
+    },
+    {
+      "name": "Industry Promotion National Use",
+      "percent": false
+    },
+    {
+      "name": "Industry Advancement",
+      "percent": false
+    },
+    {
+      "name": "Union Dues Rate",
+      "percent": false
+    },
+    {
+      "name": "Union Dues 669",
+      "percent": false
+    },
+    {
+      "name": "Extended Benefit 669",
+      "percent": false
+    },
+    {
+      "name": "UA Organizing 669",
+      "percent": false
+    },
+    {
+      "name": "UA PAC 669",
+      "percent": false
+    }
+  ],
+  "column_order": [
+    "Union Group",
+    "Trade",
+    "Union Local",
+    "Zone",
+    "Package",
+    "Start Date",
+    "End Date",
+    "Wage",
+    "Wage Differential",
+    "Wage 1.5x",
+    "Wage 2.0x",
+    "Health & Welfare",
+    "R.E.S.A",
+    "Health & Welfare Level 2",
+    "Health & Welfare Metal",
+    "Pension",
+    "Pension Metal",
+    "SIS",
+    "UA International Training",
+    "Apprenticeship Training",
+    "Industry Promotion National Use",
+    "Industry Advancement",
+    "Union Dues Rate",
+    "Union Dues 669",
+    "Extended Benefit 669",
+    "UA Organizing 669",
+    "UA PAC 669"
+  ],
+  "row_count": 1159
+}

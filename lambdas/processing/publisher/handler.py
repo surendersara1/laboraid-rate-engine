@@ -269,6 +269,34 @@ def _publish(
     # 1) Union UPSERT.
     union_id = _upsert_union(rds, common, local, trade, parent_intl)
 
+    # 1b) REPLACE mode (synthesizer path): the synthesized CSV is the single
+    # authoritative sheet for the period — there is no per-doc merge. Drop any
+    # prior period + cells first so we write a clean 15 rows, not a merge.
+    if canonical.get("replace"):
+        rds.execute_statement(
+            **common,
+            sql=(
+                "DELETE FROM rate_cells WHERE period_id IN ("
+                "  SELECT id FROM rate_periods WHERE union_id = :uid::uuid "
+                "    AND start_date = :sd::date)"
+            ),
+            parameters=[
+                {"name": "uid", "value": {"stringValue": union_id}},
+                {"name": "sd", "value": {"stringValue": start_date}},
+            ],
+        )
+        rds.execute_statement(
+            **common,
+            sql=("DELETE FROM rate_periods WHERE union_id = :uid::uuid "
+                 "AND start_date = :sd::date"),
+            parameters=[
+                {"name": "uid", "value": {"stringValue": union_id}},
+                {"name": "sd", "value": {"stringValue": start_date}},
+            ],
+        )
+        logger.info("publisher: REPLACE mode — cleared prior period for union=%s %s",
+                    local, start_date)
+
     # 2) Idempotency on (union_id, start_date) — skip if a row already exists.
     existing = rds.execute_statement(
         **common,

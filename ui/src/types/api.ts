@@ -118,6 +118,8 @@ export interface RateCell {
   value: number | null;
   confidence: number;
   provenance?: Record<string, unknown>;
+  dimensions?: Record<string, string>;
+  value_type?: string;
 }
 
 export interface ReviewItem {

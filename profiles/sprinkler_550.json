@@ -1,0 +1,393 @@
+{
+  "trade": "Sprinkler",
+  "local": "550",
+  "union_group": "UA",
+  "period_start": "1/1/26",
+  "period_end": "9/30/26",
+  "row_template": [
+    {
+      "zone": "Building - Zone 1",
+      "package": "General Foreman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Building - Zone 1",
+      "package": "Foreman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Building - Zone 1",
+      "package": "Journeyman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Building - Zone 1",
+      "package": "Apprentice Class 10",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Building - Zone 1",
+      "package": "Apprentice Class 9",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Building - Zone 1",
+      "package": "Apprentice Class 8",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Building - Zone 1",
+      "package": "Apprentice Class 7",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Building - Zone 1",
+      "package": "Apprentice Class 6",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Building - Zone 1",
+      "package": "Apprentice Class 5",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Building - Zone 1",
+      "package": "Apprentice Class 4",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Building - Zone 1",
+      "package": "Apprentice Class 3",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Building - Zone 1",
+      "package": "Apprentice Class 2",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Building - Zone 1",
+      "package": "Apprentice Class 1",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Building - Zone 2",
+      "package": "General Foreman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Building - Zone 2",
+      "package": "Foreman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Building - Zone 2",
+      "package": "Journeyman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Building - Zone 2",
+      "package": "Apprentice Class 10",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Building - Zone 2",
+      "package": "Apprentice Class 9",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Building - Zone 2",
+      "package": "Apprentice Class 8",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Building - Zone 2",
+      "package": "Apprentice Class 7",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Building - Zone 2",
+      "package": "Apprentice Class 6",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Building - Zone 2",
+      "package": "Apprentice Class 5",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Building - Zone 2",
+      "package": "Apprentice Class 4",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Building - Zone 2",
+      "package": "Apprentice Class 3",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Building - Zone 2",
+      "package": "Apprentice Class 2",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Building - Zone 2",
+      "package": "Apprentice Class 1",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Residential",
+      "package": "Foreman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Residential",
+      "package": "Journeyman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Residential",
+      "package": "Apprentice Class 8",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Residential",
+      "package": "Apprentice Class 7",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Residential",
+      "package": "Apprentice Class 6",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Residential",
+      "package": "Apprentice Class 5",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Residential",
+      "package": "Apprentice Class 4",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Residential",
+      "package": "Apprentice Class 3",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Residential",
+      "package": "Apprentice Class 2",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Residential",
+      "package": "Apprentice Class 1",
+      "indentured_before": null,
+      "indentured_after": null
+    }
+  ],
+  "source_cba_folder": "From Customer/CBAs/Sprinkler/550",
+  "oracle_sheet": "From Customer/Rate Sheets/Sprinkler/550/2026.01.01.550 Rate Sheet.csv",
+  "has_cohorts": false,
+  "cohorts": [],
+  "zones": [
+    "Building - Zone 1",
+    "Building - Zone 2",
+    "Residential"
+  ],
+  "packages": [
+    "General Foreman",
+    "Foreman",
+    "Journeyman",
+    "Apprentice Class 10",
+    "Apprentice Class 9",
+    "Apprentice Class 8",
+    "Apprentice Class 7",
+    "Apprentice Class 6",
+    "Apprentice Class 5",
+    "Apprentice Class 4",
+    "Apprentice Class 3",
+    "Apprentice Class 2",
+    "Apprentice Class 1"
+  ],
+  "wage": {
+    "base": "Wage",
+    "derived_multipliers": {
+      "Wage Differential": 1.15,
+      "Wage 1.5x": 1.5,
+      "Wage 2.0x": 2.0
+    }
+  },
+  "fund_columns": [
+    {
+      "name": "Health & Welfare",
+      "percent": false
+    },
+    {
+      "name": "Health & Welfare Metal",
+      "percent": false
+    },
+    {
+      "name": "RESA",
+      "percent": false
+    },
+    {
+      "name": "Pension",
+      "percent": false
+    },
+    {
+      "name": "Pension Metal",
+      "percent": false
+    },
+    {
+      "name": "UA International Training",
+      "percent": false
+    },
+    {
+      "name": "Apprenticeship Training",
+      "percent": false
+    },
+    {
+      "name": "Industry Promotion National Use",
+      "percent": false
+    },
+    {
+      "name": "Industry Promotion Local Use",
+      "percent": false
+    },
+    {
+      "name": "Annuity Fund 550",
+      "percent": false
+    },
+    {
+      "name": "Union Dues 550",
+      "percent": true
+    },
+    {
+      "name": "Public Relations 550",
+      "percent": false
+    },
+    {
+      "name": "Building 550",
+      "percent": false
+    },
+    {
+      "name": "Vacation 550 - Opt out",
+      "percent": false
+    },
+    {
+      "name": "Vacation 550 - $1/hr",
+      "percent": false
+    },
+    {
+      "name": "Vacation 550 - $2/hr",
+      "percent": false
+    },
+    {
+      "name": "Vacation 550 - $3/hr",
+      "percent": false
+    },
+    {
+      "name": "Vacation 550 - $4/hr",
+      "percent": false
+    },
+    {
+      "name": "Vacation 550 - $5/hr",
+      "percent": false
+    },
+    {
+      "name": "Vacation 550 - $6/hr",
+      "percent": false
+    },
+    {
+      "name": "Vacation 550 - $7/hr",
+      "percent": false
+    },
+    {
+      "name": "Vacation 550 - $8/hr",
+      "percent": false
+    },
+    {
+      "name": "Vacation 550 - $9/hr",
+      "percent": false
+    },
+    {
+      "name": "Vacation 550 - $10/hr",
+      "percent": false
+    }
+  ],
+  "column_order": [
+    "Union Group",
+    "Trade",
+    "Union Local",
+    "Zone",
+    "Package",
+    "Start Date",
+    "End Date",
+    "Wage",
+    "Wage Differential",
+    "Wage 1.5x",
+    "Wage 2.0x",
+    "Health & Welfare",
+    "Health & Welfare Metal",
+    "RESA",
+    "Pension",
+    "Pension Metal",
+    "UA International Training",
+    "Apprenticeship Training",
+    "Industry Promotion National Use",
+    "Industry Promotion Local Use",
+    "Annuity Fund 550",
+    "Union Dues 550",
+    "Public Relations 550",
+    "Building 550",
+    "Vacation 550 - Opt out",
+    "Vacation 550 - $1/hr",
+    "Vacation 550 - $2/hr",
+    "Vacation 550 - $3/hr",
+    "Vacation 550 - $4/hr",
+    "Vacation 550 - $5/hr",
+    "Vacation 550 - $6/hr",
+    "Vacation 550 - $7/hr",
+    "Vacation 550 - $8/hr",
+    "Vacation 550 - $9/hr",
+    "Vacation 550 - $10/hr"
+  ],
+  "row_count": 36
+}

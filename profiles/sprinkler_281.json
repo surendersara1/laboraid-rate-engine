@@ -1,0 +1,197 @@
+{
+  "trade": "Sprinkler",
+  "local": "281",
+  "union_group": "UA",
+  "period_start": "1/1/26",
+  "period_end": "6/30/26",
+  "row_template": [
+    {
+      "zone": "Building",
+      "package": "General Foreman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Building",
+      "package": "Foreman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Building",
+      "package": "Journeyman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Building",
+      "package": "Apprentice Year 5",
+      "indentured_before": "6/30/24",
+      "indentured_after": "7/1/20"
+    },
+    {
+      "zone": "Building",
+      "package": "Apprentice Year 4",
+      "indentured_before": "6/30/24",
+      "indentured_after": "7/1/20"
+    },
+    {
+      "zone": "Building",
+      "package": "Apprentice Year 3",
+      "indentured_before": "6/30/24",
+      "indentured_after": "7/1/20"
+    },
+    {
+      "zone": "Building",
+      "package": "Apprentice Year 2-B",
+      "indentured_before": "6/30/24",
+      "indentured_after": "7/1/20"
+    },
+    {
+      "zone": "Building",
+      "package": "Apprentice Year 2-A",
+      "indentured_before": "6/30/24",
+      "indentured_after": "7/1/20"
+    },
+    {
+      "zone": "Building",
+      "package": "Apprentice Year 1",
+      "indentured_before": "6/30/24",
+      "indentured_after": "7/1/20"
+    },
+    {
+      "zone": "Building",
+      "package": "Apprentice Year 5",
+      "indentured_before": null,
+      "indentured_after": "7/1/24"
+    },
+    {
+      "zone": "Building",
+      "package": "Apprentice Year 4",
+      "indentured_before": null,
+      "indentured_after": "7/1/24"
+    },
+    {
+      "zone": "Building",
+      "package": "Apprentice Year 3",
+      "indentured_before": null,
+      "indentured_after": "7/1/24"
+    },
+    {
+      "zone": "Building",
+      "package": "Apprentice Year 2-B",
+      "indentured_before": null,
+      "indentured_after": "7/1/24"
+    },
+    {
+      "zone": "Building",
+      "package": "Apprentice Year 2-A",
+      "indentured_before": null,
+      "indentured_after": "7/1/24"
+    },
+    {
+      "zone": "Building",
+      "package": "Apprentice Year 1",
+      "indentured_before": null,
+      "indentured_after": "7/1/24"
+    }
+  ],
+  "source_cba_folder": "From Customer/CBAs/Sprinkler/281",
+  "oracle_sheet": "From Customer/Rate Sheets/Sprinkler/281/2026.01.01.281 Rate Sheet.csv",
+  "has_cohorts": true,
+  "cohorts": [
+    {
+      "before": "6/30/24",
+      "after": "7/1/20"
+    },
+    {
+      "before": "",
+      "after": "7/1/24"
+    }
+  ],
+  "zones": [
+    "Building"
+  ],
+  "packages": [
+    "General Foreman",
+    "Foreman",
+    "Journeyman",
+    "Apprentice Year 5",
+    "Apprentice Year 4",
+    "Apprentice Year 3",
+    "Apprentice Year 2-B",
+    "Apprentice Year 2-A",
+    "Apprentice Year 1"
+  ],
+  "wage": {
+    "base": "Wage",
+    "derived_multipliers": {
+      "Wage Differential": 1.15,
+      "Wage 1.5x": 1.5,
+      "Wage 2.0x": 2.0
+    }
+  },
+  "fund_columns": [
+    {
+      "name": "Health & Welfare 281",
+      "percent": false
+    },
+    {
+      "name": "Pension",
+      "percent": false
+    },
+    {
+      "name": "SIS",
+      "percent": false
+    },
+    {
+      "name": "UA International Training",
+      "percent": false
+    },
+    {
+      "name": "Apprenticeship Training",
+      "percent": false
+    },
+    {
+      "name": "Industry Promotion Local Use",
+      "percent": false
+    },
+    {
+      "name": "LMCC 281",
+      "percent": false
+    },
+    {
+      "name": "Union Dues 281",
+      "percent": true
+    },
+    {
+      "name": "Union Protection 281",
+      "percent": false
+    }
+  ],
+  "column_order": [
+    "Union Group",
+    "Trade",
+    "Union Local",
+    "Zone",
+    "Indentured Date is Before",
+    "Indentured Date is After",
+    "Package",
+    "Start Date",
+    "End Date",
+    "Wage",
+    "Wage Differential",
+    "Wage 1.5x",
+    "Wage 2.0x",
+    "Health & Welfare 281",
+    "Pension",
+    "SIS",
+    "UA International Training",
+    "Apprenticeship Training",
+    "Industry Promotion Local Use",
+    "LMCC 281",
+    "Union Dues 281",
+    "Union Protection 281"
+  ],
+  "row_count": 15
+}

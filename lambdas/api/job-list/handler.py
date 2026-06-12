@@ -26,6 +26,8 @@ _BATCH_ID_RE = re.compile(
     re.IGNORECASE,
 )
 _BATCH_PERIOD_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
+# Year-range CBA filename, e.g. "2024-2029.281 CBA.pdf".
+_YEAR_RANGE_RE = re.compile(r"(?P<sy>\d{4})-(?P<ey>\d{4})\.(?P<local>\d{3})\s+", re.IGNORECASE)
 # CBA range-date filename (matches classifier _FILENAME_RANGE).
 _FILENAME_RANGE_RE = re.compile(
     r"(?P<sd>\d{4}\.\d{2}\.\d{2})[-–]"
@@ -49,6 +51,37 @@ except ModuleNotFoundError:  # pragma: no cover - offline unit-test env
 
     def _instrument(fn: Any) -> Any:
         return fn
+
+
+def _union_period_from_output(raw_output: str | None) -> tuple[str, str]:
+    """The planner/synthesizer resolves the authoritative (local, period) and
+    surfaces them in the execution output. Prefer these over input parsing.
+    Tolerant of nesting (output may wrap the planner result)."""
+    if not raw_output:
+        return "", ""
+
+    def walk(obj: Any) -> tuple[str, str]:
+        if isinstance(obj, dict):
+            local = obj.get("local") or obj.get("union_local")
+            period = obj.get("period") or obj.get("batch_period") or obj.get("start_date")
+            if local or period:
+                u = f"Local {local}" if local else ""
+                return u, (str(period) if period else "")
+            for v in obj.values():
+                u, p = walk(v)
+                if u or p:
+                    return u, p
+        elif isinstance(obj, list):
+            for v in obj:
+                u, p = walk(v)
+                if u or p:
+                    return u, p
+        return "", ""
+
+    try:
+        return walk(json.loads(raw_output))
+    except Exception:
+        return "", ""
 
 
 def _resp(body: dict[str, Any], status: int = 200) -> dict[str, Any]:
@@ -86,9 +119,31 @@ def _key_from_event_input(raw_input: str) -> tuple[str, str, str, str | None]:
     """
     try:
         evt = json.loads(raw_input)
+
+        # New sequential batch path: the SFN is started with
+        # {batch_id, batch_period, files:[{s3_key, filename}, ...]} — there is
+        # no EventBridge detail.object.key. Derive union from the first file's
+        # filename and period from batch_period.
+        if isinstance(evt, dict) and evt.get("files") and "batch_period" in evt:
+            batch_id = (evt.get("batch_id") or "").strip() or None
+            period = (evt.get("batch_period") or "").strip()
+            files = evt.get("files") or []
+            first_key = (files[0].get("s3_key") if files else "") or ""
+            union = ""
+            # Scan every file for a local — the first file is often a CBA whose
+            # year-range name (e.g. "2024-2029.281 CBA.pdf") matches no date
+            # regex, while a sibling wage sheet ("2026.01.01.281 ...") does.
+            for f in files:
+                fn = (f.get("filename") or "") or (f.get("s3_key") or "").split("/")[-1]
+                m = _FILENAME_RE.search(fn) or _FILENAME_RANGE_RE.search(fn) or _YEAR_RANGE_RE.search(fn)
+                if m:
+                    union = f"Local {m.group('local')}"
+                    break
+            return first_key, union, period, batch_id
+
         s3_key = evt.get("detail", {}).get("object", {}).get("key", "") or ""
         union = period = ""
-        batch_id: str | None = None
+        batch_id = None
         if not s3_key:
             return "", "", "", None
         parts = s3_key.split("/")
@@ -180,6 +235,11 @@ def handler(event: dict[str, Any], _context: Any) -> dict[str, Any]:
                 s3_key, union, period, batch_id = _key_from_event_input(
                     desc.get("input", "{}")
                 )
+                # Prefer the planner's authoritative resolved (local, period)
+                # from the execution output when available.
+                out_union, out_period = _union_period_from_output(desc.get("output"))
+                union = out_union or union
+                period = out_period or period
             except Exception:
                 s3_key = union = period = ""
                 batch_id = None

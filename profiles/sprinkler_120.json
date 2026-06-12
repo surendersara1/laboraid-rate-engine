@@ -1,0 +1,395 @@
+{
+  "trade": "Sprinkler",
+  "local": "120",
+  "union_group": "UA",
+  "period_start": "2024-04-29 00:00:00",
+  "period_end": "2025-04-28 00:00:00",
+  "row_template": [
+    {
+      "zone": "Building",
+      "package": "Foreman + 50 or more men",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Building",
+      "package": "Foreman + 26-49 men",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Building",
+      "package": "Foreman + 14-25 men",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Building",
+      "package": "Foreman + 5-13 men",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Building",
+      "package": "Foreman + 3-4 men",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Building",
+      "package": "Foreman + 2 men",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Building",
+      "package": "Foreman (self)",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Building",
+      "package": "Journeyman",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Building",
+      "package": "Apprentice Class 5",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Building",
+      "package": "Apprentice Class 4",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Building",
+      "package": "Apprentice Class 3",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Building",
+      "package": "Apprentice Class 2",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Building",
+      "package": "Apprentice Class 1",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Building",
+      "package": "MES Trainee Class 5",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Building",
+      "package": "MES Trainee Class 4",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Building",
+      "package": "MES Trainee Class 3",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Building",
+      "package": "MES Trainee Class 2",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Building",
+      "package": "MES Trainee Class 1",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Building",
+      "package": "MES A Serviceman Class 2",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Building",
+      "package": "MES A Serviceman Class 1",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Building",
+      "package": "Unindentured Trainee Class 5",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Building",
+      "package": "Unindentured Trainee Class 4",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Building",
+      "package": "Unindentured Trainee Class 3",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Building",
+      "package": "Unindentured Trainee Class 2",
+      "indentured_before": null,
+      "indentured_after": null
+    },
+    {
+      "zone": "Building",
+      "package": "Unindentured Trainee Class 1",
+      "indentured_before": null,
+      "indentured_after": null
+    }
+  ],
+  "source_cba_folder": "From Customer/CBAs/Sprinkler/120",
+  "oracle_sheet": "From Customer/Rate Sheets/Sprinkler/120/2022-2027.120 Rate Sheets.xlsx",
+  "has_cohorts": false,
+  "cohorts": [],
+  "zones": [
+    "Building"
+  ],
+  "packages": [
+    "Foreman + 50 or more men",
+    "Foreman + 26-49 men",
+    "Foreman + 14-25 men",
+    "Foreman + 5-13 men",
+    "Foreman + 3-4 men",
+    "Foreman + 2 men",
+    "Foreman (self)",
+    "Journeyman",
+    "Apprentice Class 5",
+    "Apprentice Class 4",
+    "Apprentice Class 3",
+    "Apprentice Class 2",
+    "Apprentice Class 1",
+    "MES Trainee Class 5",
+    "MES Trainee Class 4",
+    "MES Trainee Class 3",
+    "MES Trainee Class 2",
+    "MES Trainee Class 1",
+    "MES A Serviceman Class 2",
+    "MES A Serviceman Class 1",
+    "Unindentured Trainee Class 5",
+    "Unindentured Trainee Class 4",
+    "Unindentured Trainee Class 3",
+    "Unindentured Trainee Class 2",
+    "Unindentured Trainee Class 1"
+  ],
+  "wage": {
+    "base": "Wage",
+    "derived_multipliers": {}
+  },
+  "fund_columns": [
+    {
+      "name": "Wage 2nd Shift",
+      "percent": false
+    },
+    {
+      "name": "Wage 3rd Shift",
+      "percent": false
+    },
+    {
+      "name": "Wage 1.5x",
+      "percent": false
+    },
+    {
+      "name": "Wage 2.0x",
+      "percent": false
+    },
+    {
+      "name": "Health & Welfare",
+      "percent": false
+    },
+    {
+      "name": "Health & Welfare 1.5x",
+      "percent": false
+    },
+    {
+      "name": "Health & Welfare 2.0x",
+      "percent": false
+    },
+    {
+      "name": "HRA 120",
+      "percent": false
+    },
+    {
+      "name": "HRA 120 1.5x",
+      "percent": false
+    },
+    {
+      "name": "HRA 120 2.0x",
+      "percent": false
+    },
+    {
+      "name": "National Pension",
+      "percent": false
+    },
+    {
+      "name": "Pension",
+      "percent": false
+    },
+    {
+      "name": "Pension 1.5x",
+      "percent": false
+    },
+    {
+      "name": "Pension 2.0x",
+      "percent": false
+    },
+    {
+      "name": "Annuity 120",
+      "percent": false
+    },
+    {
+      "name": "Annuity 120 1.5x",
+      "percent": false
+    },
+    {
+      "name": "Annuity 120 2.0x",
+      "percent": false
+    },
+    {
+      "name": "SUB Fund",
+      "percent": false
+    },
+    {
+      "name": "SUB Fund 1.5x",
+      "percent": false
+    },
+    {
+      "name": "SUB Fund 2.0x",
+      "percent": false
+    },
+    {
+      "name": "Industry Fund",
+      "percent": false
+    },
+    {
+      "name": "Cleveland ITF",
+      "percent": false
+    },
+    {
+      "name": "ITF",
+      "percent": false
+    },
+    {
+      "name": "Vacation 120",
+      "percent": false
+    },
+    {
+      "name": "Per Capita Fund 120",
+      "percent": false
+    },
+    {
+      "name": "State UA 120",
+      "percent": false
+    },
+    {
+      "name": "Scholarship 120",
+      "percent": false
+    },
+    {
+      "name": "Meetings/Conventions Fund 120",
+      "percent": false
+    },
+    {
+      "name": "Work Preservation 120",
+      "percent": false
+    },
+    {
+      "name": "PAC 120",
+      "percent": false
+    },
+    {
+      "name": "UA PEC 120",
+      "percent": false
+    },
+    {
+      "name": "Industry Advancement 120",
+      "percent": false
+    },
+    {
+      "name": "Building Maintenance 120",
+      "percent": false
+    },
+    {
+      "name": "Community Fund 120",
+      "percent": false
+    },
+    {
+      "name": "UA Organizing 120",
+      "percent": false
+    },
+    {
+      "name": "Technology Fund 120",
+      "percent": false
+    },
+    {
+      "name": "Union Dues 120",
+      "percent": false
+    }
+  ],
+  "column_order": [
+    "Union Group",
+    "Trade",
+    "Union Local",
+    "Zone",
+    "Package",
+    "Start Date",
+    "End Date",
+    "Wage",
+    "Wage 2nd Shift",
+    "Wage 3rd Shift",
+    "Wage 1.5x",
+    "Wage 2.0x",
+    "Health & Welfare",
+    "Health & Welfare 1.5x",
+    "Health & Welfare 2.0x",
+    "HRA 120",
+    "HRA 120 1.5x",
+    "HRA 120 2.0x",
+    "National Pension",
+    "Pension",
+    "Pension 1.5x",
+    "Pension 2.0x",
+    "Annuity 120",
+    "Annuity 120 1.5x",
+    "Annuity 120 2.0x",
+    "SUB Fund",
+    "SUB Fund 1.5x",
+    "SUB Fund 2.0x",
+    "Industry Fund",
+    "Cleveland ITF",
+    "ITF",
+    "Vacation 120",
+    "Per Capita Fund 120",
+    "State UA 120",
+    "Scholarship 120",
+    "Meetings/Conventions Fund 120",
+    "Work Preservation 120",
+    "PAC 120",
+    "UA PEC 120",
+    "Industry Advancement 120",
+    "Building Maintenance 120",
+    "Community Fund 120",
+    "UA Organizing 120",
+    "Technology Fund 120",
+    "Union Dues 120"
+  ],
+  "row_count": 25
+}
