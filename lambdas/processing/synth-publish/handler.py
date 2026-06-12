@@ -108,6 +108,7 @@ def handler(event: dict[str, Any], _context: Any) -> dict[str, Any]:
     period_id = str(uuid.uuid4())
     src_pdfs = result.get("source_files") or event.get("uploads") or []
     source_files = {"uploads": src_pdfs, "output_csv": csv_key,
+                    "output_xlsx": result.get("output_xlsx") or "",
                     "rate_notice": src_pdfs[0] if src_pdfs else "", "synthesized": True}
     canonical_json = {
         "rows": len(rows),

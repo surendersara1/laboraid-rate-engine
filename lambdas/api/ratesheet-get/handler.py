@@ -283,9 +283,20 @@ def handler(event: dict[str, Any], _context: Any) -> dict[str, Any]:
         # output_xlsx, gap_report_json may be present in source_files JSON. We
         # presign + size each one that's actually in S3 so the UI can render
         # "open" links with confidence; missing artifacts show as "not produced".
+        # Every uploaded source PDF (synthesized runs record the full list in
+        # source_files.uploads as S3 keys). Fall back to the legacy single key.
+        uploads = source_files.get("uploads") or []
+        if not isinstance(uploads, list):
+            uploads = []
+        uploads = [u for u in uploads if isinstance(u, str) and u]
+        if not uploads:
+            legacy = source_files.get("rate_notice") or source_files.get("pdf") or ""
+            uploads = [legacy] if legacy else []
         artifact_specs: list[tuple[str, str, str, str]] = [
-            ("Source PDF", "input", INPUTS_BUCKET,
-             source_files.get("rate_notice") or source_files.get("pdf") or ""),
+            ((f"Source PDF · {k.rsplit('/', 1)[-1]}" if len(uploads) > 1 else "Source PDF"),
+             "input", INPUTS_BUCKET, k)
+            for k in uploads
+        ] + [
             ("Canonical CSV", "output", OUTPUTS_BUCKET,
              source_files.get("output_csv") or ""),
             ("Excel (xlsx)", "output", OUTPUTS_BUCKET,
@@ -313,9 +324,9 @@ def handler(event: dict[str, Any], _context: Any) -> dict[str, Any]:
                 "url": _presign(s3, bucket, key) if size is not None else None,
             })
 
-        # Resolve the source PDF URL up-top too for the inline viewer.
+        # Resolve a source PDF URL up-top for the inline viewer (first input).
         source_pdf_url = next(
-            (a["url"] for a in artifacts if a["name"] == "Source PDF" and a.get("url")),
+            (a["url"] for a in artifacts if a.get("kind") == "input" and a.get("url")),
             None,
         )
 
@@ -357,13 +368,23 @@ def handler(event: dict[str, Any], _context: Any) -> dict[str, Any]:
         # which doc did which job.
         from collections import Counter as _Counter
 
+        # Synthesized cells are produced by the AI reading ALL source PDFs
+        # together (provenance.source_pdfs is the whole set), so attribute the
+        # whole period to that document set rather than one file.
+        _synth_src = ", ".join(k.rsplit("/", 1)[-1] for k in uploads) if uploads else None
         per_source = _Counter()
         for c in cells:
-            src = (c.get("provenance") or {}).get("source_pdf") or "(unknown)"
-            if (c.get("provenance") or {}).get("method") == "derived":
+            prov = c.get("provenance") or {}
+            if prov.get("method") == "synthesized":
+                src = _synth_src or "AI synthesis (all documents)"
+            elif prov.get("source_pdf"):
+                src = prov["source_pdf"]
+            elif prov.get("method") == "derived":
                 src = "(derived)"
-            elif (c.get("provenance") or {}).get("method") == "zero_by_rule":
+            elif prov.get("method") == "zero_by_rule":
                 src = "(zero-by-rule)"
+            else:
+                src = "(unknown)"
             per_source[src] += 1
         total_cells = max(len(cells), 1)
         sources_contrib = [

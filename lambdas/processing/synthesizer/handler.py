@@ -742,7 +742,7 @@ def handler(event: dict[str, Any], _context: Any) -> dict[str, Any]:
             logger.info("synthesizer: page budget full — skipping OLD doc %s (%d pages)",
                         d.get("filename"), pages)
             continue
-        source_files.append(d.get("filename") or d.get("s3_key") or "")
+        source_files.append(d.get("s3_key") or d.get("filename") or "")
         hint = _pii_safe_lines(_fetch_layout(s3, s3_key=d.get("s3_key")))
         label = (
             f"\n===== DOCUMENT: type={d.get('doc_type')} "
@@ -830,11 +830,44 @@ def handler(event: dict[str, Any], _context: Any) -> dict[str, Any]:
     batch_id = event.get("batch_id") or f"{local}-{period}"
     output_key = f"synthesized/{batch_id}.json"
     csv_key = f"synthesized/{batch_id}.csv"
-    s3.put_object(Bucket=OUTPUTS_BUCKET, Key=output_key,
-                  Body=json.dumps(result).encode("utf-8"), ContentType="application/json")
     csv_text = _emit_client_csv(result, profile, local, trade, period)
     s3.put_object(Bucket=OUTPUTS_BUCKET, Key=csv_key,
                   Body=csv_text.encode("utf-8"), ContentType="text/csv")
+    # Excel twin of the canonical CSV (same rows/columns), numbers typed.
+    xlsx_key = f"synthesized/{batch_id}.xlsx"
+    try:
+        import csv as _csv
+        import io as _io
+
+        from openpyxl import Workbook
+
+        wb = Workbook()
+        ws = wb.active
+        ws.title = f"{local} {period}"
+        for r_i, row in enumerate(_csv.reader(_io.StringIO(csv_text))):
+            out_row = []
+            for cell in row:
+                v = (cell or "").strip()
+                if r_i > 0 and v and not v.endswith("%"):
+                    try:
+                        out_row.append(float(v))
+                        continue
+                    except ValueError:
+                        pass
+                out_row.append(cell)
+            ws.append(out_row)
+        xbuf = _io.BytesIO()
+        wb.save(xbuf)
+        s3.put_object(Bucket=OUTPUTS_BUCKET, Key=xlsx_key, Body=xbuf.getvalue(),
+                      ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+        result["output_xlsx"] = xlsx_key
+    except Exception:
+        logger.warning("synthesizer: xlsx generation skipped")
+        xlsx_key = ""
+    # Write the full JSON LAST so it includes output_xlsx (synth-publish reads
+    # this to record source_files.output_xlsx for the review page).
+    s3.put_object(Bucket=OUTPUTS_BUCKET, Key=output_key,
+                  Body=json.dumps(result).encode("utf-8"), ContentType="application/json")
     return {
         "local": local,
         "period": period,
@@ -845,6 +878,7 @@ def handler(event: dict[str, Any], _context: Any) -> dict[str, Any]:
         "classify": {"local": local, "trade": trade, "s3_key": csv_key},
         "output_key": output_key,
         "csv_key": csv_key,
+        "output_xlsx": xlsx_key,
         "row_count": len(result["rows"]),
         "gap_count": len(result["gaps"]),
         "trace": trace,
