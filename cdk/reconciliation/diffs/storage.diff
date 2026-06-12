@@ -1,0 +1,21 @@
+start: Building Laboraid-dev-Storage Template
+success: Built Laboraid-dev-Storage Template
+start: Publishing Laboraid-dev-Storage Template (current_account-current_region-7a29aba4)
+success: Published Laboraid-dev-Storage Template (current_account-current_region-7a29aba4)
+Hold on while we create a read-only change set to get a diff with accurate replacement information (use --method=template to use a less accurate but faster template-only diff)
+
+Stack Laboraid-dev-Storage
+Resources
+[~] AWS::S3::Bucket InputsBucket InputsBucketC69D315F
+ └─ [+] CorsConfiguration
+     └─ {"CorsRules":[{"AllowedHeaders":["*"],"AllowedMethods":["GET","HEAD","PUT","POST"],"AllowedOrigins":["https://d3ggwschjt81wu.cloudfront.net","http://localhost:5173"],"ExposedHeaders":["ETag","Content-Length","Content-Range"],"MaxAge":3600}]}
+[~] AWS::Lambda::Function SchemaInitFn SchemaInitFnBB607462
+ └─ [~] Code
+     └─ [~] .S3Key:
+         ├─ [-] dcf4b6c286dcb8ef3c1ef1be81ef4212530e0c18bdb21b6ca6378bd50433aa3e.zip
+         └─ [+] f0998b5a5cb2d8c9f6b9c409bd14599efc9c2b155b1ef849a1f4ea3a61149c79.zip
+
+
+
+✨  Number of stacks with differences: 1
+

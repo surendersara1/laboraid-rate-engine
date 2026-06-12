@@ -53,14 +53,14 @@ gated to a maintenance window. Companion to `/DEPLOY_FREEZE.md`,
 
 ---
 
-## Phase 2 — Validate against live  🟡 (read-only AWS)
+## Phase 2 — Validate against live  ✅ DONE (read-only — see cdk/reconciliation/DIFF_REVIEW.md)
 
-- [ ] 2.1 `cdk diff Laboraid-dev-Orchestration` — diff should describe **exactly** the live SFN/IAM/rule change
-- [ ] 2.2 `cdk diff Laboraid-dev-Processing` — new Lambdas show as **CREATE** (will be *imported* in P3, not created); IAM matches
-- [ ] 2.3 `cdk diff Laboraid-dev-Api` — batch-process + route + IAM
-- [ ] 2.4 `cdk diff` Ai / Storage / Validation — minimal/expected only
-- [ ] 2.5 `aws cloudformation create-generated-template` + `get-generated-template` for the 5 unmanaged Lambdas+roles+route → confirm the exact resource set/config to import
-- [ ] 2.6 Write `cdk/reconciliation/DIFF_REVIEW.md` — per-stack summary of what each deploy would change
+- [x] 2.1 `cdk diff Laboraid-dev-Orchestration` — diff should describe **exactly** the live SFN/IAM/rule change
+- [x] 2.2 `cdk diff Laboraid-dev-Processing` — new Lambdas show as **CREATE** (will be *imported* in P3, not created); IAM matches
+- [x] 2.3 `cdk diff Laboraid-dev-Api` — batch-process + route + IAM
+- [x] 2.4 `cdk diff` Ai / Storage / Validation — minimal/expected only
+- [x] 2.5 `aws cloudformation create-generated-template` + `get-generated-template` for the 5 unmanaged Lambdas+roles+route → confirm the exact resource set/config to import
+- [x] 2.6 Write `cdk/reconciliation/DIFF_REVIEW.md` — per-stack summary of what each deploy would change
 
 **Phase 2 acceptance:** every diff understood and expected. **🚦 GATE: you review `DIFF_REVIEW.md` and approve before Phase 3.**
 

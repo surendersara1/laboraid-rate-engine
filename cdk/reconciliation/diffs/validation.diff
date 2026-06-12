@@ -1,0 +1,53 @@
+start: Building Laboraid-dev-Validation Template
+success: Built Laboraid-dev-Validation Template
+start: Publishing Laboraid-dev-Validation Template (current_account-current_region-4a6e1c9b)
+success: Published Laboraid-dev-Validation Template (current_account-current_region-4a6e1c9b)
+Hold on while we create a read-only change set to get a diff with accurate replacement information (use --method=template to use a less accurate but faster template-only diff)
+
+Stack Laboraid-dev-Validation
+Resources
+[~] AWS::Lambda::Function Checksum ChecksumEE17D56B
+ └─ [~] Code
+     └─ [~] .S3Key:
+         ├─ [-] df6b4621cdf2692721b3eb1daf934d5c16cd74f5c83a75557a8a31457d14005b.zip
+         └─ [+] ce2272a7af4f69a443d002335c92a26f58ebe44442514b9bd42cd5c09d820a7a.zip
+[~] AWS::Lambda::Function Range RangeBF623BD5
+ └─ [~] Code
+     └─ [~] .S3Key:
+         ├─ [-] 6d44984381a1bd10fa652c4cb7d3c9a1f9dec97b79c33da5177e36819ce1de16.zip
+         └─ [+] e3f87fd388c4411c2a8da60281848d659e7e241f75a448dde4754563450e8a29.zip
+[~] AWS::Lambda::Function Confidence Confidence783F7737
+ └─ [~] Code
+     └─ [~] .S3Key:
+         ├─ [-] 34b856f75377d414c0b3d6b53ecdd9e6e30a07d74b1a853d9d81516bb9afb734.zip
+         └─ [+] 52eae1e9cd46d255ecb878b0595d517cfae375769808b313f253a10f2cea6377.zip
+[~] AWS::Lambda::Function ReviewRouter ReviewRouterFE94AF6E
+ └─ [~] Code
+     └─ [~] .S3Key:
+         ├─ [-] 9f6b7a18c0c44d06a9c4584a04874348ccd07dcb64d96ee75fc424e357e10272.zip
+         └─ [+] d540b47cbb8975fe972c890b8c713304d973cfe4afb2e31833e8055ae6bfff7e.zip
+[~] AWS::Lambda::Function XlsxRenderer XlsxRenderer10B27F7B
+ └─ [~] Code
+     └─ [~] .S3Key:
+         ├─ [-] a529ab78c2f307d7dfd18d4c60d23f0d86c181f9a37e3610000948842f2222d8.zip
+         └─ [+] b76d822074d5f79d7c9a029d14f4bdf771e71ce534019573b2b8c3878e7f09e3.zip
+[~] AWS::Lambda::Function CsvRenderer CsvRenderer53F5878F
+ └─ [~] Code
+     └─ [~] .S3Key:
+         ├─ [-] d04798078536233b019d3c7cca58c046b755ab3e2caa6cdfb7b3f997622d0935.zip
+         └─ [+] f372395057845686fe24f9b5e5b7e156ead8a5be231cbf5ec151ae88a9697d07.zip
+[~] AWS::Lambda::Function ArticlesRenderer ArticlesRenderer674E9490
+ └─ [~] Code
+     └─ [~] .S3Key:
+         ├─ [-] 56385259e0a65f0668b5f148139debf037e538ba2a9271bf440df6831ba3ea63.zip
+         └─ [+] f29cbeccdd6ce0bb1d132ce4a1745514b98670414ff91eca00afe79d236f54ee.zip
+[~] AWS::Lambda::Function SlackNotifier SlackNotifier2867FC9C
+ └─ [~] Code
+     └─ [~] .S3Key:
+         ├─ [-] a360801ea63bca225ceb1326c70a9d37df4d898a36f378659f8ccff5685c708c.zip
+         └─ [+] 5134fcc0bec056c6ebb71a9fe98fce5ef12adf7262f6d79c920f220b71f51ff3.zip
+
+
+
+✨  Number of stacks with differences: 1
+

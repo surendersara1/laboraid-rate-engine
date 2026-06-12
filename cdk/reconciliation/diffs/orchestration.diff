@@ -1,0 +1,201 @@
+start: Building Laboraid-dev-Orchestration Template
+success: Built Laboraid-dev-Orchestration Template
+start: Publishing Laboraid-dev-Orchestration Template (current_account-current_region-a65b15a5)
+success: Published Laboraid-dev-Orchestration Template (current_account-current_region-a65b15a5)
+Hold on while we create a read-only change set to get a diff with accurate replacement information (use --method=template to use a less accurate but faster template-only diff)
+
+Stack Laboraid-dev-Orchestration
+IAM Statement Changes
+┌───┬───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┬────────┬──────────────────────────────────────┬─────────────────────────────────────┬───────────┐
+│   │ Resource                                                                                                                                                          │ Effect │ Action                               │ Principal                           │ Condition │
+├───┼───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┼────────┼──────────────────────────────────────┼─────────────────────────────────────┼───────────┤
+│ - │ ${ExtractorInvoker.Arn}                                                                                                                                           │ Allow  │ lambda:InvokeFunction                │ AWS:${MainPipeline/Role}            │           │
+│   │ ${ExtractorInvoker.Arn}:*                                                                                                                                         │        │                                      │                                     │           │
+│   │ {"Fn::ImportValue":"Laboraid-dev-Processing:ExportsOutputFnGetAttClassifier35ECB620ArnED1F7A4E"}                                                                  │        │                                      │                                     │           │
+│   │ {"Fn::ImportValue":"Laboraid-dev-Processing:ExportsOutputFnGetAttClassifier35ECB620ArnED1F7A4E"}:*                                                                │        │                                      │                                     │           │
+│   │ {"Fn::ImportValue":"Laboraid-dev-Processing:ExportsOutputFnGetAttPublisherF0355618Arn77A742BA"}                                                                   │        │                                      │                                     │           │
+│   │ {"Fn::ImportValue":"Laboraid-dev-Processing:ExportsOutputFnGetAttPublisherF0355618Arn77A742BA"}:*                                                                 │        │                                      │                                     │           │
+├───┼───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┼────────┼──────────────────────────────────────┼─────────────────────────────────────┼───────────┤
+│ - │ ${ExtractorInvoker/ServiceRole.Arn}                                                                                                                               │ Allow  │ sts:AssumeRole                       │ Service:lambda.amazonaws.com        │           │
+├───┼───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┼────────┼──────────────────────────────────────┼─────────────────────────────────────┼───────────┤
+│ - │ *                                                                                                                                                                 │ Allow  │ xray:PutTelemetryRecords             │ AWS:${ExtractorInvoker/ServiceRole} │           │
+│   │                                                                                                                                                                   │        │ xray:PutTraceSegments                │                                     │           │
+├───┼───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┼────────┼──────────────────────────────────────┼─────────────────────────────────────┼───────────┤
+│ - │ arn:${AWS::Partition}:dynamodb:${AWS::Region}:${AWS::AccountId}:table/{"Fn::ImportValue":"Laboraid-dev-Storage:ExportsOutputRefAgentConfigTableE9BDF3BA8308F292"} │ Allow  │ dynamodb:GetItem                     │ AWS:${MainPipeline/Role}            │           │
+├───┼───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┼────────┼──────────────────────────────────────┼─────────────────────────────────────┼───────────┤
+│ + │ {"Fn::ImportValue":"Laboraid-dev-Processing:ExportsOutputFnGetAttBatchPlanner79286D94Arn3C84B9F8"}                                                                │ Allow  │ lambda:InvokeFunction                │ AWS:${MainPipeline/Role}            │           │
+│   │ {"Fn::ImportValue":"Laboraid-dev-Processing:ExportsOutputFnGetAttBatchPlanner79286D94Arn3C84B9F8"}:*                                                              │        │                                      │                                     │           │
+│   │ {"Fn::ImportValue":"Laboraid-dev-Processing:ExportsOutputFnGetAttSynthPublish29601B35ArnCDEC8420"}                                                                │        │                                      │                                     │           │
+│   │ {"Fn::ImportValue":"Laboraid-dev-Processing:ExportsOutputFnGetAttSynthPublish29601B35ArnCDEC8420"}:*                                                              │        │                                      │                                     │           │
+│   │ {"Fn::ImportValue":"Laboraid-dev-Processing:ExportsOutputFnGetAttSynthesizerBB2B8A5AArn1144A441"}                                                                 │        │                                      │                                     │           │
+│   │ {"Fn::ImportValue":"Laboraid-dev-Processing:ExportsOutputFnGetAttSynthesizerBB2B8A5AArn1144A441"}:*                                                               │        │                                      │                                     │           │
+├───┼───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┼────────┼──────────────────────────────────────┼─────────────────────────────────────┼───────────┤
+│ - │ {"Fn::ImportValue":"Laboraid-dev-Processing:ExportsOutputFnGetAttExtractorRuntimeA98F76FFagentRuntimeArnC9ECCAAB"}                                                │ Allow  │ bedrock-agentcore:InvokeAgentRuntime │ AWS:${ExtractorInvoker/ServiceRole} │           │
+│   │ {"Fn::ImportValue":"Laboraid-dev-Processing:ExportsOutputFnGetAttExtractorRuntimeA98F76FFagentRuntimeArnC9ECCAAB"}/*                                              │        │                                      │                                     │           │
+├───┼───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┼────────┼──────────────────────────────────────┼─────────────────────────────────────┼───────────┤
+│ - │ {"Fn::ImportValue":"Laboraid-dev-Processing:ExportsOutputFnGetAttLlmExtractor3E28FC44Arn1AD95D67"}                                                                │ Allow  │ lambda:InvokeFunction                │ AWS:${ExtractorInvoker/ServiceRole} │           │
+│   │ {"Fn::ImportValue":"Laboraid-dev-Processing:ExportsOutputFnGetAttLlmExtractor3E28FC44Arn1AD95D67"}:*                                                              │        │                                      │                                     │           │
+├───┼───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┼────────┼──────────────────────────────────────┼─────────────────────────────────────┼───────────┤
+│ - │ {"Fn::ImportValue":"Laboraid-dev-Security:ExportsOutputFnGetAttMasterKey0175C9E2Arn2B8655C7"}                                                                     │ Allow  │ kms:Decrypt                          │ AWS:${MainPipeline/Role}            │           │
+└───┴───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┴────────┴──────────────────────────────────────┴─────────────────────────────────────┴───────────┘
+IAM Policy Changes
+┌───┬─────────────────────────────────┬────────────────────────────────────────────────────────────────────────────────┐
+│   │ Resource                        │ Managed Policy ARN                                                             │
+├───┼─────────────────────────────────┼────────────────────────────────────────────────────────────────────────────────┤
+│ - │ ${ExtractorInvoker/ServiceRole} │ arn:${AWS::Partition}:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole │
+└───┴─────────────────────────────────┴────────────────────────────────────────────────────────────────────────────────┘
+(NOTE: There may be security-related changes not in this list. See https://github.com/aws/aws-cdk/issues/1299)
+
+Resources
+[-] AWS::Logs::LogGroup ExtractorInvokerLogGroup ExtractorInvokerLogGroup5BDAE5F4 destroy
+[-] AWS::IAM::Role ExtractorInvoker/ServiceRole ExtractorInvokerServiceRole58A10CB5 destroy
+[-] AWS::IAM::Policy ExtractorInvoker/ServiceRole/DefaultPolicy ExtractorInvokerServiceRoleDefaultPolicy93E514B0 destroy
+[-] AWS::Lambda::Function ExtractorInvoker ExtractorInvoker995C177E destroy
+[~] AWS::IAM::Policy MainPipeline/Role/DefaultPolicy MainPipelineRoleDefaultPolicyCE271BF9
+ └─ [~] PolicyDocument
+     └─ [~] .Statement:
+         └─ @@ -4,26 +4,20 @@
+            [ ] "Effect": "Allow",
+            [ ] "Resource": [
+            [ ]   {
+            [-]     "Fn::GetAtt": [
+            [-]       "ExtractorInvoker995C177E",
+            [-]       "Arn"
+            [-]     ]
+            [+]     "Fn::ImportValue": "Laboraid-dev-Processing:ExportsOutputFnGetAttBatchPlanner79286D94Arn3C84B9F8"
+            [ ]   },
+            [ ]   {
+            [-]     "Fn::ImportValue": "Laboraid-dev-Processing:ExportsOutputFnGetAttClassifier35ECB620ArnED1F7A4E"
+            [+]     "Fn::ImportValue": "Laboraid-dev-Processing:ExportsOutputFnGetAttSynthPublish29601B35ArnCDEC8420"
+            [ ]   },
+            [ ]   {
+            [-]     "Fn::ImportValue": "Laboraid-dev-Processing:ExportsOutputFnGetAttPublisherF0355618Arn77A742BA"
+            [+]     "Fn::ImportValue": "Laboraid-dev-Processing:ExportsOutputFnGetAttSynthesizerBB2B8A5AArn1144A441"
+            [ ]   },
+            [ ]   {
+            [ ]     "Fn::Join": [
+            [ ]       "",
+            [ ]       [
+            [ ]         {
+            [-]           "Fn::GetAtt": [
+            [-]             "ExtractorInvoker995C177E",
+            [-]             "Arn"
+            [-]           ]
+            [+]           "Fn::ImportValue": "Laboraid-dev-Processing:ExportsOutputFnGetAttBatchPlanner79286D94Arn3C84B9F8"
+            [ ]         },
+            [ ]         ":*"
+            [ ]       ]
+            @@ -34,7 +28,7 @@
+            [ ] "",
+            [ ] [
+            [ ]   {
+            [-]     "Fn::ImportValue": "Laboraid-dev-Processing:ExportsOutputFnGetAttClassifier35ECB620ArnED1F7A4E"
+            [+]     "Fn::ImportValue": "Laboraid-dev-Processing:ExportsOutputFnGetAttSynthPublish29601B35ArnCDEC8420"
+            [ ]   },
+            [ ]   ":*"
+            [ ] ]
+            @@ -45,7 +39,7 @@
+            [ ] "",
+            [ ] [
+            [ ]   {
+            [-]     "Fn::ImportValue": "Laboraid-dev-Processing:ExportsOutputFnGetAttPublisherF0355618Arn77A742BA"
+            [+]     "Fn::ImportValue": "Laboraid-dev-Processing:ExportsOutputFnGetAttSynthesizerBB2B8A5AArn1144A441"
+            [ ]   },
+            [ ]   ":*"
+            [ ] ]
+            @@ -54,33 +48,6 @@
+            [ ]   ]
+            [ ] },
+            [ ] {
+            [-]   "Action": "dynamodb:GetItem",
+            [-]   "Effect": "Allow",
+            [-]   "Resource": {
+            [-]     "Fn::Join": [
+            [-]       "",
+            [-]       [
+            [-]         "arn:",
+            [-]         {
+            [-]           "Ref": "AWS::Partition"
+            [-]         },
+            [-]         ":dynamodb:",
+            [-]         {
+            [-]           "Ref": "AWS::Region"
+            [-]         },
+            [-]         ":",
+            [-]         {
+            [-]           "Ref": "AWS::AccountId"
+            [-]         },
+            [-]         ":table/",
+            [-]         {
+            [-]           "Fn::ImportValue": "Laboraid-dev-Storage:ExportsOutputRefAgentConfigTableE9BDF3BA8308F292"
+            [-]         }
+            [-]       ]
+            [-]     ]
+            [-]   }
+            [-] },
+            [-] {
+            [ ]   "Action": [
+            [ ]     "logs:CreateLogDelivery",
+            [ ]     "logs:DeleteLogDelivery",
+            @@ -97,12 +64,5 @@
+            [ ]     ],
+            [ ]     "Effect": "Allow",
+            [ ]     "Resource": "*"
+            [-]   },
+            [-]   {
+            [-]     "Action": "kms:Decrypt",
+            [-]     "Effect": "Allow",
+            [-]     "Resource": {
+            [-]       "Fn::ImportValue": "Laboraid-dev-Security:ExportsOutputFnGetAttMasterKey0175C9E2Arn2B8655C7"
+            [-]     }
+            [ ]   }
+            [ ] ]
+[~] AWS::StepFunctions::StateMachine MainPipeline MainPipelineB7432884
+ └─ [~] DefinitionString
+     └─ [~] .Fn::Join:
+         └─ @@ -1,29 +1,18 @@
+            [ ] [
+            [ ]   "",
+            [ ]   [
+            [-]     "{\"StartAt\":\"Classify\",\"States\":{\"Classify\":{\"Next\":\"GetAgentConfig\",\"Retry\":[{\"ErrorEquals\":[\"Lambda.ClientExecutionTimeoutException\",\"Lambda.ServiceException\",\"Lambda.AWSLambdaException\",\"Lambda.SdkClientException\"],\"IntervalSeconds\":2,\"MaxAttempts\":6,\"BackoffRate\":2},{\"ErrorEquals\":[\"Lambda.ServiceException\",\"Lambda.TooManyRequestsException\",\"States.TaskFailed\"],\"IntervalSeconds\":2,\"MaxAttempts\":3,\"BackoffRate\":2}],\"Catch\":[{\"ErrorEquals\":[\"States.ALL\"],\"ResultPath\":\"$.error\",\"Next\":\"PipelineFailed\"}],\"Type\":\"Task\",\"ResultPath\":\"$.classify\",\"Resource\":\"",
+            [+]     "{\"StartAt\":\"Plan\",\"States\":{\"Plan\":{\"Next\":\"Synthesize\",\"Retry\":[{\"ErrorEquals\":[\"Lambda.ClientExecutionTimeoutException\",\"Lambda.ServiceException\",\"Lambda.AWSLambdaException\",\"Lambda.SdkClientException\"],\"IntervalSeconds\":2,\"MaxAttempts\":6,\"BackoffRate\":2},{\"ErrorEquals\":[\"Lambda.ServiceException\",\"Lambda.TooManyRequestsException\",\"States.TaskFailed\"],\"IntervalSeconds\":5,\"MaxAttempts\":2,\"BackoffRate\":2}],\"Catch\":[{\"ErrorEquals\":[\"States.ALL\"],\"Next\":\"PipelineFailed\"}],\"Type\":\"Task\",\"Resource\":\"",
+            [ ]     {
+            [-]       "Fn::ImportValue": "Laboraid-dev-Processing:ExportsOutputFnGetAttClassifier35ECB620ArnED1F7A4E"
+            [+]       "Fn::ImportValue": "Laboraid-dev-Processing:ExportsOutputFnGetAttBatchPlanner79286D94Arn3C84B9F8"
+            [ ]     },
+            [-]     "\",\"Parameters\":{\"s3_key.$\":\"$.detail.object.key\"}},\"GetAgentConfig\":{\"Next\":\"AgentEnabled\",\"Type\":\"Task\",\"ResultPath\":\"$.agentCfg\",\"Resource\":\"arn:",
+            [+]     "\"},\"Synthesize\":{\"Next\":\"SynthPublish\",\"Retry\":[{\"ErrorEquals\":[\"Lambda.ClientExecutionTimeoutException\",\"Lambda.ServiceException\",\"Lambda.AWSLambdaException\",\"Lambda.SdkClientException\"],\"IntervalSeconds\":2,\"MaxAttempts\":6,\"BackoffRate\":2},{\"ErrorEquals\":[\"Lambda.ServiceException\",\"Lambda.TooManyRequestsException\",\"States.TaskFailed\"],\"IntervalSeconds\":5,\"MaxAttempts\":2,\"BackoffRate\":2}],\"Catch\":[{\"ErrorEquals\":[\"States.ALL\"],\"Next\":\"PipelineFailed\"}],\"Type\":\"Task\",\"Resource\":\"",
+            [ ]     {
+            [-]       "Ref": "AWS::Partition"
+            [+]       "Fn::ImportValue": "Laboraid-dev-Processing:ExportsOutputFnGetAttSynthesizerBB2B8A5AArn1144A441"
+            [ ]     },
+            [-]     ":states:::dynamodb:getItem\",\"Parameters\":{\"Key\":{\"agent_name\":{\"S\":\"ExtractorAgent\"}},\"TableName\":\"",
+            [+]     "\"},\"SynthPublish\":{\"Next\":\"Published\",\"Retry\":[{\"ErrorEquals\":[\"Lambda.ClientExecutionTimeoutException\",\"Lambda.ServiceException\",\"Lambda.AWSLambdaException\",\"Lambda.SdkClientException\"],\"IntervalSeconds\":2,\"MaxAttempts\":6,\"BackoffRate\":2},{\"ErrorEquals\":[\"Lambda.ServiceException\",\"Lambda.TooManyRequestsException\",\"States.TaskFailed\"],\"IntervalSeconds\":5,\"MaxAttempts\":2,\"BackoffRate\":2}],\"Catch\":[{\"ErrorEquals\":[\"States.ALL\"],\"Next\":\"PipelineFailed\"}],\"Type\":\"Task\",\"Resource\":\"",
+            [ ]     {
+            [-]       "Fn::ImportValue": "Laboraid-dev-Storage:ExportsOutputRefAgentConfigTableE9BDF3BA8308F292"
+            [+]       "Fn::ImportValue": "Laboraid-dev-Processing:ExportsOutputFnGetAttSynthPublish29601B35ArnCDEC8420"
+            [ ]     },
+            [-]     "\",\"ConsistentRead\":false}},\"AgentEnabled\":{\"Type\":\"Choice\",\"Choices\":[{\"Variable\":\"$.agentCfg.Item.enabled.BOOL\",\"BooleanEquals\":true,\"Next\":\"ExtractViaAgent\"}],\"Default\":\"AgentDisabledSkip\"},\"AgentDisabledSkip\":{\"Type\":\"Succeed\"},\"ExtractViaAgent\":{\"Next\":\"PublishToAurora\",\"Retry\":[{\"ErrorEquals\":[\"Lambda.ClientExecutionTimeoutException\",\"Lambda.ServiceException\",\"Lambda.AWSLambdaException\",\"Lambda.SdkClientException\"],\"IntervalSeconds\":2,\"MaxAttempts\":6,\"BackoffRate\":2},{\"ErrorEquals\":[\"Lambda.ServiceException\",\"Lambda.TooManyRequestsException\"],\"IntervalSeconds\":5,\"MaxAttempts\":2,\"BackoffRate\":2}],\"Type\":\"Task\",\"ResultPath\":\"$.extract\",\"Resource\":\"",
+            [-]     {
+            [-]       "Fn::GetAtt": [
+            [-]         "ExtractorInvoker995C177E",
+            [-]         "Arn"
+            [-]       ]
+            [-]     },
+            [-]     "\"},\"PublishToAurora\":{\"Next\":\"Published\",\"Retry\":[{\"ErrorEquals\":[\"Lambda.ClientExecutionTimeoutException\",\"Lambda.ServiceException\",\"Lambda.AWSLambdaException\",\"Lambda.SdkClientException\"],\"IntervalSeconds\":2,\"MaxAttempts\":6,\"BackoffRate\":2},{\"ErrorEquals\":[\"Lambda.ServiceException\",\"Lambda.TooManyRequestsException\",\"States.TaskFailed\"],\"IntervalSeconds\":2,\"MaxAttempts\":3,\"BackoffRate\":2}],\"Type\":\"Task\",\"ResultPath\":\"$.publishtoaurora\",\"Resource\":\"",
+            [-]     {
+            [-]       "Fn::ImportValue": "Laboraid-dev-Processing:ExportsOutputFnGetAttPublisherF0355618Arn77A742BA"
+            [-]     },
+            [-]     "\"},\"Published\":{\"Type\":\"Succeed\"},\"PipelineFailed\":{\"Type\":\"Fail\",\"Error\":\"PipelineError\",\"Cause\":\"See execution input\"}},\"TimeoutSeconds\":1800}"
+            [+]     "\"},\"Published\":{\"Type\":\"Succeed\"},\"PipelineFailed\":{\"Type\":\"Fail\",\"Cause\":\"Rate-sheet pipeline failed\"}},\"TimeoutSeconds\":3600}"
+            [ ]   ]
+            [ ] ]
+[~] AWS::Events::Rule OnInputUpload OnInputUpload5D5F8CC3
+ └─ [~] State
+     ├─ [-] ENABLED
+     └─ [+] DISABLED
+
+
+
+✨  Number of stacks with differences: 1
+
