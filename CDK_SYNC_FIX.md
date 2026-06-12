@@ -31,7 +31,7 @@ gated to a maintenance window. Companion to `/DEPLOY_FREEZE.md`,
 - [x] 1B.3 Add `profile-builder` Lambda (Bedrock + S3 + RDS env)
 - [x] 1B.4 Add `batch-planner` Lambda (invokes classifier)
 - [x] 1B.5 **Declare runtime deps** `pypdf` + `openpyxl` — chosen approach: a shared **Lambda layer** built from `requirements.txt` (used by synthesizer + profile-builder). (Alt: per-function `BundlingOptions`.)
-- [x] 1B.6 Bundle shared modules into the assets: `master_data.py`, `pdf_utils.py`, and `profiles/*.json` for the synthesizer
+- [x] 1B.6 Bundle shared modules into the synth-deps layer: `master_data.py`, `pdf_utils.py`. (Profiles are NOT bundled — they live in Aurora `unions.profile_yaml`, loaded at runtime; unknown unions auto-onboard via profile-builder.)
 - [x] 1B.7 IAM: `LlmExtractorServiceRole` += inline `rds-data-profiles` (ExecuteStatement/BatchExecuteStatement on cluster + GetSecretValue on secret) and `invoke-profile-builder` — verbatim from `iam_inline_policies.json`
 - [x] 1B.8 Grants for new roles: `bedrock:InvokeModel` (+ guardrail), S3 read inputs / read-write outputs, RDS Data API on cluster + secret
 
