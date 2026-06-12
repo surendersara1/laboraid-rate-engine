@@ -487,3 +487,17 @@ class ProcessingStack(Stack):
         CfnOutput(self, "SynthPublishFnName", value=self.synth_publish.function_name)
         CfnOutput(self, "ProfileBuilderFnName", value=self.profile_builder.function_name)
         CfnOutput(self, "BatchPlannerFnName", value=self.batch_planner.function_name)
+
+        # --- Migration-only export retention (Phase 3 reconciliation) ----------
+        # The live Orchestration stack still imports the Classifier / Publisher /
+        # LlmExtractor ARN+Ref exports from this stack. The new Orchestration drops
+        # those references, but CloudFormation REFUSES to delete an export that is
+        # still in use, and Processing must deploy BEFORE Orchestration (the new
+        # SFN needs this stack's new exports). exportValue() forces these exports
+        # to persist through the Processing deploy so the subsequent Orchestration
+        # deploy can stop importing them. REMOVE these lines in the post-IN_SYNC
+        # cleanup PR once nothing imports them. See cdk/reconciliation/PHASE3_EXECUTION.md.
+        self.export_value(self.classifier.function_arn)
+        self.export_value(self.publisher.function_arn)
+        self.export_value(self.llm_extractor.function_arn)
+        self.export_value(self.llm_extractor.function_name)
