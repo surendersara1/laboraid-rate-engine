@@ -277,7 +277,8 @@ class StorageStack(Stack):
             # Bump on every schema.sql change so CloudFormation re-invokes the
             # custom resource and re-applies the DDL (idempotent: IF NOT EXISTS).
             # v2: + cell_corrections (Phase 2 decision 1 — overrides/comments to Aurora).
-            properties={"schemaVersion": "2"},
+            # v3: + improvement_runs + improvement_changes (Phase 2 improver audit).
+            properties={"schemaVersion": "3"},
         )
         # Ensure the cluster exists before the DDL runs.
         resource.node.add_dependency(self.aurora)

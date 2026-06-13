@@ -99,3 +99,42 @@ CREATE TABLE IF NOT EXISTS cell_corrections (
 CREATE INDEX IF NOT EXISTS idx_corrections_lookup ON cell_corrections (union_local, period, kind, created_at DESC);
 
 CREATE INDEX IF NOT EXISTS idx_corrections_cell ON cell_corrections (cell_id);
+
+-- Phase-2 improvement loop: one row per "Improve" click (the agent's run), for audit.
+-- Records what drove the change (from->to version, who, which model) and its lifecycle.
+CREATE TABLE IF NOT EXISTS improvement_runs (
+  id UUID PRIMARY KEY,
+  period_id UUID REFERENCES rate_periods(id),
+  union_local TEXT,
+  period TEXT,
+  from_version INT,
+  to_version INT,
+  triggered_by TEXT,
+  model TEXT,
+  started_at TIMESTAMPTZ DEFAULT NOW(),
+  finished_at TIMESTAMPTZ,
+  status TEXT NOT NULL DEFAULT 'running',
+  summary TEXT,
+  error TEXT,
+  CONSTRAINT improvement_runs_status CHECK (status IN ('running','succeeded','failed'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_improvement_runs_period ON improvement_runs (period_id, started_at DESC);
+
+-- Per-cell record of what the agent did in a run (before/after + why + provenance) —
+-- the explainable, replayable audit an auditor/trustee can inspect.
+CREATE TABLE IF NOT EXISTS improvement_changes (
+  id UUID PRIMARY KEY,
+  run_id UUID REFERENCES improvement_runs(id),
+  cell_id UUID,
+  package TEXT,
+  column_name TEXT,
+  prior_value TEXT,
+  new_value TEXT,
+  source TEXT,
+  provenance TEXT,
+  confidence NUMERIC,
+  CONSTRAINT improvement_changes_source CHECK (source IN ('override','resynth','recompute','profile-fix'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_improvement_changes_run ON improvement_changes (run_id);
