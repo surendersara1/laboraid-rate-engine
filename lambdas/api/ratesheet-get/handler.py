@@ -43,40 +43,39 @@ INPUTS_BUCKET = os.environ.get("INPUTS_BUCKET", "laboraid-dev-l3-bucket-inputs")
 OUTPUTS_BUCKET = os.environ.get("OUTPUTS_BUCKET", "laboraid-dev-l3-bucket-outputs")
 
 
-def _latest_job_for_source(sfn: Any, source_key: str) -> dict[str, Any] | None:
-    """Find the most recent SFN execution whose EventBridge input refers to
-    this S3 source key. Used so the Business header can link to the Admin
-    job page that produced this rate sheet.
+def _latest_job(jobs_table: Any, local: str, period: str) -> dict[str, Any] | None:
+    """Most recent job that produced this {local, period}, read from the
+    DynamoDB jobs read-model. Replaces a live Step Functions list_executions +
+    describe_execution N+1 loop (the same anti-pattern fixed on the Jobs tab) —
+    this is what made the rate-sheet header slow to load.
     """
-    if not source_key:
+    if not local or not period:
         return None
     try:
-        execs = sfn.list_executions(
-            stateMachineArn=STATE_MACHINE_ARN, maxResults=50
-        )["executions"]
+        from boto3.dynamodb.conditions import Attr, Key
+
+        res = jobs_table.query(
+            IndexName="by-recency",
+            KeyConditionExpression=Key("gsi1pk").eq("JOB"),
+            FilterExpression=Attr("local").eq(str(local)) & Attr("period").eq(period),
+            ProjectionExpression="job_id, #st, started_at, stopped_at, duration_ms",
+            ExpressionAttributeNames={"#st": "status"},
+            ScanIndexForward=False,  # newest first
+        )
+        items = res.get("Items", [])
+        if not items:
+            return None
+        it = items[0]
+        dur = it.get("duration_ms")
+        return {
+            "job_id": it.get("job_id"),
+            "status": it.get("status"),
+            "started_at": it.get("started_at"),
+            "stopped_at": it.get("stopped_at"),
+            "duration_ms": int(dur) if dur is not None else None,
+        }
     except Exception:
         return None
-    for e in execs:
-        try:
-            desc = sfn.describe_execution(executionArn=e["executionArn"])
-            inp = json.loads(desc.get("input", "{}"))
-            if inp.get("detail", {}).get("object", {}).get("key") == source_key:
-                start, stop = e.get("startDate"), e.get("stopDate")
-                duration_ms = (
-                    int((stop - start).total_seconds() * 1000)
-                    if start and stop
-                    else None
-                )
-                return {
-                    "job_id": e["name"],
-                    "status": e["status"],
-                    "started_at": start.isoformat() if start else None,
-                    "stopped_at": stop.isoformat() if stop else None,
-                    "duration_ms": duration_ms,
-                }
-        except Exception:
-            continue
-    return None
 
 
 def _presign(s3: Any, bucket: str, key: str) -> str | None:
@@ -107,7 +106,7 @@ def handler(event: dict[str, Any], _context: Any) -> dict[str, Any]:
 
         data = boto3.client("rds-data")
         s3 = boto3.client("s3")
-        sfn = boto3.client("stepfunctions")
+        jobs_table = boto3.resource("dynamodb").Table(os.environ["JOBS_TABLE"])
 
         # Pull every version for this {local, period} so the UI can render a
         # version pill / switcher. Newest version is the default selection.
@@ -330,9 +329,9 @@ def handler(event: dict[str, Any], _context: Any) -> dict[str, Any]:
             None,
         )
 
-        # Walk the SFN to find the run that produced this rate sheet.
-        source_key = source_files.get("rate_notice") or source_files.get("pdf") or ""
-        job_meta = _latest_job_for_source(sfn, source_key)
+        # The run that produced this rate sheet — from the DynamoDB jobs
+        # read-model (not a live Step Functions walk).
+        job_meta = _latest_job(jobs_table, p["local"], p["period"])
 
         # Pull counts from canonical_json if present (extractor writes them).
         # gap_count = total NULL cells; gaps_detail = kernel-emitted

@@ -75,7 +75,7 @@ GRANTS: dict[str, set[str]] = {
     "profile-update": {"aurora"},
     "audit-list": {"aurora"},
     "ratesheet-list": {"aurora"},
-    "ratesheet-get": {"aurora"},
+    "ratesheet-get": {"aurora", "jobs"},
     "ratesheet-approve": {"aurora", "events"},
     "ratesheet-reject": {"aurora", "events"},
     "ratesheet-unapprove": {"aurora", "events"},
