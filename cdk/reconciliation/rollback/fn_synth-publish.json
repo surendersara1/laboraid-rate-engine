@@ -1,0 +1,54 @@
+{
+    "FunctionName": "laboraid-dev-l4-fn-synth-publish",
+    "FunctionArn": "arn:aws:lambda:us-east-2:908106425069:function:laboraid-dev-l4-fn-synth-publish",
+    "Runtime": "python3.12",
+    "Role": "arn:aws:iam::908106425069:role/Laboraid-dev-Processing-PublisherServiceRoleF4D9160-pIWdJodezP0q",
+    "Handler": "handler.handler",
+    "CodeSize": 2974,
+    "Description": "",
+    "Timeout": 300,
+    "MemorySize": 512,
+    "LastModified": "2026-06-12T01:35:51.000+0000",
+    "CodeSha256": "hPiaFmjCU04TAw1fUJT5N/Mdo/SYWQszU/obosNm3eY=",
+    "Version": "$LATEST",
+    "Environment": {
+        "Variables": {
+            "POWERTOOLS_SERVICE_NAME": "laboraid-synth-publish",
+            "AURORA_SECRET_ARN": "arn:aws:secretsmanager:us-east-2:908106425069:secret:laboraid-dev-l3-secret-aurora-1tsRI5",
+            "ENV": "dev",
+            "LOG_LEVEL": "INFO",
+            "OUTPUTS_BUCKET": "laboraid-dev-l3-bucket-outputs",
+            "AURORA_CLUSTER_ARN": "arn:aws:rds:us-east-2:908106425069:cluster:laboraid-dev-l3-aurora-cluster"
+        }
+    },
+    "TracingConfig": {
+        "Mode": "PassThrough"
+    },
+    "RevisionId": "1956649a-bed9-4312-9812-aaa04165a29a",
+    "Layers": [
+        {
+            "Arn": "arn:aws:lambda:us-east-2:017000801446:layer:AWSLambdaPowertoolsPythonV3-python312-arm64:25",
+            "CodeSize": 8808370
+        }
+    ],
+    "State": "Active",
+    "LastUpdateStatus": "Successful",
+    "PackageType": "Zip",
+    "Architectures": [
+        "arm64"
+    ],
+    "EphemeralStorage": {
+        "Size": 512
+    },
+    "SnapStart": {
+        "ApplyOn": "None",
+        "OptimizationStatus": "Off"
+    },
+    "RuntimeVersionConfig": {
+        "RuntimeVersionArn": "arn:aws:lambda:us-east-2::runtime:bec1042407ffdf4a1e2261cba8ed01949f62579da0d7ee83345b26dd8890eef8"
+    },
+    "LoggingConfig": {
+        "LogFormat": "Text",
+        "LogGroup": "/aws/lambda/laboraid-dev-l4-fn-synth-publish"
+    }
+}

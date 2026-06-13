@@ -59,6 +59,14 @@ data/*/ai_output/
 *.gaps.md
 !docs/*.gaps.md
 
+# Customer data — NEVER commit (source CBA/notice PDFs, client rate sheets,
+# local kernel-run outputs). Customer-confidential; lives under kernel/data/.
+data/*/ai_output/
+kernel/data/**/ai_output/
+kernel/data/**/cba/*.pdf
+kernel/data/**/ratesheet/*.xlsx
+kernel/data/**/*.coverage.md
+
 # Test artifacts
 .coverage
 htmlcov/

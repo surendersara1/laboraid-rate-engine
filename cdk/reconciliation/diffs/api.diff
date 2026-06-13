@@ -1,0 +1,360 @@
+start: Building Laboraid-dev-Api Template
+success: Built Laboraid-dev-Api Template
+start: Publishing Laboraid-dev-Api Template (current_account-current_region-8b52e3b4)
+success: Published Laboraid-dev-Api Template (current_account-current_region-8b52e3b4)
+Hold on while we create a read-only change set to get a diff with accurate replacement information (use --method=template to use a less accurate but faster template-only diff)
+
+Could not create a change set, will base the diff on template differences (run again with -v to see the reason)
+
+Stack Laboraid-dev-Api
+IAM Statement Changes
+┌───┬──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┬────────┬────────────────────────────────┬────────────────────────────────────┬───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┐
+│   │ Resource                                                                                                                                             │ Effect │ Action                         │ Principal                          │ Condition                                                                                                                         │
+├───┼──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┼────────┼────────────────────────────────┼────────────────────────────────────┼───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┤
+│ + │ ${BatchProcess.Arn}                                                                                                                                  │ Allow  │ lambda:InvokeFunction          │ Service:apigateway.amazonaws.com   │ "ArnLike": {                                                                                                                      │
+│   │                                                                                                                                                      │        │                                │                                    │   "AWS:SourceArn": "arn:${AWS::Partition}:execute-api:${AWS::Region}:${AWS::AccountId}:${HttpApiF5A9A8A7}/*/*/v1/batches/process" │
+│   │                                                                                                                                                      │        │                                │                                    │ }                                                                                                                                 │
+├───┼──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┼────────┼────────────────────────────────┼────────────────────────────────────┼───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┤
+│ + │ ${BatchProcess/ServiceRole.Arn}                                                                                                                      │ Allow  │ sts:AssumeRole                 │ Service:lambda.amazonaws.com       │                                                                                                                                   │
+├───┼──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┼────────┼────────────────────────────────┼────────────────────────────────────┼───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┤
+│ + │ ${RatesheetRework.Arn}                                                                                                                               │ Allow  │ lambda:InvokeFunction          │ AWS:${RatesheetRework/ServiceRole} │                                                                                                                                   │
+│   │ {"Fn::ImportValue":"Laboraid-dev-Validation:ExportsOutputFnGetAttXlsxRenderer10B27F7BArnCC8C33EB"}                                                   │        │                                │                                    │                                                                                                                                   │
+│   │ {"Fn::ImportValue":"Laboraid-dev-Validation:ExportsOutputFnGetAttXlsxRenderer10B27F7BArnCC8C33EB"}:*                                                 │        │                                │                                    │                                                                                                                                   │
+├───┼──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┼────────┼────────────────────────────────┼────────────────────────────────────┼───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┤
+│ + │ *                                                                                                                                                    │ Allow  │ xray:PutTelemetryRecords       │ AWS:${BatchProcess/ServiceRole}    │                                                                                                                                   │
+│   │                                                                                                                                                      │        │ xray:PutTraceSegments          │                                    │                                                                                                                                   │
+├───┼──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┼────────┼────────────────────────────────┼────────────────────────────────────┼───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┤
+│ + │ arn:${AWS::Partition}:rds:${AWS::Region}:${AWS::AccountId}:cluster:{"Fn::ImportValue":"Laboraid-dev-Storage:ExportsOutputRefAurora2CBAB212533F1A7B"} │ Allow  │ rds-data:BatchExecuteStatement │ AWS:${ProfileUpdate/ServiceRole}   │                                                                                                                                   │
+│   │                                                                                                                                                      │        │ rds-data:BeginTransaction      │                                    │                                                                                                                                   │
+│   │                                                                                                                                                      │        │ rds-data:CommitTransaction     │                                    │                                                                                                                                   │
+│   │                                                                                                                                                      │        │ rds-data:ExecuteStatement      │                                    │                                                                                                                                   │
+│   │                                                                                                                                                      │        │ rds-data:RollbackTransaction   │                                    │                                                                                                                                   │
+│ + │ arn:${AWS::Partition}:rds:${AWS::Region}:${AWS::AccountId}:cluster:{"Fn::ImportValue":"Laboraid-dev-Storage:ExportsOutputRefAurora2CBAB212533F1A7B"} │ Allow  │ rds-data:BatchExecuteStatement │ AWS:${ProfileList/ServiceRole}     │                                                                                                                                   │
+│   │                                                                                                                                                      │        │ rds-data:BeginTransaction      │                                    │                                                                                                                                   │
+│   │                                                                                                                                                      │        │ rds-data:CommitTransaction     │                                    │                                                                                                                                   │
+│   │                                                                                                                                                      │        │ rds-data:ExecuteStatement      │                                    │                                                                                                                                   │
+│   │                                                                                                                                                      │        │ rds-data:RollbackTransaction   │                                    │                                                                                                                                   │
+├───┼──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┼────────┼────────────────────────────────┼────────────────────────────────────┼───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┤
+│ + │ arn:aws:states:us-east-2:${AWS::AccountId}:execution:laboraid-dev-l3-sfn-main:*                                                                      │ Allow  │ states:DescribeExecution       │ AWS:${BatchProcess/ServiceRole}    │                                                                                                                                   │
+│   │ arn:aws:states:us-east-2:${AWS::AccountId}:stateMachine:laboraid-dev-l3-sfn-main                                                                     │        │ states:StartExecution          │                                    │                                                                                                                                   │
+├───┼──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┼────────┼────────────────────────────────┼────────────────────────────────────┼───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┤
+│ + │ {"Fn::ImportValue":"Laboraid-dev-Storage:ExportsOutputRefAuroraSecretAttachmentEAAB0558D3F1C641"}                                                    │ Allow  │ secretsmanager:DescribeSecret  │ AWS:${ProfileUpdate/ServiceRole}   │                                                                                                                                   │
+│   │                                                                                                                                                      │        │ secretsmanager:GetSecretValue  │                                    │                                                                                                                                   │
+│ + │ {"Fn::ImportValue":"Laboraid-dev-Storage:ExportsOutputRefAuroraSecretAttachmentEAAB0558D3F1C641"}                                                    │ Allow  │ secretsmanager:DescribeSecret  │ AWS:${ProfileList/ServiceRole}     │                                                                                                                                   │
+│   │                                                                                                                                                      │        │ secretsmanager:GetSecretValue  │                                    │                                                                                                                                   │
+├───┼──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┼────────┼────────────────────────────────┼────────────────────────────────────┼───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┤
+│ - │ {"Fn::ImportValue":"Laboraid-dev-Validation:ExportsOutputFnGetAttXlsxRenderer10B27F7BArnCC8C33EB"}                                                   │ Allow  │ lambda:InvokeFunction          │ AWS:${RatesheetRework/ServiceRole} │                                                                                                                                   │
+│   │ {"Fn::ImportValue":"Laboraid-dev-Validation:ExportsOutputFnGetAttXlsxRenderer10B27F7BArnCC8C33EB"}:*                                                 │        │                                │                                    │                                                                                                                                   │
+└───┴──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┴────────┴────────────────────────────────┴────────────────────────────────────┴───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘
+IAM Policy Changes
+┌───┬─────────────────────────────┬────────────────────────────────────────────────────────────────────────────────┐
+│   │ Resource                    │ Managed Policy ARN                                                             │
+├───┼─────────────────────────────┼────────────────────────────────────────────────────────────────────────────────┤
+│ + │ ${BatchProcess/ServiceRole} │ arn:${AWS::Partition}:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole │
+└───┴─────────────────────────────┴────────────────────────────────────────────────────────────────────────────────┘
+(NOTE: There may be security-related changes not in this list. See https://github.com/aws/aws-cdk/issues/1299)
+
+Resources
+[+] AWS::Logs::LogGroup BatchProcessLogGroup BatchProcessLogGroup25BBC0AE
+[+] AWS::IAM::Role BatchProcess/ServiceRole BatchProcessServiceRole6A353801
+[+] AWS::IAM::Policy BatchProcess/ServiceRole/DefaultPolicy BatchProcessServiceRoleDefaultPolicy996A3421
+[+] AWS::Lambda::Function BatchProcess BatchProcessD9675888
+[+] AWS::ApiGatewayV2::Integration HttpApi/POST--v1--batches--process/IntBatchProcessPOSTV1BatchesProcess HttpApiPOSTv1batchesprocessIntBatchProcessPOSTV1BatchesProcess18E916F6
+[+] AWS::Lambda::Permission HttpApi/POST--v1--batches--process/IntBatchProcessPOSTV1BatchesProcess-Permission HttpApiPOSTv1batchesprocessIntBatchProcessPOSTV1BatchesProcessPermission807E5142
+[+] AWS::ApiGatewayV2::Route HttpApi/POST--v1--batches--process HttpApiPOSTv1batchesprocess43D0758A
+[~] AWS::Lambda::LayerVersion AuthzLayer AuthzLayer7C92CF86 replace
+ ├─ [~] Content (requires replacement)
+ │   └─ [~] .S3Key:
+ │       ├─ [-] 6dc7f674be74413a1687b42e54647df63ca12eab94053f73444e7fcf8864d904.zip
+ │       └─ [+] bd4b6cea4c73b8e44307c8efb6f28160c65a0ea79aab05ccfc87802f249dc47e.zip
+ └─ [~] Metadata
+     └─ [~] .aws:asset:path:
+         ├─ [-] asset.6dc7f674be74413a1687b42e54647df63ca12eab94053f73444e7fcf8864d904
+         └─ [+] asset.bd4b6cea4c73b8e44307c8efb6f28160c65a0ea79aab05ccfc87802f249dc47e
+[~] AWS::IAM::Policy RatesheetRework/ServiceRole/DefaultPolicy RatesheetReworkServiceRoleDefaultPolicy44C029F5
+ └─ [~] PolicyDocument
+     └─ [~] .Statement:
+         └─ @@ -95,6 +95,12 @@
+            [ ] "Effect": "Allow",
+            [ ] "Resource": [
+            [ ]   {
+            [+]     "Fn::GetAtt": [
+            [+]       "RatesheetRework8436CCA3",
+            [+]       "Arn"
+            [+]     ]
+            [+]   },
+            [+]   {
+            [ ]     "Fn::ImportValue": "Laboraid-dev-Validation:ExportsOutputFnGetAttXlsxRenderer10B27F7BArnCC8C33EB"
+            [ ]   },
+            [ ]   {
+[~] AWS::Lambda::Function RatesheetRework RatesheetRework8436CCA3
+ ├─ [~] Code
+ │   └─ [~] .S3Key:
+ │       ├─ [-] f0d59c097270278caf4da75503ac6c3b15a34c9651bf780898d131c6c2e908ce.zip
+ │       └─ [+] b811dd9511eaa33ff76f0a09d5065c59a21032e14ebfb2e43a9aa1c42e1aeb98.zip
+ └─ [~] Metadata
+     └─ [~] .aws:asset:path:
+         ├─ [-] asset.f0d59c097270278caf4da75503ac6c3b15a34c9651bf780898d131c6c2e908ce
+         └─ [+] asset.b811dd9511eaa33ff76f0a09d5065c59a21032e14ebfb2e43a9aa1c42e1aeb98
+[~] AWS::Lambda::Function CellComment CellCommentEE5603BA
+ ├─ [~] Code
+ │   └─ [~] .S3Key:
+ │       ├─ [-] d3b13e1a60b140f8987c959ce36bbb3aeca8b9d441d2e2878c1d4f45c3dcfba5.zip
+ │       └─ [+] 6a5b137dfc2057a89effbbf9e9a40f75f359e745fe31a8a1351d928a88ce7464.zip
+ └─ [~] Metadata
+     └─ [~] .aws:asset:path:
+         ├─ [-] asset.d3b13e1a60b140f8987c959ce36bbb3aeca8b9d441d2e2878c1d4f45c3dcfba5
+         └─ [+] asset.6a5b137dfc2057a89effbbf9e9a40f75f359e745fe31a8a1351d928a88ce7464
+[~] AWS::Lambda::Function JobRetry JobRetry68AA6195
+ ├─ [~] Code
+ │   └─ [~] .S3Key:
+ │       ├─ [-] 8e9856f517e7f0567beed98f8c01aeacbb0649925eaf476b93e9bf0caa1ef924.zip
+ │       └─ [+] 7b27752ade9c1e701a7ab346d43f8f9127a29f3bf5b18a489d43e4d828b1dba8.zip
+ └─ [~] Metadata
+     └─ [~] .aws:asset:path:
+         ├─ [-] asset.8e9856f517e7f0567beed98f8c01aeacbb0649925eaf476b93e9bf0caa1ef924
+         └─ [+] asset.7b27752ade9c1e701a7ab346d43f8f9127a29f3bf5b18a489d43e4d828b1dba8
+[~] AWS::Lambda::Function AuditList AuditListCD2B35FB
+ ├─ [~] Code
+ │   └─ [~] .S3Key:
+ │       ├─ [-] da5bf603df82570fbba932f04115bbfeee1b77de187308fe6b4ef6d3943b76bf.zip
+ │       └─ [+] bf69cf9c7d0f2af2bad08bfdd9a9e83e6361892a143b182f27b0db178ea06e1e.zip
+ └─ [~] Metadata
+     └─ [~] .aws:asset:path:
+         ├─ [-] asset.da5bf603df82570fbba932f04115bbfeee1b77de187308fe6b4ef6d3943b76bf
+         └─ [+] asset.bf69cf9c7d0f2af2bad08bfdd9a9e83e6361892a143b182f27b0db178ea06e1e
+[~] AWS::Lambda::Function RatesheetUnapprove RatesheetUnapprove30AA20F4
+ ├─ [~] Code
+ │   └─ [~] .S3Key:
+ │       ├─ [-] 577958cb31a2ca694bff427544c51a20849d90534f0fcd158c4498a177150860.zip
+ │       └─ [+] a58d820c04b53578877137411a4443d20c6c28947ee0554825fcf7feb5c77989.zip
+ └─ [~] Metadata
+     └─ [~] .aws:asset:path:
+         ├─ [-] asset.577958cb31a2ca694bff427544c51a20849d90534f0fcd158c4498a177150860
+         └─ [+] asset.a58d820c04b53578877137411a4443d20c6c28947ee0554825fcf7feb5c77989
+[~] AWS::Lambda::Function RatesheetApprove RatesheetApproveC36408D3
+ ├─ [~] Code
+ │   └─ [~] .S3Key:
+ │       ├─ [-] 13a5b0ed701277f426d3c7fc2aacf39891be4e2c011ff693e1d1de83a02e7c55.zip
+ │       └─ [+] c34816dd88607fe5be17813fb93870ecccaf68d16fb6dd045acb525c974e1e52.zip
+ └─ [~] Metadata
+     └─ [~] .aws:asset:path:
+         ├─ [-] asset.13a5b0ed701277f426d3c7fc2aacf39891be4e2c011ff693e1d1de83a02e7c55
+         └─ [+] asset.c34816dd88607fe5be17813fb93870ecccaf68d16fb6dd045acb525c974e1e52
+[~] AWS::Lambda::Function AgentList AgentListC3831A87
+ ├─ [~] Code
+ │   └─ [~] .S3Key:
+ │       ├─ [-] 715b275df03ddaa9aa219d53f4d829e3bdd882a2caf4c5984d9d4742591970b0.zip
+ │       └─ [+] eade0df7101cd57e0615b5ed30c22224d7b19259f98d0af300be7ebcaf0c8490.zip
+ └─ [~] Metadata
+     └─ [~] .aws:asset:path:
+         ├─ [-] asset.715b275df03ddaa9aa219d53f4d829e3bdd882a2caf4c5984d9d4742591970b0
+         └─ [+] asset.eade0df7101cd57e0615b5ed30c22224d7b19259f98d0af300be7ebcaf0c8490
+[~] AWS::Lambda::Function UploadPresign UploadPresign73651300
+ ├─ [~] Code
+ │   └─ [~] .S3Key:
+ │       ├─ [-] 8ac0bda57255d0750023d5b6b08269ae3d0879978718672ae6d9ce6594b98ff3.zip
+ │       └─ [+] f3fda971424f7a4b5bf647bc2d4fabac7a0c7ef581c257a82f03d349ed8a9ac4.zip
+ └─ [~] Metadata
+     └─ [~] .aws:asset:path:
+         ├─ [-] asset.8ac0bda57255d0750023d5b6b08269ae3d0879978718672ae6d9ce6594b98ff3
+         └─ [+] asset.f3fda971424f7a4b5bf647bc2d4fabac7a0c7ef581c257a82f03d349ed8a9ac4
+[~] AWS::Lambda::Function AgentToggle AgentToggleD06A8BFE
+ ├─ [~] Code
+ │   └─ [~] .S3Key:
+ │       ├─ [-] 2d993dd982bf1203e5eefa3d18a6437e2fcbe945af1b127fa01f7b4f9e6f4a1a.zip
+ │       └─ [+] b193445d99643c6aa98b5ccc95f9c406be8a63a0adedd74eba90da76e0bd3f4d.zip
+ └─ [~] Metadata
+     └─ [~] .aws:asset:path:
+         ├─ [-] asset.2d993dd982bf1203e5eefa3d18a6437e2fcbe945af1b127fa01f7b4f9e6f4a1a
+         └─ [+] asset.b193445d99643c6aa98b5ccc95f9c406be8a63a0adedd74eba90da76e0bd3f4d
+[~] AWS::Lambda::Function JobAbort JobAbort1F84E20F
+ ├─ [~] Code
+ │   └─ [~] .S3Key:
+ │       ├─ [-] 5f88df85c00c6b88944f206fc7d4feee44a49206e7217eb062a14b7d310f36df.zip
+ │       └─ [+] 805a63af84574c57a65736b7d938bca8723d703d602df76b625c11060027e6a3.zip
+ └─ [~] Metadata
+     └─ [~] .aws:asset:path:
+         ├─ [-] asset.5f88df85c00c6b88944f206fc7d4feee44a49206e7217eb062a14b7d310f36df
+         └─ [+] asset.805a63af84574c57a65736b7d938bca8723d703d602df76b625c11060027e6a3
+[~] AWS::Lambda::Function CellOverride CellOverride2138C324
+ ├─ [~] Code
+ │   └─ [~] .S3Key:
+ │       ├─ [-] f137cafab3445674209375d8b57c6025154ecbb64e4bb5abb72ca13026708591.zip
+ │       └─ [+] 9352aeed3cb97f37e47c70b46eddf6cbc46b0ebc83ad932b2f74a6187281681a.zip
+ └─ [~] Metadata
+     └─ [~] .aws:asset:path:
+         ├─ [-] asset.f137cafab3445674209375d8b57c6025154ecbb64e4bb5abb72ca13026708591
+         └─ [+] asset.9352aeed3cb97f37e47c70b46eddf6cbc46b0ebc83ad932b2f74a6187281681a
+[~] AWS::Lambda::Function JobList JobList29E39595
+ ├─ [~] Code
+ │   └─ [~] .S3Key:
+ │       ├─ [-] a46b0b414bbda43ce1056622b1ab5bd981e4957dcd7407752d2871071d0eab2e.zip
+ │       └─ [+] d5bb616e06e4bff47ad4bf1ad927bfc8205eee90a45e1e78bfe2c4021049656e.zip
+ └─ [~] Metadata
+     └─ [~] .aws:asset:path:
+         ├─ [-] asset.a46b0b414bbda43ce1056622b1ab5bd981e4957dcd7407752d2871071d0eab2e
+         └─ [+] asset.d5bb616e06e4bff47ad4bf1ad927bfc8205eee90a45e1e78bfe2c4021049656e
+[~] AWS::IAM::Policy ProfileUpdate/ServiceRole/DefaultPolicy ProfileUpdateServiceRoleDefaultPolicy132955F9
+ └─ [~] PolicyDocument
+     └─ [~] .Statement:
+         └─ @@ -6,5 +6,48 @@
+            [ ]     ],
+            [ ]     "Effect": "Allow",
+            [ ]     "Resource": "*"
+            [+]   },
+            [+]   {
+            [+]     "Action": [
+            [+]       "rds-data:BatchExecuteStatement",
+            [+]       "rds-data:BeginTransaction",
+            [+]       "rds-data:CommitTransaction",
+            [+]       "rds-data:ExecuteStatement",
+            [+]       "rds-data:RollbackTransaction"
+            [+]     ],
+            [+]     "Effect": "Allow",
+            [+]     "Resource": {
+            [+]       "Fn::Join": [
+            [+]         "",
+            [+]         [
+            [+]           "arn:",
+            [+]           {
+            [+]             "Ref": "AWS::Partition"
+            [+]           },
+            [+]           ":rds:",
+            [+]           {
+            [+]             "Ref": "AWS::Region"
+            [+]           },
+            [+]           ":",
+            [+]           {
+            [+]             "Ref": "AWS::AccountId"
+            [+]           },
+            [+]           ":cluster:",
+            [+]           {
+            [+]             "Fn::ImportValue": "Laboraid-dev-Storage:ExportsOutputRefAurora2CBAB212533F1A7B"
+            [+]           }
+            [+]         ]
+            [+]       ]
+            [+]     }
+            [+]   },
+            [+]   {
+            [+]     "Action": [
+            [+]       "secretsmanager:DescribeSecret",
+            [+]       "secretsmanager:GetSecretValue"
+            [+]     ],
+            [+]     "Effect": "Allow",
+            [+]     "Resource": {
+            [+]       "Fn::ImportValue": "Laboraid-dev-Storage:ExportsOutputRefAuroraSecretAttachmentEAAB0558D3F1C641"
+            [+]     }
+            [ ]   }
+            [ ] ]
+[~] AWS::Lambda::Function ProfileUpdate ProfileUpdateF50122F4
+ ├─ [~] Code
+ │   └─ [~] .S3Key:
+ │       ├─ [-] cda7140e9d0c04fe1e26c29a52e0d2b7980458ad73b729c8bc1664e6d48895ab.zip
+ │       └─ [+] 16e31f94924ffb48da8129e9c38d7a987c667e980cd9f0dede5c032c64018619.zip
+ └─ [~] Metadata
+     └─ [~] .aws:asset:path:
+         ├─ [-] asset.cda7140e9d0c04fe1e26c29a52e0d2b7980458ad73b729c8bc1664e6d48895ab
+         └─ [+] asset.16e31f94924ffb48da8129e9c38d7a987c667e980cd9f0dede5c032c64018619
+[~] AWS::IAM::Policy ProfileList/ServiceRole/DefaultPolicy ProfileListServiceRoleDefaultPolicy48F496E5
+ └─ [~] PolicyDocument
+     └─ [~] .Statement:
+         └─ @@ -6,5 +6,48 @@
+            [ ]     ],
+            [ ]     "Effect": "Allow",
+            [ ]     "Resource": "*"
+            [+]   },
+            [+]   {
+            [+]     "Action": [
+            [+]       "rds-data:BatchExecuteStatement",
+            [+]       "rds-data:BeginTransaction",
+            [+]       "rds-data:CommitTransaction",
+            [+]       "rds-data:ExecuteStatement",
+            [+]       "rds-data:RollbackTransaction"
+            [+]     ],
+            [+]     "Effect": "Allow",
+            [+]     "Resource": {
+            [+]       "Fn::Join": [
+            [+]         "",
+            [+]         [
+            [+]           "arn:",
+            [+]           {
+            [+]             "Ref": "AWS::Partition"
+            [+]           },
+            [+]           ":rds:",
+            [+]           {
+            [+]             "Ref": "AWS::Region"
+            [+]           },
+            [+]           ":",
+            [+]           {
+            [+]             "Ref": "AWS::AccountId"
+            [+]           },
+            [+]           ":cluster:",
+            [+]           {
+            [+]             "Fn::ImportValue": "Laboraid-dev-Storage:ExportsOutputRefAurora2CBAB212533F1A7B"
+            [+]           }
+            [+]         ]
+            [+]       ]
+            [+]     }
+            [+]   },
+            [+]   {
+            [+]     "Action": [
+            [+]       "secretsmanager:DescribeSecret",
+            [+]       "secretsmanager:GetSecretValue"
+            [+]     ],
+            [+]     "Effect": "Allow",
+            [+]     "Resource": {
+            [+]       "Fn::ImportValue": "Laboraid-dev-Storage:ExportsOutputRefAuroraSecretAttachmentEAAB0558D3F1C641"
+            [+]     }
+            [ ]   }
+            [ ] ]
+[~] AWS::Lambda::Function ProfileList ProfileList6736DAB9
+ ├─ [~] Code
+ │   └─ [~] .S3Key:
+ │       ├─ [-] d6a3e45565ee00fa12358171fe88e590aff20ae7665956461e027bc9321e7d93.zip
+ │       └─ [+] 5a4ee56db4d1e1a13437cd4d41ee104463dc2874d45cb5aab13f0f6a88d2e593.zip
+ └─ [~] Metadata
+     └─ [~] .aws:asset:path:
+         ├─ [-] asset.d6a3e45565ee00fa12358171fe88e590aff20ae7665956461e027bc9321e7d93
+         └─ [+] asset.5a4ee56db4d1e1a13437cd4d41ee104463dc2874d45cb5aab13f0f6a88d2e593
+[~] AWS::Lambda::Function RatesheetReject RatesheetReject4BBFFE9C
+ ├─ [~] Code
+ │   └─ [~] .S3Key:
+ │       ├─ [-] 2fe697227867117c1a9af4b28f93082392d80cd1aaf3883324477c81f3aa9a81.zip
+ │       └─ [+] cc2f97421ccef8c4b705c1f548208d3c7c7870cfe2a24acb640c65e66c7bd16e.zip
+ └─ [~] Metadata
+     └─ [~] .aws:asset:path:
+         ├─ [-] asset.2fe697227867117c1a9af4b28f93082392d80cd1aaf3883324477c81f3aa9a81
+         └─ [+] asset.cc2f97421ccef8c4b705c1f548208d3c7c7870cfe2a24acb640c65e66c7bd16e
+[~] AWS::Lambda::Function RatesheetGet RatesheetGet0CE29C29
+ ├─ [~] Code
+ │   └─ [~] .S3Key:
+ │       ├─ [-] 05670c7f0d2b7429813383333122db613a0e3fa3dd3d33a469e5533a519ce640.zip
+ │       └─ [+] 323fe2f2c630631f99f46c522b55b84a34523d62b92bbe927873c24abed5be4e.zip
+ └─ [~] Metadata
+     └─ [~] .aws:asset:path:
+         ├─ [-] asset.05670c7f0d2b7429813383333122db613a0e3fa3dd3d33a469e5533a519ce640
+         └─ [+] asset.323fe2f2c630631f99f46c522b55b84a34523d62b92bbe927873c24abed5be4e
+[~] AWS::Lambda::Function RatesheetPublish RatesheetPublishC7ABFBD3
+ ├─ [~] Code
+ │   └─ [~] .S3Key:
+ │       ├─ [-] 3699723807a282eb5f36428eaaee6518833a4e13dc538d70fef79691c9a0f8c3.zip
+ │       └─ [+] cfc457f83adf2587df8e634d2413f78d8e5931ba6864e7fe1c6f7085898a5df0.zip
+ └─ [~] Metadata
+     └─ [~] .aws:asset:path:
+         ├─ [-] asset.3699723807a282eb5f36428eaaee6518833a4e13dc538d70fef79691c9a0f8c3
+         └─ [+] asset.cfc457f83adf2587df8e634d2413f78d8e5931ba6864e7fe1c6f7085898a5df0
+[~] AWS::Lambda::Function JobStatus JobStatus80B50FA5
+ ├─ [~] Code
+ │   └─ [~] .S3Key:
+ │       ├─ [-] db961480f6eb351b685cf7e82039d6e35cbd09f5224a0098b2e569ddc3e7cdd7.zip
+ │       └─ [+] 3bdc032cb233df9c85797ea1be87a5783f3e169fad59ae0c6e5e1fe316bcf2d8.zip
+ └─ [~] Metadata
+     └─ [~] .aws:asset:path:
+         ├─ [-] asset.db961480f6eb351b685cf7e82039d6e35cbd09f5224a0098b2e569ddc3e7cdd7
+         └─ [+] asset.3bdc032cb233df9c85797ea1be87a5783f3e169fad59ae0c6e5e1fe316bcf2d8
+
+
+
+✨  Number of stacks with differences: 1
+

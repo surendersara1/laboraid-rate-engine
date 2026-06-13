@@ -138,7 +138,7 @@ def _presign(s3: Any, bucket: str, key: str) -> str | None:
         return None
     try:
         return s3.generate_presigned_url(
-            "get_object", Params={"Bucket": bucket, "Key": key}, ExpiresIn=3600
+            "get_object", Params={"Bucket": bucket, "Key": key}, ExpiresIn=43200
         )
     except Exception:
         return None

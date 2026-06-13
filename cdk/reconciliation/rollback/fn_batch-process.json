@@ -1,0 +1,53 @@
+{
+    "FunctionName": "laboraid-dev-l2-fn-batch-process",
+    "FunctionArn": "arn:aws:lambda:us-east-2:908106425069:function:laboraid-dev-l2-fn-batch-process",
+    "Runtime": "python3.12",
+    "Role": "arn:aws:iam::908106425069:role/laboraid-dev-l2-role-batch-process",
+    "Handler": "handler.handler",
+    "CodeSize": 1759,
+    "Description": "",
+    "Timeout": 30,
+    "MemorySize": 1024,
+    "LastModified": "2026-06-11T17:34:58.156+0000",
+    "CodeSha256": "HxtlJhz2wx6pOzA6m3utTIPfSNFYwOPxI+aRSLkOOmk=",
+    "Version": "$LATEST",
+    "Environment": {
+        "Variables": {
+            "STATE_MACHINE_ARN": "arn:aws:states:us-east-2:908106425069:stateMachine:laboraid-dev-l3-sfn-main"
+        }
+    },
+    "TracingConfig": {
+        "Mode": "Active"
+    },
+    "RevisionId": "ed4c3a6c-d78b-4170-afde-228009549812",
+    "Layers": [
+        {
+            "Arn": "arn:aws:lambda:us-east-2:017000801446:layer:AWSLambdaPowertoolsPythonV3-python312-x86_64:24",
+            "CodeSize": 9269895
+        },
+        {
+            "Arn": "arn:aws:lambda:us-east-2:908106425069:layer:laboraid-dev-l2-layer-authz:2",
+            "CodeSize": 3753
+        }
+    ],
+    "State": "Active",
+    "LastUpdateStatus": "Successful",
+    "PackageType": "Zip",
+    "Architectures": [
+        "x86_64"
+    ],
+    "EphemeralStorage": {
+        "Size": 512
+    },
+    "SnapStart": {
+        "ApplyOn": "None",
+        "OptimizationStatus": "Off"
+    },
+    "RuntimeVersionConfig": {
+        "RuntimeVersionArn": "arn:aws:lambda:us-east-2::runtime:0eb6fb00a97c1a17d2e3014b04c79bfc9bea4301466439e3458f985dc75cadcc"
+    },
+    "LoggingConfig": {
+        "LogFormat": "Text",
+        "LogGroup": "/aws/lambda/laboraid-dev-l2-fn-batch-process"
+    }
+}

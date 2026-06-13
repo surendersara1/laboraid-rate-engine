@@ -1,0 +1,19 @@
+{
+    "RoleName": "Laboraid-dev-Processing-PublisherServiceRoleF4D9160-pIWdJodezP0q",
+    "PolicyName": "inputs-bucket-head",
+    "PolicyDocument": {
+        "Version": "2012-10-17",
+        "Statement": [
+            {
+                "Effect": "Allow",
+                "Action": [
+                    "s3:GetObject",
+                    "s3:GetObjectAttributes"
+                ],
+                "Resource": [
+                    "arn:aws:s3:::laboraid-dev-l3-bucket-inputs/*"
+                ]
+            }
+        ]
+    }
+}

@@ -1,0 +1,17 @@
+{
+    "RoleName": "Laboraid-dev-Api-ProfileListServiceRoleDE290050-yUbjfein1Uja",
+    "PolicyName": "ProfileListServiceRoleDefaultPolicy48F496E5",
+    "PolicyDocument": {
+        "Version": "2012-10-17",
+        "Statement": [
+            {
+                "Action": [
+                    "xray:PutTelemetryRecords",
+                    "xray:PutTraceSegments"
+                ],
+                "Resource": "*",
+                "Effect": "Allow"
+            }
+        ]
+    }
+}

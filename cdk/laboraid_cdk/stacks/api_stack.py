@@ -56,6 +56,7 @@ ROUTES: list[tuple[str, str, str]] = [
     ("POST", "/v1/cells/{cell_id}/override", "cell-override"),
     ("POST", "/v1/cells/{cell_id}/comment", "cell-comment"),
     ("GET", "/v1/audit", "audit-list"),
+    ("POST", "/v1/batches/process", "batch-process"),
 ]
 
 # Lambda dir -> resource categories it needs grants for. The "events" category
@@ -69,8 +70,9 @@ GRANTS: dict[str, set[str]] = {
     "job-abort": {"jobs"},
     "agent-list": {"agents"},
     "agent-toggle": {"agents"},
-    "profile-list": set(),
-    "profile-update": set(),
+    # Profiles read/write Aurora unions.profile_yaml (system of record).
+    "profile-list": {"aurora"},
+    "profile-update": {"aurora"},
     "audit-list": {"aurora"},
     "ratesheet-list": {"aurora"},
     "ratesheet-get": {"aurora"},
@@ -92,6 +94,8 @@ GRANTS: dict[str, set[str]] = {
     },
     "cell-override": {"overrides"},
     "cell-comment": {"aurora"},
+    # batch-process starts the main Step Functions pipeline.
+    "batch-process": {"states"},
 }
 
 
@@ -185,6 +189,26 @@ class ApiStack(Stack):
                 aurora_secret.grant_read(fn)
             if "events" in cats:
                 engine_bus.grant_put_events_to(fn)
+            if "states" in cats:
+                # Start the main pipeline. The SFN lives in the Orchestration
+                # stack (created after Api), so reference it by its deterministic
+                # ARN to avoid a cross-stack cycle.
+                sfn_arn = (
+                    f"arn:aws:states:{config.region}:{Stack.of(self).account}"
+                    f":stateMachine:{name(env, 'l3', 'sfn', 'main')}"
+                )
+                fn.add_environment("STATE_MACHINE_ARN", sfn_arn)
+                fn.add_to_role_policy(
+                    iam.PolicyStatement(
+                        effect=iam.Effect.ALLOW,
+                        actions=["states:StartExecution", "states:DescribeExecution"],
+                        resources=[
+                            sfn_arn,
+                            f"arn:aws:states:{config.region}:{Stack.of(self).account}"
+                            f":execution:{name(env, 'l3', 'sfn', 'main')}:*",
+                        ],
+                    )
+                )
             if "invoke-renderers" in cats:
                 xlsx_renderer.grant_invoke(fn)
                 # Rework reads parent CSV from outputs, writes patched v2 CSV
@@ -206,11 +230,18 @@ class ApiStack(Stack):
                 # `InvocationType: Event` on its own ARN to release the
                 # synchronous request, then completes the work in the
                 # background. Grant that loopback.
+                # Constructed ARN (not fn.function_arn): a token self-reference
+                # makes this role policy depend on the function resource, which the
+                # HttpLambdaIntegration's permission/route also depend on -> a
+                # CloudFormation circular dependency. A static ARN breaks the cycle.
                 fn.add_to_role_policy(
                     iam.PolicyStatement(
                         effect=iam.Effect.ALLOW,
                         actions=["lambda:InvokeFunction"],
-                        resources=[fn.function_arn],
+                        resources=[
+                            f"arn:aws:lambda:{config.region}:{Stack.of(self).account}"
+                            f":function:{name(env, 'l2', 'fn', key)}"
+                        ],
                     )
                 )
             self.functions[key] = fn

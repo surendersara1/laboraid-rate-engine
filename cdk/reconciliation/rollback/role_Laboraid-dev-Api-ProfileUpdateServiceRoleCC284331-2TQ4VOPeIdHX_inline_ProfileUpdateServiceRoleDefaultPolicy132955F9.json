@@ -1,0 +1,17 @@
+{
+    "RoleName": "Laboraid-dev-Api-ProfileUpdateServiceRoleCC284331-2TQ4VOPeIdHX",
+    "PolicyName": "ProfileUpdateServiceRoleDefaultPolicy132955F9",
+    "PolicyDocument": {
+        "Version": "2012-10-17",
+        "Statement": [
+            {
+                "Action": [
+                    "xray:PutTelemetryRecords",
+                    "xray:PutTraceSegments"
+                ],
+                "Resource": "*",
+                "Effect": "Allow"
+            }
+        ]
+    }
+}

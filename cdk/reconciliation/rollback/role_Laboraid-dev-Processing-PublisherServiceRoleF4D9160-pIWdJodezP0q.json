@@ -1,0 +1,19 @@
+== inline policy names ==
+{
+    "PolicyNames": [
+        "file-hashes-rw",
+        "inputs-bucket-head",
+        "invoke-xlsx-renderer",
+        "publisher-outputs-write-hotfix",
+        "PublisherServiceRoleDefaultPolicy0E21E942"
+    ]
+}
+== attached managed ==
+{
+    "AttachedPolicies": [
+        {
+            "PolicyName": "AWSLambdaBasicExecutionRole",
+            "PolicyArn": "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
+        }
+    ]
+}

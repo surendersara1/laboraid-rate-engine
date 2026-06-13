@@ -1,0 +1,5 @@
+# Layer deps for synthesizer + profile-builder (vendored under python/ for
+# credential-free, Docker-free cdk synth). Regenerate python/ with:
+#   pip install --target python pypdf==6.6.0 openpyxl
+pypdf==6.6.0
+openpyxl

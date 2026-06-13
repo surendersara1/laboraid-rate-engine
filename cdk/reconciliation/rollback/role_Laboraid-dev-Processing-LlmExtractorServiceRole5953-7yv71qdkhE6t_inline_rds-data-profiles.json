@@ -1,0 +1,24 @@
+{
+    "RoleName": "Laboraid-dev-Processing-LlmExtractorServiceRole5953-7yv71qdkhE6t",
+    "PolicyName": "rds-data-profiles",
+    "PolicyDocument": {
+        "Version": "2012-10-17",
+        "Statement": [
+            {
+                "Effect": "Allow",
+                "Action": [
+                    "rds-data:ExecuteStatement",
+                    "rds-data:BatchExecuteStatement"
+                ],
+                "Resource": "arn:aws:rds:us-east-2:908106425069:cluster:laboraid-dev-l3-aurora-cluster"
+            },
+            {
+                "Effect": "Allow",
+                "Action": [
+                    "secretsmanager:GetSecretValue"
+                ],
+                "Resource": "arn:aws:secretsmanager:us-east-2:908106425069:secret:laboraid-dev-l3-secret-aurora-1tsRI5"
+            }
+        ]
+    }
+}

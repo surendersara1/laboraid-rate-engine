@@ -1,0 +1,39 @@
+start: Building Laboraid-dev-Ai Template
+success: Built Laboraid-dev-Ai Template
+start: Publishing Laboraid-dev-Ai Template (current_account-current_region-77dc133f)
+success: Published Laboraid-dev-Ai Template (current_account-current_region-77dc133f)
+Hold on while we create a read-only change set to get a diff with accurate replacement information (use --method=template to use a less accurate but faster template-only diff)
+
+Stack Laboraid-dev-Ai
+Resources
+[~] AWS::Bedrock::Guardrail PiiGuardrail PiiGuardrail
+ └─ [~] SensitiveInformationPolicyConfig
+     └─ [~] .PiiEntitiesConfig:
+         └─ @@ -1,18 +1,18 @@
+            [ ] [
+            [ ]   {
+            [-]     "Action": "BLOCK",
+            [+]     "Action": "ANONYMIZE",
+            [ ]     "Type": "EMAIL"
+            [ ]   },
+            [ ]   {
+            [-]     "Action": "BLOCK",
+            [+]     "Action": "ANONYMIZE",
+            [ ]     "Type": "PHONE"
+            [ ]   },
+            [ ]   {
+            [-]     "Action": "BLOCK",
+            [+]     "Action": "ANONYMIZE",
+            [ ]     "Type": "US_SOCIAL_SECURITY_NUMBER"
+            [ ]   },
+            [ ]   {
+            [-]     "Action": "BLOCK",
+            [+]     "Action": "ANONYMIZE",
+            [ ]     "Type": "CREDIT_DEBIT_CARD_NUMBER"
+            [ ]   }
+            [ ] ]
+
+
+
+✨  Number of stacks with differences: 1
+

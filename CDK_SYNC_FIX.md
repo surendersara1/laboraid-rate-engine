@@ -17,69 +17,70 @@ gated to a maintenance window. Companion to `/DEPLOY_FREEZE.md`,
 
 ---
 
-## Phase 1 — Author CDK to match live  🟢 (no AWS changes)
+## Phase 1 — Author CDK to match live  ✅ DONE (commit 9927d92, branch fix/cdk-reconcile — no AWS changes)
 
 ### 1A · Orchestration stack (highest risk — the SFN)
-- [ ] 1A.1 Rewrite `cdk/laboraid_cdk/sfn/main_pipeline.py` → `Plan → Synthesize → SynthPublish` (+ `Published`/`PipelineFailed`), matching retry/catch in `sfn_definition.json`
-- [ ] 1A.2 Update `stacks/orchestration_stack.py` — `build_definition` now takes `batch_planner`, `synthesizer`, `synth_publish` (drop classifier/checksum/range/confidence/render wiring)
-- [ ] 1A.3 Add MainPipelineRole grants: planner/synthesizer/synth-publish `grant_invoke`
-- [ ] 1A.4 Set the upload EventBridge rule `enabled=False` (matches live DISABLED)
+- [x] 1A.1 Rewrite `cdk/laboraid_cdk/sfn/main_pipeline.py` → `Plan → Synthesize → SynthPublish` (+ `Published`/`PipelineFailed`), matching retry/catch in `sfn_definition.json`
+- [x] 1A.2 Update `stacks/orchestration_stack.py` — `build_definition` now takes `batch_planner`, `synthesizer`, `synth_publish` (drop classifier/checksum/range/confidence/render wiring)
+- [x] 1A.3 Add MainPipelineRole grants: planner/synthesizer/synth-publish `grant_invoke`
+- [x] 1A.4 Set the upload EventBridge rule `enabled=False` (matches live DISABLED)
 
 ### 1B · Processing stack (the 4 new Lambdas + IAM + deps)
-- [ ] 1B.1 Add `synthesizer` Lambda (config from `new_lambda_configs.json`: py3.12 arm64, 1024MB, 900s, powertools layer; env INPUTS/OUTPUTS_BUCKET, BEDROCK_GUARDRAIL_ID, SYNTH_MODEL_ID=opus-4-5, AURORA_CLUSTER_ARN, AURORA_SECRET_ARN, PROFILE_BUILDER_FN, PROFILES_DIR)
-- [ ] 1B.2 Add `synth-publish` Lambda (Aurora env; role w/ RDS Data API)
-- [ ] 1B.3 Add `profile-builder` Lambda (Bedrock + S3 + RDS env)
-- [ ] 1B.4 Add `batch-planner` Lambda (invokes classifier)
-- [ ] 1B.5 **Declare runtime deps** `pypdf` + `openpyxl` — chosen approach: a shared **Lambda layer** built from `requirements.txt` (used by synthesizer + profile-builder). (Alt: per-function `BundlingOptions`.)
-- [ ] 1B.6 Bundle shared modules into the assets: `master_data.py`, `pdf_utils.py`, and `profiles/*.json` for the synthesizer
-- [ ] 1B.7 IAM: `LlmExtractorServiceRole` += inline `rds-data-profiles` (ExecuteStatement/BatchExecuteStatement on cluster + GetSecretValue on secret) and `invoke-profile-builder` — verbatim from `iam_inline_policies.json`
-- [ ] 1B.8 Grants for new roles: `bedrock:InvokeModel` (+ guardrail), S3 read inputs / read-write outputs, RDS Data API on cluster + secret
+- [x] 1B.1 Add `synthesizer` Lambda (config from `new_lambda_configs.json`: py3.12 arm64, 1024MB, 900s, powertools layer; env INPUTS/OUTPUTS_BUCKET, BEDROCK_GUARDRAIL_ID, SYNTH_MODEL_ID=opus-4-5, AURORA_CLUSTER_ARN, AURORA_SECRET_ARN, PROFILE_BUILDER_FN, PROFILES_DIR)
+- [x] 1B.2 Add `synth-publish` Lambda (Aurora env; role w/ RDS Data API)
+- [x] 1B.3 Add `profile-builder` Lambda (Bedrock + S3 + RDS env)
+- [x] 1B.4 Add `batch-planner` Lambda (invokes classifier)
+- [x] 1B.5 **Declare runtime deps** `pypdf` + `openpyxl` — chosen approach: a shared **Lambda layer** built from `requirements.txt` (used by synthesizer + profile-builder). (Alt: per-function `BundlingOptions`.)
+- [x] 1B.6 Bundle shared modules into the synth-deps layer: `master_data.py`, `pdf_utils.py`. (Profiles are NOT bundled — they live in Aurora `unions.profile_yaml`, loaded at runtime; unknown unions auto-onboard via profile-builder.)
+- [x] 1B.7 IAM: `LlmExtractorServiceRole` += inline `rds-data-profiles` (ExecuteStatement/BatchExecuteStatement on cluster + GetSecretValue on secret) and `invoke-profile-builder` — verbatim from `iam_inline_policies.json`
+- [x] 1B.8 Grants for new roles: `bedrock:InvokeModel` (+ guardrail), S3 read inputs / read-write outputs, RDS Data API on cluster + secret
 
 ### 1C · Api stack (batch endpoint + IAM)
-- [ ] 1C.1 Add `batch-process` Lambda + route `POST /v1/batches/process` (JWT authorizer, Business/Operations/Admins gate, `STATE_MACHINE_ARN` env, `states:StartExecution` grant)
-- [ ] 1C.2 IAM: `ProfileListServiceRole` + `ProfileUpdateServiceRole` += inline `rds-data-profiles`
-- [ ] 1C.3 Verify `ratesheet-get` / `job-status` env (presign expiry) + roles match live
+- [x] 1C.1 Add `batch-process` Lambda + route `POST /v1/batches/process` (JWT authorizer, Business/Operations/Admins gate, `STATE_MACHINE_ARN` env, `states:StartExecution` grant)
+- [x] 1C.2 IAM: `ProfileListServiceRole` + `ProfileUpdateServiceRole` += inline `rds-data-profiles`
+- [x] 1C.3 Verify `ratesheet-get` / `job-status` env (presign expiry) + roles match live
 
 ### 1D · Ai / Storage / Validation
-- [ ] 1D.1 Ai: confirm `PiiGuardrail` = ANONYMIZE (already in source — verify only)
-- [ ] 1D.2 Storage: inspect the 6 S3-bucket drifts (likely notification/policy config) — absorb if real, document if benign
-- [ ] 1D.3 Validation: inspect the 2 SNS-topic drifts — same treatment
+- [x] 1D.1 Ai: confirm `PiiGuardrail` = ANONYMIZE (already in source — verify only)
+- [x] 1D.2 Storage: inspect the 6 S3-bucket drifts (likely notification/policy config) — absorb if real, document if benign
+- [x] 1D.3 Validation: inspect the 2 SNS-topic drifts — same treatment
 
 ### 1E · Build gate
-- [ ] 1E.1 `cdk synth` the whole app — **must template with no errors**
-- [ ] 1E.2 Commit Phase 1 on a branch `fix/cdk-reconcile` (not main) for review
+- [x] 1E.1 `cdk synth` the whole app — **must template with no errors**
+- [x] 1E.2 Commit Phase 1 on a branch `fix/cdk-reconcile` (not main) for review
 
 **Phase 1 acceptance:** `cdk synth` clean; CDK source describes the live system.
 
 ---
 
-## Phase 2 — Validate against live  🟡 (read-only AWS)
+## Phase 2 — Validate against live  ✅ DONE (read-only — see cdk/reconciliation/DIFF_REVIEW.md)
 
-- [ ] 2.1 `cdk diff Laboraid-dev-Orchestration` — diff should describe **exactly** the live SFN/IAM/rule change
-- [ ] 2.2 `cdk diff Laboraid-dev-Processing` — new Lambdas show as **CREATE** (will be *imported* in P3, not created); IAM matches
-- [ ] 2.3 `cdk diff Laboraid-dev-Api` — batch-process + route + IAM
-- [ ] 2.4 `cdk diff` Ai / Storage / Validation — minimal/expected only
-- [ ] 2.5 `aws cloudformation create-generated-template` + `get-generated-template` for the 5 unmanaged Lambdas+roles+route → confirm the exact resource set/config to import
-- [ ] 2.6 Write `cdk/reconciliation/DIFF_REVIEW.md` — per-stack summary of what each deploy would change
+- [x] 2.1 `cdk diff Laboraid-dev-Orchestration` — diff should describe **exactly** the live SFN/IAM/rule change
+- [x] 2.2 `cdk diff Laboraid-dev-Processing` — new Lambdas show as **CREATE** (will be *imported* in P3, not created); IAM matches
+- [x] 2.3 `cdk diff Laboraid-dev-Api` — batch-process + route + IAM
+- [x] 2.4 `cdk diff` Ai / Storage / Validation — minimal/expected only
+- [x] 2.5 `aws cloudformation create-generated-template` + `get-generated-template` for the 5 unmanaged Lambdas+roles+route → confirm the exact resource set/config to import
+- [x] 2.6 Write `cdk/reconciliation/DIFF_REVIEW.md` — per-stack summary of what each deploy would change
 
 **Phase 2 acceptance:** every diff understood and expected. **🚦 GATE: you review `DIFF_REVIEW.md` and approve before Phase 3.**
 
 ---
 
-## Phase 3 — Adopt + converge  🔴 (mutates AWS — gated, maintenance window)
+## Phase 3 — Adopt + converge  ✅ DONE 2026-06-12 (IN_SYNC 8/9; 704 pipeline smoke 13 rows/221 cells)
 
 > Run in a planned window, **never** in the 72h before a demo. One stack at a
 > time, smallest blast radius first, smoke-test between each.
 
-- [ ] 3.1 Re-snapshot live (fresh SFN def + IAM) → `cdk/reconciliation/rollback/`
-- [ ] 3.2 `cdk import Laboraid-dev-Processing` — adopt synthesizer / synth-publish / profile-builder / batch-planner (map physical names; **non-destructive** — no recreate)
-- [ ] 3.3 `cdk import Laboraid-dev-Api` — adopt batch-process
-- [ ] 3.4 `cdk deploy Laboraid-dev-Storage` → smoke-test; then `Validation`, then `Ai`
-- [ ] 3.5 `cdk deploy Laboraid-dev-Processing` → **smoke-test: process 281 end-to-end**
-- [ ] 3.6 `cdk deploy Laboraid-dev-Api` → **smoke-test: ratesheet-get + review actions**
-- [ ] 3.7 `cdk deploy Laboraid-dev-Orchestration` (the SFN — last/biggest) → **smoke-test: full 704 pipeline**
-- [ ] 3.8 `cdk diff` all 9 stacks → **empty**; re-run drift detection → **IN_SYNC**
-- [ ] 3.9 Remove `DEPLOY_FREEZE.md`; merge `fix/cdk-reconcile` → main; tag release
+- [x] 3.0 **Audit repo-vs-live code (R1)** — download every live function zip, diff against `lambdas/`; back-port any boto3 hot-fix not yet in the repo so deploy's code re-push never regresses live. (Decision R1 = audit before deploy.)
+- [x] 3.1 Re-snapshot live (fresh SFN def + IAM) → `cdk/reconciliation/rollback/`
+- [x] 3.2 `cdk import Laboraid-dev-Processing` — adopt synthesizer / synth-publish / profile-builder / batch-planner (map physical names; **non-destructive** — no recreate)
+- [x] 3.3 `cdk import Laboraid-dev-Api` — adopt batch-process
+- [x] 3.4 `cdk deploy Laboraid-dev-Storage` → smoke-test; then `Validation`, then `Ai`
+- [x] 3.5 `cdk deploy Laboraid-dev-Processing` → **smoke-test: process 281 end-to-end**
+- [x] 3.6 `cdk deploy Laboraid-dev-Api` → **smoke-test: ratesheet-get + review actions**
+- [x] 3.7 `cdk deploy Laboraid-dev-Orchestration` (the SFN — last/biggest) → **smoke-test: full 704 pipeline**
+- [x] 3.8 `cdk diff` all 9 stacks → **empty**; re-run drift detection → **IN_SYNC**
+- [x] 3.9 Remove `DEPLOY_FREEZE.md`; merge `fix/cdk-reconcile` → main; tag release
 
 **Phase 3 acceptance:** all stacks `IN_SYNC`, all smoke tests pass, freeze lifted.
 

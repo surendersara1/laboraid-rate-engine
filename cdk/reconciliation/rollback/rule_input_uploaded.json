@@ -1,0 +1,8 @@
+{
+    "Name": "laboraid-dev-l3-rule-input-uploaded",
+    "Arn": "arn:aws:events:us-east-2:908106425069:rule/laboraid-dev-l3-rule-input-uploaded",
+    "EventPattern": "{\"detail-type\":[\"Object Created\"],\"detail\":{\"bucket\":{\"name\":[\"laboraid-dev-l3-bucket-inputs\"]}},\"source\":[\"aws.s3\"]}",
+    "State": "DISABLED",
+    "EventBusName": "default",
+    "CreatedBy": "908106425069"
+}
