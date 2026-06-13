@@ -66,21 +66,21 @@ gated to a maintenance window. Companion to `/DEPLOY_FREEZE.md`,
 
 ---
 
-## Phase 3 — Adopt + converge  🔴 (mutates AWS — gated, maintenance window)
+## Phase 3 — Adopt + converge  ✅ DONE 2026-06-12 (IN_SYNC 8/9; 704 pipeline smoke 13 rows/221 cells)
 
 > Run in a planned window, **never** in the 72h before a demo. One stack at a
 > time, smallest blast radius first, smoke-test between each.
 
-- [ ] 3.0 **Audit repo-vs-live code (R1)** — download every live function zip, diff against `lambdas/`; back-port any boto3 hot-fix not yet in the repo so deploy's code re-push never regresses live. (Decision R1 = audit before deploy.)
-- [ ] 3.1 Re-snapshot live (fresh SFN def + IAM) → `cdk/reconciliation/rollback/`
-- [ ] 3.2 `cdk import Laboraid-dev-Processing` — adopt synthesizer / synth-publish / profile-builder / batch-planner (map physical names; **non-destructive** — no recreate)
-- [ ] 3.3 `cdk import Laboraid-dev-Api` — adopt batch-process
-- [ ] 3.4 `cdk deploy Laboraid-dev-Storage` → smoke-test; then `Validation`, then `Ai`
-- [ ] 3.5 `cdk deploy Laboraid-dev-Processing` → **smoke-test: process 281 end-to-end**
-- [ ] 3.6 `cdk deploy Laboraid-dev-Api` → **smoke-test: ratesheet-get + review actions**
-- [ ] 3.7 `cdk deploy Laboraid-dev-Orchestration` (the SFN — last/biggest) → **smoke-test: full 704 pipeline**
-- [ ] 3.8 `cdk diff` all 9 stacks → **empty**; re-run drift detection → **IN_SYNC**
-- [ ] 3.9 Remove `DEPLOY_FREEZE.md`; merge `fix/cdk-reconcile` → main; tag release
+- [x] 3.0 **Audit repo-vs-live code (R1)** — download every live function zip, diff against `lambdas/`; back-port any boto3 hot-fix not yet in the repo so deploy's code re-push never regresses live. (Decision R1 = audit before deploy.)
+- [x] 3.1 Re-snapshot live (fresh SFN def + IAM) → `cdk/reconciliation/rollback/`
+- [x] 3.2 `cdk import Laboraid-dev-Processing` — adopt synthesizer / synth-publish / profile-builder / batch-planner (map physical names; **non-destructive** — no recreate)
+- [x] 3.3 `cdk import Laboraid-dev-Api` — adopt batch-process
+- [x] 3.4 `cdk deploy Laboraid-dev-Storage` → smoke-test; then `Validation`, then `Ai`
+- [x] 3.5 `cdk deploy Laboraid-dev-Processing` → **smoke-test: process 281 end-to-end**
+- [x] 3.6 `cdk deploy Laboraid-dev-Api` → **smoke-test: ratesheet-get + review actions**
+- [x] 3.7 `cdk deploy Laboraid-dev-Orchestration` (the SFN — last/biggest) → **smoke-test: full 704 pipeline**
+- [x] 3.8 `cdk diff` all 9 stacks → **empty**; re-run drift detection → **IN_SYNC**
+- [x] 3.9 Remove `DEPLOY_FREEZE.md`; merge `fix/cdk-reconcile` → main; tag release
 
 **Phase 3 acceptance:** all stacks `IN_SYNC`, all smoke tests pass, freeze lifted.
 
