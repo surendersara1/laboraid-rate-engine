@@ -177,6 +177,15 @@ class StorageStack(Stack):
             "FilesTable", "files", "tenant#union", "period#filename", stream=True
         )
         self.jobs_table = _table("JobsTable", "jobs", "job_id", stream=True)
+        # Read-model GSI: list all jobs newest-first in one query (the dashboard
+        # reads this instead of live Step Functions ListExecutions). Writer sets
+        # gsi1pk="JOB" on every item; query ScanIndexForward=false for recency.
+        self.jobs_table.add_global_secondary_index(
+            index_name="by-recency",
+            partition_key=ddb.Attribute(name="gsi1pk", type=ddb.AttributeType.STRING),
+            sort_key=ddb.Attribute(name="started_at", type=ddb.AttributeType.STRING),
+            projection_type=ddb.ProjectionType.ALL,
+        )
         self.review_table = _table("ReviewTable", "review", "tenant", "created_at#cell_id")
         self.overrides_table = _table(
             "OverridesTable", "overrides", "tenant#union#period", "cell_id#timestamp"

@@ -43,6 +43,7 @@ class OrchestrationStack(Stack):
         synthesizer: lambda_.IFunction,
         synth_publish: lambda_.IFunction,
         master_key: kms.IKey,
+        jobs_table: ddb.ITable,
         **kwargs: Any,
     ) -> None:
         super().__init__(scope, construct_id, **kwargs)
@@ -88,6 +89,55 @@ class OrchestrationStack(Stack):
                 detail={"bucket": {"name": [inputs_bucket.bucket_name]}},
             ),
             targets=[targets.SfnStateMachine(self.state_machine)],
+        )
+
+        # --- Read-model: job-writer (SFN state -> jobs DynamoDB table) ---------
+        # EventBridge delivers "Step Functions Execution Status Change" events for
+        # this SFN; the job-writer upserts the jobs table so the Admin dashboard
+        # reads one indexed DynamoDB query instead of live ListExecutions+Describe.
+        self.job_writer = TaggedLambda(
+            self,
+            "JobWriter",
+            env=env,
+            layer="l3",
+            function_name=name(env, "l3", "fn", "job-writer"),
+            handler="handler.handler",
+            code=lambda_.Code.from_asset("../lambdas/processing/job-writer"),
+            timeout=Duration.seconds(30),
+        )
+        self.job_writer.add_environment("JOBS_TABLE", jobs_table.table_name)
+        self.job_writer.add_environment(
+            "STATE_MACHINE_ARN", self.state_machine.state_machine_arn
+        )
+        jobs_table.grant_write_data(self.job_writer)
+        self.job_writer.add_to_role_policy(
+            iam.PolicyStatement(
+                effect=iam.Effect.ALLOW,
+                actions=["states:DescribeExecution"],
+                resources=[
+                    f"arn:aws:states:{config.region}:{Stack.of(self).account}"
+                    f":execution:{name(env, 'l3', 'sfn', 'main')}:*"
+                ],
+            )
+        )
+        # ListExecutions (backfill mode) is scoped to the state machine ARN.
+        self.job_writer.add_to_role_policy(
+            iam.PolicyStatement(
+                effect=iam.Effect.ALLOW,
+                actions=["states:ListExecutions"],
+                resources=[self.state_machine.state_machine_arn],
+            )
+        )
+        events.Rule(
+            self,
+            "JobStateChange",
+            rule_name=name(env, "l3", "rule", "job-state-change"),
+            event_pattern=events.EventPattern(
+                source=["aws.states"],
+                detail_type=["Step Functions Execution Status Change"],
+                detail={"stateMachineArn": [self.state_machine.state_machine_arn]},
+            ),
+            targets=[targets.LambdaFunction(self.job_writer)],
         )
 
         CfnOutput(self, "StateMachineArn", value=self.state_machine.state_machine_arn)

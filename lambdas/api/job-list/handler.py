@@ -1,39 +1,20 @@
-"""Job list Lambda — Step Functions execution feed (Admins/Operations).
+"""Job list Lambda — reads the jobs DynamoDB read-model (Admins/Operations).
 
-Reads from the main rate-engine state machine so the admin Jobs page shows
-every PDF upload that triggered a run, with status + duration + the union
-and period the run is extracting (parsed from the EventBridge input).
+WAS: live Step Functions ListExecutions + N x DescribeExecution per page load
+(N+1, slow, and capped at SFN's 90-day history). NOW: one indexed query on the
+`jobs` table's `by-recency` GSI, populated by the job-writer from Step Functions
+state-change events. Fast, paginated, unbounded history.
 """
 
 from __future__ import annotations
 
+import base64
 import json
 import os
-import re
+from decimal import Decimal
 from typing import Any
 
 import authz  # shared Lambda layer (/opt/python/authz.py)
-
-# Same filename regex the classifier uses. Lets us recover (local, period)
-# for UI-uploaded files whose S3 key is the flat `laboraid/uploads/...`
-# layout instead of the canonical `laboraid/<Trade>/<Local>/...`.
-_FILENAME_RE = re.compile(
-    r"(?P<date>\d{4}\.\d{2}\.\d{2})\.(?P<local>\d{3})\s+(?P<doc>.+?)\.pdf$",
-    re.IGNORECASE,
-)
-_BATCH_ID_RE = re.compile(
-    r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
-    re.IGNORECASE,
-)
-_BATCH_PERIOD_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
-# Year-range CBA filename, e.g. "2024-2029.281 CBA.pdf".
-_YEAR_RANGE_RE = re.compile(r"(?P<sy>\d{4})-(?P<ey>\d{4})\.(?P<local>\d{3})\s+", re.IGNORECASE)
-# CBA range-date filename (matches classifier _FILENAME_RANGE).
-_FILENAME_RANGE_RE = re.compile(
-    r"(?P<sd>\d{4}\.\d{2}\.\d{2})[-–]"
-    r"(?P<ed>\d{4}\.\d{2}\.\d{2})\.(?P<local>\d{3})\s+(?P<doc>.+?)\.pdf$",
-    re.IGNORECASE,
-)
 
 try:  # pragma: no cover - present in the Lambda runtime
     from aws_lambda_powertools import Logger, Tracer
@@ -53,35 +34,7 @@ except ModuleNotFoundError:  # pragma: no cover - offline unit-test env
         return fn
 
 
-def _union_period_from_output(raw_output: str | None) -> tuple[str, str]:
-    """The planner/synthesizer resolves the authoritative (local, period) and
-    surfaces them in the execution output. Prefer these over input parsing.
-    Tolerant of nesting (output may wrap the planner result)."""
-    if not raw_output:
-        return "", ""
-
-    def walk(obj: Any) -> tuple[str, str]:
-        if isinstance(obj, dict):
-            local = obj.get("local") or obj.get("union_local")
-            period = obj.get("period") or obj.get("batch_period") or obj.get("start_date")
-            if local or period:
-                u = f"Local {local}" if local else ""
-                return u, (str(period) if period else "")
-            for v in obj.values():
-                u, p = walk(v)
-                if u or p:
-                    return u, p
-        elif isinstance(obj, list):
-            for v in obj:
-                u, p = walk(v)
-                if u or p:
-                    return u, p
-        return "", ""
-
-    try:
-        return walk(json.loads(raw_output))
-    except Exception:
-        return "", ""
+ALLOWED_GROUPS = ["Admins", "Operations"]
 
 
 def _resp(body: dict[str, Any], status: int = 200) -> dict[str, Any]:
@@ -92,121 +45,33 @@ def _resp(body: dict[str, Any], status: int = 200) -> dict[str, Any]:
     }
 
 
-# Per-route Cognito group gate (Spec/09 §2.2, audit B3).
-ALLOWED_GROUPS = ["Admins", "Operations"]
-
-STATE_MACHINE_ARN = os.environ.get(
-    "STATE_MACHINE_ARN",
-    "arn:aws:states:us-east-2:908106425069:stateMachine:laboraid-dev-l3-sfn-main",
-)
+def _num(v: Any) -> Any:
+    if isinstance(v, Decimal):
+        return int(v) if v % 1 == 0 else float(v)
+    return v
 
 
-def _key_from_event_input(raw_input: str) -> tuple[str, str, str, str | None]:
-    """Pull (s3_key, union_local, period, batch_id) out of the SFN execution
-    input.
-
-    Handles four uploads layouts plus the canonical kernel path:
-
-    - ``laboraid/<Trade>/<Local>/<Period>/<file>`` — canonical kernel path.
-    - ``laboraid/uploads/<batch_id>/<YYYY-MM-DD>/<file>`` — multi-doc upload
-      with a browser-detected anchor period (covers CBA + Rate Notice etc.).
-    - ``laboraid/uploads/<batch_id>/<file>`` — batched, no anchor period.
-    - ``laboraid/uploads/<file>`` — single-file legacy upload.
-
-    For the uploads layouts the union/period come from the filename via the
-    same regexes the classifier uses; if the filename is a CBA-style range
-    we fall back to the batch_period segment of the S3 key.
-    """
-    try:
-        evt = json.loads(raw_input)
-
-        # New sequential batch path: the SFN is started with
-        # {batch_id, batch_period, files:[{s3_key, filename}, ...]} — there is
-        # no EventBridge detail.object.key. Derive union from the first file's
-        # filename and period from batch_period.
-        if isinstance(evt, dict) and evt.get("files") and "batch_period" in evt:
-            batch_id = (evt.get("batch_id") or "").strip() or None
-            period = (evt.get("batch_period") or "").strip()
-            files = evt.get("files") or []
-            first_key = (files[0].get("s3_key") if files else "") or ""
-            union = ""
-            # Scan every file for a local — the first file is often a CBA whose
-            # year-range name (e.g. "2024-2029.281 CBA.pdf") matches no date
-            # regex, while a sibling wage sheet ("2026.01.01.281 ...") does.
-            for f in files:
-                fn = (f.get("filename") or "") or (f.get("s3_key") or "").split("/")[-1]
-                m = _FILENAME_RE.search(fn) or _FILENAME_RANGE_RE.search(fn) or _YEAR_RANGE_RE.search(fn)
-                if m:
-                    union = f"Local {m.group('local')}"
-                    break
-            return first_key, union, period, batch_id
-
-        s3_key = evt.get("detail", {}).get("object", {}).get("key", "") or ""
-        union = period = ""
-        batch_id = None
-        if not s3_key:
-            return "", "", "", None
-        parts = s3_key.split("/")
-
-        # Canonical kernel path
-        if (
-            len(parts) >= 5
-            and parts[0] == "laboraid"
-            and parts[1].lower() != "uploads"
-        ):
-            union = f"{parts[1]} {parts[2]}"
-            period = parts[3]
-            return s3_key, union, period, None
-
-        # uploads/<batch_id>/<batch_period>/<file>
-        if (
-            len(parts) >= 5
-            and parts[0] == "laboraid"
-            and parts[1] == "uploads"
-            and _BATCH_ID_RE.match(parts[2] or "")
-            and _BATCH_PERIOD_RE.match(parts[3] or "")
-        ):
-            batch_id = parts[2]
-            period = parts[3]  # batch-anchored period wins for non-rate-notice docs
-            filename = parts[4]
-        # uploads/<batch_id>/<file>
-        elif (
-            len(parts) >= 4
-            and parts[0] == "laboraid"
-            and parts[1] == "uploads"
-            and _BATCH_ID_RE.match(parts[2] or "")
-        ):
-            batch_id = parts[2]
-            filename = parts[3]
-        elif len(parts) >= 3 and parts[0] == "laboraid" and parts[1] == "uploads":
-            filename = parts[2]
-        else:
-            filename = parts[-1]
-
-        m = _FILENAME_RE.search(filename)
-        if m:
-            local = m.group("local")
-            union = f"Local {local}"
-            if not period:
-                period = m.group("date").replace(".", "-")
-            # When the S3 key carries an explicit batch_period segment, that
-            # segment IS the rate period the Publisher used — show it in
-            # the Jobs page exactly as the user staged it. Don't override
-            # with the filename's nominal date (a Wage Rate Sheet dated
-            # 8/1/2024 uploaded into a 2026-01-01 batch should display as
-            # 2026-01-01, matching what Aurora actually stored).
-        else:
-            rm = _FILENAME_RANGE_RE.search(filename)
-            if rm:
-                local = rm.group("local")
-                union = f"Local {local}"
-                # period already set from batch_period segment if present;
-                # otherwise use the range's start date as a last resort.
-                if not period:
-                    period = rm.group("sd").replace(".", "-")
-        return s3_key, union, period, batch_id
-    except Exception:
-        return "", "", "", None
+def _job_view(it: dict[str, Any]) -> dict[str, Any]:
+    """Map a jobs-table item to the UI's job shape (pre-resolved by job-writer)."""
+    keys = it.get("source_keys") or []
+    return {
+        "job_id": it.get("job_id"),
+        "execution_arn": it.get("execution_arn"),
+        "status": it.get("status"),
+        "started_at": it.get("started_at"),
+        "stopped_at": it.get("stopped_at"),
+        "duration_ms": _num(it.get("duration_ms")),
+        "union": it.get("union"),
+        "local": it.get("local"),
+        "period": it.get("period"),
+        "batch_id": it.get("batch_id"),
+        "source_keys": keys,
+        "source_s3_key": keys[0] if keys else "",
+        "file_count": len(keys),
+        "row_count": _num(it.get("row_count")),
+        "cell_count": _num(it.get("cell_count")),
+        "error": it.get("error"),
+    }
 
 
 @_instrument
@@ -216,52 +81,39 @@ def handler(event: dict[str, Any], _context: Any) -> dict[str, Any]:
         if denied:
             return denied
         import boto3
+        from boto3.dynamodb.conditions import Attr, Key
 
-        sfn = boto3.client("stepfunctions")
+        table = boto3.resource("dynamodb").Table(os.environ["JOBS_TABLE"])
         params = event.get("queryStringParameters") or {}
-        status_filter = params.get("status")  # RUNNING|SUCCEEDED|FAILED|ABORTED|TIMED_OUT
+        status_filter = params.get("status")
+        try:
+            limit = max(1, min(int(params.get("limit") or 100), 200))
+        except (TypeError, ValueError):
+            limit = 100
 
-        kw: dict[str, Any] = {"stateMachineArn": STATE_MACHINE_ARN, "maxResults": 100}
+        kw: dict[str, Any] = {
+            "IndexName": "by-recency",
+            "KeyConditionExpression": Key("gsi1pk").eq("JOB"),
+            "ScanIndexForward": False,  # newest first
+            "Limit": limit,
+        }
         if status_filter:
-            kw["statusFilter"] = status_filter
-        execs = sfn.list_executions(**kw)["executions"]
-
-        # For each execution, pull the input to extract union/period (one extra
-        # describe per exec — cheap and reliable). Capped at 100 above.
-        jobs: list[dict[str, Any]] = []
-        for e in execs:
+            kw["FilterExpression"] = Attr("status").eq(status_filter)
+        cursor = params.get("cursor")
+        if cursor:
             try:
-                desc = sfn.describe_execution(executionArn=e["executionArn"])
-                s3_key, union, period, batch_id = _key_from_event_input(
-                    desc.get("input", "{}")
-                )
-                # Prefer the planner's authoritative resolved (local, period)
-                # from the execution output when available.
-                out_union, out_period = _union_period_from_output(desc.get("output"))
-                union = out_union or union
-                period = out_period or period
-            except Exception:
-                s3_key = union = period = ""
-                batch_id = None
-            start = e.get("startDate")
-            stop = e.get("stopDate")
-            duration_ms = (
-                int((stop - start).total_seconds() * 1000) if (start and stop) else None
-            )
-            jobs.append({
-                "job_id": e["name"],
-                "execution_arn": e["executionArn"],
-                "status": e["status"],
-                "started_at": start.isoformat() if start else None,
-                "stopped_at": stop.isoformat() if stop else None,
-                "duration_ms": duration_ms,
-                "union": union,
-                "period": period,
-                "source_s3_key": s3_key,
-                "batch_id": batch_id,
-            })
+                kw["ExclusiveStartKey"] = json.loads(base64.b64decode(cursor).decode())
+            except Exception:  # pragma: no cover - bad cursor -> start at top
+                pass
 
-        return _resp({"jobs": jobs, "count": len(jobs)})
+        res = table.query(**kw)
+        jobs = [_job_view(it) for it in res.get("Items", [])]
+        next_cursor = None
+        if res.get("LastEvaluatedKey"):
+            next_cursor = base64.b64encode(
+                json.dumps(res["LastEvaluatedKey"], default=str).encode()
+            ).decode()
+        return _resp({"jobs": jobs, "count": len(jobs), "next_cursor": next_cursor})
     except Exception:
         logger.exception("job-list failed")
         raise

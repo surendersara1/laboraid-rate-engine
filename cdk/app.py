@@ -140,6 +140,7 @@ orchestration = OrchestrationStack(
     synthesizer=processing.synthesizer_fn,
     synth_publish=processing.synth_publish,
     master_key=security.master_key,
+    jobs_table=storage.jobs_table,
 )
 orchestration.add_dependency(processing)
 orchestration.add_dependency(storage)
