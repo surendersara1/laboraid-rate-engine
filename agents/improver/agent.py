@@ -94,7 +94,8 @@ def _load_profile(local: str) -> dict[str, Any]:
 
 def _load_open_corrections(local: str, period: str) -> list[dict[str, Any]]:
     rows = _exec(
-        "SELECT id::text, cell_id::text, kind, new_value, reason, package, column_name, zone "
+        "SELECT id::text, cell_id::text, kind, new_value, reason, package, column_name, zone, "
+        "       period_id::text, version "
         "  FROM cell_corrections "
         " WHERE union_local = :l AND period = :p AND status = 'open' "
         " ORDER BY created_at",
@@ -105,6 +106,7 @@ def _load_open_corrections(local: str, period: str) -> list[dict[str, Any]]:
             "id": _val(r[0]), "cell_id": _val(r[1]), "kind": _val(r[2]),
             "new_value": _val(r[3]), "reason": _val(r[4]),
             "package": _val(r[5]), "column_name": _val(r[6]), "zone": _val(r[7]),
+            "period_id": _val(r[8]), "version": _val(r[9]),
         }
         for r in rows
     ]
@@ -306,11 +308,30 @@ def _write_new_version(period, cells, new_values, changes, run_id, local, period
 
 
 def improve(local: str, period: str, run_id: str) -> dict[str, Any]:
-    period_row = _load_period(local, period)
-    if not period_row:
-        raise ValueError(f"no rate period for local={local} period={period}")
     corrections = _load_open_corrections(local, period)
-    cells = _load_cells(period_row["period_id"])
+    if not corrections:
+        _exec(
+            "UPDATE improvement_runs SET status='succeeded', finished_at=NOW(), "
+            "summary='No open corrections' WHERE id=:id::uuid",
+            [{"name": "id", "value": _s(run_id)}],
+        )
+        return {"run_id": run_id, "changed": 0, "summary": "No open corrections"}
+
+    # Base = the exact version the reviewer corrected (corrections carry period_id),
+    # NOT "latest" — robust to empty/in-flight versions.
+    base_pid = corrections[0]["period_id"]
+    prow = _exec(
+        "SELECT version, source_files::text FROM rate_periods WHERE id = :pid::uuid",
+        [{"name": "pid", "value": _s(base_pid)}],
+    )
+    if not prow:
+        raise ValueError(f"correction references missing period {base_pid}")
+    period_row = {
+        "period_id": base_pid,
+        "version": int(_val(prow[0][0]) or 1),
+        "source_files": json.loads(_val(prow[0][1]) or "{}"),
+    }
+    cells = _load_cells(base_pid)
     profile = _load_profile(local)
 
     new_values, changes = _process(corrections, cells, profile, period_row["source_files"])
