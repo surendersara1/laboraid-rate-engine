@@ -124,6 +124,7 @@ api = ApiStack(
     xlsx_renderer=validation.xlsx,
     outputs_bucket=storage.outputs_bucket,
     extractor_runtime_arn=processing.extractor_runtime.runtime_arn,
+    improver_runtime_arn=processing.improver_runtime.runtime_arn,
 )
 api.add_dependency(security)
 api.add_dependency(storage)

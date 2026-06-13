@@ -53,6 +53,7 @@ ROUTES: list[tuple[str, str, str]] = [
     ("POST", "/v1/unions/{local}/rate-sheets/{period}/publish", "ratesheet-publish"),
     ("GET", "/v1/unions/{local}/rate-sheets/{period}/audit", "ratesheet-audit"),
     ("POST", "/v1/unions/{local}/rate-sheets/{period}/rework", "ratesheet-rework"),
+    ("POST", "/v1/unions/{local}/rate-sheets/{period}/improve", "ratesheet-improve"),
     ("POST", "/v1/cells/{cell_id}/override", "cell-override"),
     ("POST", "/v1/cells/{cell_id}/comment", "cell-comment"),
     ("GET", "/v1/audit", "audit-list"),
@@ -94,6 +95,9 @@ GRANTS: dict[str, set[str]] = {
     },
     "cell-override": {"overrides"},
     "cell-comment": {"aurora"},
+    # Improve: read corrections/cells (aurora), invoke the ImproverAgent runtime,
+    # and self-invoke async (the dispatch leg).
+    "ratesheet-improve": {"aurora", "invoke-improver"},
     # batch-process starts the main Step Functions pipeline.
     "batch-process": {"states"},
 }
@@ -121,6 +125,7 @@ class ApiStack(Stack):
         xlsx_renderer: lambda_.IFunction,
         outputs_bucket: s3.IBucket,
         extractor_runtime_arn: str | None = None,
+        improver_runtime_arn: str | None = None,
         **kwargs: Any,
     ) -> None:
         super().__init__(scope, construct_id, **kwargs)
@@ -234,6 +239,27 @@ class ApiStack(Stack):
                 # makes this role policy depend on the function resource, which the
                 # HttpLambdaIntegration's permission/route also depend on -> a
                 # CloudFormation circular dependency. A static ARN breaks the cycle.
+                fn.add_to_role_policy(
+                    iam.PolicyStatement(
+                        effect=iam.Effect.ALLOW,
+                        actions=["lambda:InvokeFunction"],
+                        resources=[
+                            f"arn:aws:lambda:{config.region}:{Stack.of(self).account}"
+                            f":function:{name(env, 'l2', 'fn', key)}"
+                        ],
+                    )
+                )
+            if "invoke-improver" in cats and improver_runtime_arn:
+                fn.add_environment("IMPROVER_RUNTIME_ARN", improver_runtime_arn)
+                fn.add_to_role_policy(
+                    iam.PolicyStatement(
+                        effect=iam.Effect.ALLOW,
+                        actions=["bedrock-agentcore:InvokeAgentRuntime"],
+                        resources=[improver_runtime_arn, improver_runtime_arn + "/*"],
+                    )
+                )
+                # Self-async dispatch (Event invoke on itself). Constructed ARN to
+                # avoid the token-self-reference -> CloudFormation cycle.
                 fn.add_to_role_policy(
                     iam.PolicyStatement(
                         effect=iam.Effect.ALLOW,
