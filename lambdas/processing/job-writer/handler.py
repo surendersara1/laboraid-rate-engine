@@ -148,10 +148,20 @@ def _collapse_history(events: list[dict[str, Any]]) -> list[dict[str, Any]]:
                 if rows[n]["status"] == "running":
                     rows[n].update(status="failed", error=err, cause=cause)
                     break
-    for r in rows.values():
+    # Per-stage CloudWatch log group. The SFN uses the lambda:invoke service
+    # integration, so the function ARN isn't in history -> map by stage name
+    # (the deterministic function each state invokes).
+    stage_log = {
+        "Plan": "/aws/lambda/laboraid-dev-l4-fn-batch-planner",
+        "Synthesize": "/aws/lambda/laboraid-dev-l4-fn-synthesizer",
+        "SynthPublish": "/aws/lambda/laboraid-dev-l4-fn-synth-publish",
+    }
+    for nm, r in rows.items():
         res = r.get("resource") or ""
         if res.startswith("arn:aws:lambda:"):
             r["log_group"] = f"/aws/lambda/{res.split(':function:')[-1].split(':')[0]}"
+        elif nm in stage_log:
+            r["log_group"] = stage_log[nm]
     return [{k: v for k, v in rows[n].items() if v is not None} for n in order]
 
 
