@@ -247,31 +247,39 @@ def _rebuild_csv_with_overrides(
 
 
 def _latest_overrides_for_period(local: str, period: str) -> dict[str, dict[str, Any]]:
-    """Read all manual overrides for {local, period} from DDB; return a dict
-    keyed by the last segment of the original cell_id so we can match by cell.
-
-    Schema: PK = "laboraid#<local>#<period>", SK = "<cell_id>#<ts>" so the
-    latest override per cell wins."""
+    """Read all manual overrides for {local, period} from Aurora cell_corrections
+    (kind='override'); newest per cell wins. Returns {cell_id: {value, package,
+    column_name, justification, actor}} — the shape the CSV rebuilder consumes."""
     import boto3
 
-    ddb = boto3.resource("dynamodb").Table(os.environ["OVERRIDES_TABLE"])
-    pk = f"laboraid#{local}#{period}"
-    resp = ddb.query(
-        KeyConditionExpression="#pk = :pk",
-        ExpressionAttributeNames={"#pk": "tenant#union#period"},
-        ExpressionAttributeValues={":pk": pk},
+    rds = boto3.client("rds-data")
+    resp = rds.execute_statement(
+        resourceArn=os.environ["AURORA_CLUSTER_ARN"],
+        secretArn=os.environ["AURORA_SECRET_ARN"],
+        database="laboraid",
+        sql=(
+            "SELECT cell_id::text, new_value, package, column_name, reason, actor "
+            "  FROM cell_corrections "
+            " WHERE union_local = :local AND period = :period AND kind = 'override' "
+            " ORDER BY created_at DESC"
+        ),
+        parameters=[
+            {"name": "local", "value": {"stringValue": str(local)}},
+            {"name": "period", "value": {"stringValue": period}},
+        ],
     )
     by_cell: dict[str, dict[str, Any]] = {}
-    for item in resp.get("Items", []):
-        sk = item.get("cell_id#timestamp", "")
-        cell_id = sk.split("#", 1)[0]
-        try:
-            ts = int(item.get("created_at") or 0)
-        except Exception:
-            ts = 0
-        existing = by_cell.get(cell_id)
-        if existing is None or ts >= int(existing.get("created_at") or 0):
-            by_cell[cell_id] = item
+    for row in resp.get("records", []):
+        cell_id = row[0].get("stringValue")
+        if not cell_id or cell_id in by_cell:
+            continue  # newest already kept (ORDER BY created_at DESC)
+        by_cell[cell_id] = {
+            "value": None if row[1].get("isNull") else row[1].get("stringValue"),
+            "package": "" if row[2].get("isNull") else row[2].get("stringValue", ""),
+            "column_name": "" if row[3].get("isNull") else row[3].get("stringValue", ""),
+            "justification": "" if row[4].get("isNull") else row[4].get("stringValue", ""),
+            "actor": "" if row[5].get("isNull") else row[5].get("stringValue", ""),
+        }
     return by_cell
 
 

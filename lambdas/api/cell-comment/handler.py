@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import os
+import uuid
 from typing import Any
 
 import authz  # shared Lambda layer (/opt/python/authz.py)
@@ -61,14 +62,18 @@ def handler(event: dict[str, Any], _context: Any) -> dict[str, Any]:
         import boto3
 
         rds = boto3.client("rds-data")
-        # Look up the period the cell belongs to so the activity feed can
-        # scope per-rate-sheet without an extra query later.
+        common = {
+            "resourceArn": os.environ["AURORA_CLUSTER_ARN"],
+            "secretArn": os.environ["AURORA_SECRET_ARN"],
+            "database": "laboraid",
+        }
+        # Look up the cell's coordinates + period so we can record a structured
+        # correction row (and scope the activity feed).
         scope = rds.execute_statement(
-            resourceArn=os.environ["AURORA_CLUSTER_ARN"],
-            secretArn=os.environ["AURORA_SECRET_ARN"],
-            database="laboraid",
+            **common,
             sql=(
-                "SELECT u.local::text, to_char(rp.start_date,'YYYY-MM-DD') "
+                "SELECT u.local::text, to_char(rp.start_date,'YYYY-MM-DD'), "
+                "       rp.id::text, rp.version, rc.zone, rc.package, rc.column_name "
                 "  FROM rate_cells rc "
                 "  JOIN rate_periods rp ON rp.id = rc.period_id "
                 "  JOIN unions u ON u.id = rp.union_id "
@@ -76,27 +81,57 @@ def handler(event: dict[str, Any], _context: Any) -> dict[str, Any]:
             ),
             parameters=[{"name": "id", "value": {"stringValue": cell_id}}],
         )
-        local = period = None
+        local = period = period_id = zone = package = column_name = None
+        version = 1
         if scope.get("records"):
-            local = scope["records"][0][0].get("stringValue")
-            period = scope["records"][0][1].get("stringValue")
+            r = scope["records"][0]
+            local = r[0].get("stringValue")
+            period = r[1].get("stringValue")
+            period_id = r[2].get("stringValue")
+            version = r[3].get("longValue", 1)
+            zone = r[4].get("stringValue") if not r[4].get("isNull") else None
+            package = r[5].get("stringValue")
+            column_name = r[6].get("stringValue")
 
-        details = {
-            "cell_id": cell_id,
-            "text": body.get("text", ""),
-            "local": local,
-            "period": period,
-        }
+        text = body.get("text", "")
+        actor = _actor(event)
+
+        # Structured correction row (legal record) — only when the cell resolves.
+        if period_id:
+            rds.execute_statement(
+                **common,
+                sql=(
+                    "INSERT INTO cell_corrections (id, period_id, version, cell_id, "
+                    "  union_local, period, zone, package, column_name, kind, "
+                    "  reason, actor, status) "
+                    "VALUES (:id::uuid, :pid::uuid, :ver, :cid::uuid, :local, :period, "
+                    "  :zone, :package, :col, 'comment', :reason, :actor, 'open')"
+                ),
+                parameters=[
+                    {"name": "id", "value": {"stringValue": str(uuid.uuid4())}},
+                    {"name": "pid", "value": {"stringValue": period_id}},
+                    {"name": "ver", "value": {"longValue": int(version)}},
+                    {"name": "cid", "value": {"stringValue": cell_id}},
+                    {"name": "local", "value": {"stringValue": local or ""}},
+                    {"name": "period", "value": {"stringValue": period or ""}},
+                    {"name": "zone", "value": ({"stringValue": zone} if zone else {"isNull": True})},
+                    {"name": "package", "value": {"stringValue": package or ""}},
+                    {"name": "col", "value": {"stringValue": column_name or ""}},
+                    {"name": "reason", "value": {"stringValue": text}},
+                    {"name": "actor", "value": {"stringValue": actor}},
+                ],
+            )
+
+        # Activity-feed mirror.
+        details = {"cell_id": cell_id, "text": text, "local": local, "period": period}
         rds.execute_statement(
-            resourceArn=os.environ["AURORA_CLUSTER_ARN"],
-            secretArn=os.environ["AURORA_SECRET_ARN"],
-            database="laboraid",
+            **common,
             sql=(
                 "INSERT INTO audit_log (tenant, actor, action, details) "
                 "VALUES ('laboraid', :actor, 'comment', :details::jsonb)"
             ),
             parameters=[
-                {"name": "actor", "value": {"stringValue": _actor(event)}},
+                {"name": "actor", "value": {"stringValue": actor}},
                 {"name": "details", "value": {"stringValue": json.dumps(details)}},
             ],
         )

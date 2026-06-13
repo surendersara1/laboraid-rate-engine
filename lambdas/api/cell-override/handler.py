@@ -6,7 +6,7 @@ from __future__ import annotations
 
 import json
 import os
-import time
+import uuid
 from typing import Any
 
 import authz  # shared Lambda layer (/opt/python/authz.py)
@@ -84,7 +84,8 @@ def handler(event: dict[str, Any], _context: Any) -> dict[str, Any]:
             **common,
             sql=(
                 "SELECT rc.value::text, u.local::text, "
-                "       to_char(rp.start_date,'YYYY-MM-DD'), rc.column_name, rc.package "
+                "       to_char(rp.start_date,'YYYY-MM-DD'), rc.column_name, rc.package, "
+                "       rp.id::text, rp.version, rc.zone "
                 "  FROM rate_cells rc "
                 "  JOIN rate_periods rp ON rp.id = rc.period_id "
                 "  JOIN unions u ON u.id = rp.union_id "
@@ -100,25 +101,40 @@ def handler(event: dict[str, Any], _context: Any) -> dict[str, Any]:
         period = rec[2].get("stringValue")
         column_name = rec[3].get("stringValue")
         package = rec[4].get("stringValue")
+        period_id = rec[5].get("stringValue")
+        version = rec[6].get("longValue", 1)
+        zone = rec[7].get("stringValue") if not rec[7].get("isNull") else None
 
-        ts = int(time.time() * 1000)
         actor = _actor(event)
 
-        # Write the manual override into DDB so the renderer / re-publisher
-        # can read it back. We keep the original kernel value intact in
-        # rate_cells; overrides layer on top.
-        boto3.resource("dynamodb").Table(os.environ["OVERRIDES_TABLE"]).put_item(
-            Item={
-                "tenant#union#period": f"laboraid#{local}#{period}",
-                "cell_id#timestamp": f"{cell_id}#{ts}",
-                "value": str(new_value_f),
-                "old_value": str(old_value),
-                "actor": actor,
-                "justification": justification,
-                "column_name": column_name,
-                "package": package,
-                "created_at": ts,
-            }
+        # Persist the override into the Aurora cell_corrections child table — the
+        # legal/financial record (FK to cell + period, before/after, who/why,
+        # versioned). The original kernel value stays intact in rate_cells;
+        # corrections layer on top. (Replaces the DynamoDB overrides table.)
+        rds.execute_statement(
+            **common,
+            sql=(
+                "INSERT INTO cell_corrections (id, period_id, version, cell_id, "
+                "  union_local, period, zone, package, column_name, kind, "
+                "  prior_value, new_value, reason, actor, status) "
+                "VALUES (:id::uuid, :pid::uuid, :ver, :cid::uuid, :local, :period, "
+                "  :zone, :package, :col, 'override', :prior, :new, :reason, :actor, 'open')"
+            ),
+            parameters=[
+                {"name": "id", "value": {"stringValue": str(uuid.uuid4())}},
+                {"name": "pid", "value": {"stringValue": period_id}},
+                {"name": "ver", "value": {"longValue": int(version)}},
+                {"name": "cid", "value": {"stringValue": cell_id}},
+                {"name": "local", "value": {"stringValue": local or ""}},
+                {"name": "period", "value": {"stringValue": period or ""}},
+                {"name": "zone", "value": ({"stringValue": zone} if zone else {"isNull": True})},
+                {"name": "package", "value": {"stringValue": package or ""}},
+                {"name": "col", "value": {"stringValue": column_name or ""}},
+                {"name": "prior", "value": {"stringValue": str(old_value)}},
+                {"name": "new", "value": {"stringValue": str(new_value_f)}},
+                {"name": "reason", "value": {"stringValue": justification}},
+                {"name": "actor", "value": {"stringValue": actor}},
+            ],
         )
 
         # Audit-log entry so the Business activity tab shows it.

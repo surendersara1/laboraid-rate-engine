@@ -274,7 +274,10 @@ class StorageStack(Stack):
             self,
             "SchemaInit",
             service_token=provider.service_token,
-            properties={"schemaVersion": "1"},
+            # Bump on every schema.sql change so CloudFormation re-invokes the
+            # custom resource and re-applies the DDL (idempotent: IF NOT EXISTS).
+            # v2: + cell_corrections (Phase 2 decision 1 — overrides/comments to Aurora).
+            properties={"schemaVersion": "2"},
         )
         # Ensure the cluster exists before the DDL runs.
         resource.node.add_dependency(self.aurora)

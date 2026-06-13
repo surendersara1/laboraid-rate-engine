@@ -221,47 +221,42 @@ def handler(event: dict[str, Any], _context: Any) -> dict[str, Any]:
                 "value_type": row[8].get("stringValue", "currency"),
             })
 
-        # Apply reviewer overrides on top of raw cell values. Overrides
-        # live in the overrides DDB table partitioned by
-        # `tenant#union#period`, sort key `cell_id#timestamp` — newest
-        # entry per cell wins.
+        # Apply reviewer overrides on top of raw cell values. Overrides live in
+        # the Aurora cell_corrections table (kind='override'); newest per cell wins.
         try:
-            import boto3 as _b
-            ddb = _b.client("dynamodb", region_name=os.environ.get("AWS_REGION", "us-east-2"))
-            overrides_table = os.environ.get(
-                "OVERRIDES_TABLE", "laboraid-dev-l3-ddb-overrides"
+            ov_resp = data.execute_statement(
+                resourceArn=os.environ["AURORA_CLUSTER_ARN"],
+                secretArn=os.environ["AURORA_SECRET_ARN"],
+                database="laboraid",
+                sql=(
+                    "SELECT cell_id::text, new_value, reason, actor, created_at::text "
+                    "  FROM cell_corrections "
+                    " WHERE union_local = :local AND period = :period AND kind = 'override' "
+                    " ORDER BY created_at DESC"
+                ),
+                parameters=[
+                    {"name": "local", "value": {"stringValue": str(local)}},
+                    {"name": "period", "value": {"stringValue": p.get("period") or ""}},
+                ],
             )
-            pk = f"laboraid#{local}#{p.get('period') or ''}"
-            paginator = ddb.get_paginator("query")
             latest_per_cell: dict[str, dict[str, Any]] = {}
-            for page in paginator.paginate(
-                TableName=overrides_table,
-                KeyConditionExpression="#pk = :pk",
-                ExpressionAttributeNames={"#pk": "tenant#union#period"},
-                ExpressionAttributeValues={":pk": {"S": pk}},
-                ScanIndexForward=False,  # newest first
-            ):
-                for item in page.get("Items") or []:
-                    sk = item.get("cell_id#timestamp", {}).get("S", "")
-                    if "#" not in sk:
-                        continue
-                    cell_id, ts = sk.split("#", 1)
-                    if cell_id in latest_per_cell:
-                        continue  # already have newer
-                    raw_val = item.get("value", {})
-                    v = raw_val.get("S") or raw_val.get("N")
-                    if v is None:
-                        continue
-                    try:
-                        vf = float(v)
-                    except ValueError:
-                        continue
-                    latest_per_cell[cell_id] = {
-                        "value": vf,
-                        "justification": item.get("justification", {}).get("S", ""),
-                        "actor": item.get("actor", {}).get("S", ""),
-                        "at": item.get("created_at", {}).get("N", ts),
-                    }
+            for row in ov_resp.get("records", []):
+                cell_id = row[0].get("stringValue")
+                if not cell_id or cell_id in latest_per_cell:
+                    continue  # newest already taken (ORDER BY created_at DESC)
+                raw_v = row[1].get("stringValue") if not row[1].get("isNull") else None
+                if raw_v is None:
+                    continue
+                try:
+                    vf = float(raw_v)
+                except (TypeError, ValueError):
+                    continue
+                latest_per_cell[cell_id] = {
+                    "value": vf,
+                    "justification": "" if row[2].get("isNull") else row[2].get("stringValue", ""),
+                    "actor": "" if row[3].get("isNull") else row[3].get("stringValue", ""),
+                    "at": row[4].get("stringValue", ""),
+                }
             for c in cells:
                 ov = latest_per_cell.get(c["cell_id"])
                 if ov is None:

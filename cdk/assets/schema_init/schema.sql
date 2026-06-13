@@ -69,3 +69,33 @@ CREATE TABLE IF NOT EXISTS audit_log (
   action TEXT,
   details JSONB
 );
+
+-- Human review corrections (comments + overrides) — the legal/financial record.
+-- One row per reviewer action, FK'd to the cell + period, append-only + versioned,
+-- carrying before/after + who/when/why. union_local + period are denormalized so
+-- readers can key by {local, period} (matching the prior DDB access pattern) and so
+-- a correction stays legible if a cell is recreated in a new version. Replaces the
+-- DynamoDB overrides table as the source of truth (Phase 2, decision 1).
+CREATE TABLE IF NOT EXISTS cell_corrections (
+  id UUID PRIMARY KEY,
+  period_id UUID REFERENCES rate_periods(id),
+  version INT,
+  cell_id UUID REFERENCES rate_cells(id),
+  union_local TEXT,
+  period TEXT,
+  zone TEXT,
+  package TEXT,
+  column_name TEXT,
+  kind TEXT NOT NULL,
+  prior_value TEXT,
+  new_value TEXT,
+  reason TEXT,
+  actor TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  status TEXT NOT NULL DEFAULT 'open',
+  CONSTRAINT cell_corrections_kind CHECK (kind IN ('comment','override'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_corrections_lookup ON cell_corrections (union_local, period, kind, created_at DESC);
+
+CREATE INDEX IF NOT EXISTS idx_corrections_cell ON cell_corrections (cell_id);
