@@ -441,7 +441,20 @@ class ProcessingStack(Stack):
             effect=iam.Effect.ALLOW,
             actions=["bedrock:InvokeModel", "bedrock:InvokeModelWithResponseStream"],
             resources=bedrock_synth_resources))
-        self.profile_builder.grant_invoke(self.synthesizer_fn)  # auto-onboard
+        # auto-onboard: synthesizer invokes profile-builder. We grant via a
+        # CONSTRUCTED ARN string (not profile_builder.function_arn) on purpose:
+        # synthesizer + profile-builder SHARE the LlmExtractor role (Option A), so a
+        # token-based grant_invoke would make that role's policy depend on the
+        # ProfileBuilder resource which itself depends on the role -> CloudFormation
+        # circular dependency. A static ARN breaks the cycle while keeping the grant.
+        self.synthesizer_fn.add_to_role_policy(iam.PolicyStatement(
+            effect=iam.Effect.ALLOW,
+            actions=["lambda:InvokeFunction"],
+            resources=[
+                f"arn:aws:lambda:{config.region}:{Stack.of(self).account}:function:"
+                f"{name(env, 'l4', 'fn', 'profile-builder')}"
+            ],
+        ))
 
         # Synth-publish: write the synthesized rate sheet to Aurora (clean replace,
         # cohorts in rate_cells.dimensions).
