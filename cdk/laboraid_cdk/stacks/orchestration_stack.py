@@ -113,7 +113,7 @@ class OrchestrationStack(Stack):
         self.job_writer.add_to_role_policy(
             iam.PolicyStatement(
                 effect=iam.Effect.ALLOW,
-                actions=["states:DescribeExecution"],
+                actions=["states:DescribeExecution", "states:GetExecutionHistory"],
                 resources=[
                     f"arn:aws:states:{config.region}:{Stack.of(self).account}"
                     f":execution:{name(env, 'l3', 'sfn', 'main')}:*"

@@ -96,6 +96,85 @@ def _resolve(input_s: str, output_s: str | None) -> dict[str, Any]:
     return {k: v for k, v in out.items() if v not in (None, [], "")}
 
 
+def _ts(dt: Any) -> str | None:
+    if isinstance(dt, datetime):
+        return dt.astimezone(timezone.utc).isoformat()
+    return None
+
+
+def _collapse_history(events: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Reduce raw SFN history into one row per state (name, start/end, duration,
+    status ok/running/failed, resource, clipped input/output) — the exact shape
+    JobDetail.tsx renders. Timestamps emitted as ISO strings (DynamoDB-storable)."""
+    rows: dict[str, dict[str, Any]] = {}
+    order: list[str] = []
+    running: list[str] = []
+    for e in events:
+        et = e["type"]
+        if et.endswith("StateEntered"):
+            name = e["stateEnteredEventDetails"]["name"]
+            if name not in rows:
+                rows[name] = {
+                    "name": name, "entered_at": _ts(e["timestamp"]), "exited_at": None,
+                    "duration_ms": None, "status": "running", "error": None, "cause": None,
+                    "input": (e["stateEnteredEventDetails"].get("input") or "")[:8000],
+                    "output": None, "resource": None,
+                }
+                order.append(name)
+            running.append(name)
+        elif et.endswith("StateExited"):
+            name = e["stateExitedEventDetails"]["name"]
+            r = rows.get(name)
+            if r:
+                r["exited_at"] = _ts(e["timestamp"])
+                if r["entered_at"]:
+                    r["duration_ms"] = int(
+                        (datetime.fromisoformat(r["exited_at"])
+                         - datetime.fromisoformat(r["entered_at"])).total_seconds() * 1000
+                    )
+                if r["status"] == "running":
+                    r["status"] = "ok"
+                if not r.get("output"):
+                    r["output"] = (e["stateExitedEventDetails"].get("output") or "")[:8000]
+        elif et == "LambdaFunctionScheduled":
+            arn = (e.get("lambdaFunctionScheduledEventDetails") or {}).get("resource")
+            if running and arn:
+                rows[running[-1]]["resource"] = arn
+        elif "Failed" in et:
+            dk = next((k for k in e if k.endswith("FailedEventDetails")), None)
+            err = (e.get(dk) or {}).get("error", "Failed")
+            cause = ((e.get(dk) or {}).get("cause", "") or "")[:1000]
+            for n in reversed(order):
+                if rows[n]["status"] == "running":
+                    rows[n].update(status="failed", error=err, cause=cause)
+                    break
+    for r in rows.values():
+        res = r.get("resource") or ""
+        if res.startswith("arn:aws:lambda:"):
+            r["log_group"] = f"/aws/lambda/{res.split(':function:')[-1].split(':')[0]}"
+    return [{k: v for k, v in rows[n].items() if v is not None} for n in order]
+
+
+def _timeline_from_history(execution_arn: str | None) -> list[dict[str, Any]]:
+    """One GetExecutionHistory call (write-time) -> collapsed per-stage timeline."""
+    if not execution_arn:
+        return []
+    events: list[dict[str, Any]] = []
+    kw: dict[str, Any] = {"executionArn": execution_arn, "maxResults": 1000}
+    try:
+        while True:
+            page = _sfn.get_execution_history(**kw)
+            events.extend(page.get("events", []))
+            if "nextToken" in page:
+                kw["nextToken"] = page["nextToken"]
+            else:
+                break
+    except Exception:  # pragma: no cover - best effort
+        logger.exception("job-writer: get_execution_history failed")
+        return []
+    return _collapse_history(events)
+
+
 def _write(
     name: str,
     status: str,
@@ -128,17 +207,11 @@ def _write(
     if status in ("FAILED", "TIMED_OUT", "ABORTED") and error:
         item["error"] = error
     item.update(_resolve(input_s or "{}", output_s))
-    # Derived 3-stage timeline (no SFN history needed for the detail view).
-    stages = ["Plan", "Synthesize", "SynthPublish"]
-    if status == "SUCCEEDED":
-        item["timeline"] = [{"step": s, "status": "SUCCEEDED"} for s in stages]
-    elif status == "RUNNING":
-        item["timeline"] = [
-            {"step": s, "status": "RUNNING" if i == 0 else "PENDING"}
-            for i, s in enumerate(stages)
-        ]
-    else:
-        item["timeline"] = [{"step": s, "status": status} for s in stages]
+    # Real per-stage timeline captured ONCE here from SFN history (write-time),
+    # in the shape JobDetail.tsx renders (name/status=ok/duration_ms/output...).
+    tl = _timeline_from_history(exec_arn)
+    if tl:
+        item["timeline"] = tl
     _table.put_item(Item={k: v for k, v in item.items() if v is not None})
 
 
