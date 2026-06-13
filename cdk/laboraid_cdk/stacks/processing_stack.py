@@ -262,11 +262,17 @@ class ProcessingStack(Stack):
                 resources=[_agentcore_logs, f"{_agentcore_logs}:log-stream:*"],
             )
         )
+        # Image ref: pin by digest via context so a new build rolls the runtime
+        # through CDK (UpdateAgentRuntime keys off the URI). Deploy with
+        #   cdk deploy Laboraid-dev-Processing -c improver_image=sha256:<digest>
+        # Defaults to :latest for first-create.
+        _improver_ref = self.node.try_get_context("improver_image") or "latest"
+        _sep = "@" if str(_improver_ref).startswith("sha256:") else ":"
         self.improver_runtime = StrandsAgentRuntime(
             self,
             "ImproverRuntime",
             runtime_name=name(env, "l5", "agent", "improver"),
-            image_uri=f"{self.improver_repo.repository_uri}:latest",
+            image_uri=f"{self.improver_repo.repository_uri}{_sep}{_improver_ref}",
             execution_role=self.improver_role,
             agent_name="ImproverAgent",
             environment={

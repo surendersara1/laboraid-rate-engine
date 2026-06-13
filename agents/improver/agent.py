@@ -269,7 +269,7 @@ def _write_new_version(period, cells, new_values, changes, run_id, local, period
             "INSERT INTO rate_cells (id, period_id, zone, package, dimensions, column_name, "
             "  value, value_type, provenance, confidence) "
             "VALUES (:id::uuid, :pid::uuid, :zone, :pkg, :dim::jsonb, :col, "
-            "  :val, :vt, :prov::jsonb, :conf)",
+            "  :val::numeric, :vt, :prov::jsonb, :conf::numeric)",
             [
                 {"name": "id", "value": _s(new_cell_id)},
                 {"name": "pid", "value": _s(new_pid)},
@@ -288,7 +288,7 @@ def _write_new_version(period, cells, new_values, changes, run_id, local, period
         _exec(
             "INSERT INTO improvement_changes (id, run_id, cell_id, package, column_name, "
             "  prior_value, new_value, source, provenance, confidence) "
-            "VALUES (:id::uuid, :run::uuid, :cid::uuid, :pkg, :col, :prior, :new, :src, :prov, :conf)",
+            "VALUES (:id::uuid, :run::uuid, :cid::uuid, :pkg, :col, :prior, :new, :src, :prov, :conf::numeric)",
             [
                 {"name": "id", "value": _s(str(uuid.uuid4()))},
                 {"name": "run", "value": _s(run_id)},
