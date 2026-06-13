@@ -14,12 +14,19 @@ const LINKS: Array<[string, string]> = [
 export function AdminLayout(): JSX.Element {
   return (
     <div className="flex min-h-screen bg-slate-50">
-      <aside className="flex w-60 flex-col border-r border-slate-200 bg-slate-900 text-slate-200">
-        <div className="border-b border-slate-800 px-5 py-5">
-          <div className="text-xs font-medium uppercase tracking-wider text-slate-500">
-            LaborAid
+      <aside className="flex w-60 flex-col bg-brand text-slate-200">
+        <div className="flex items-center gap-3 border-b border-white/10 px-5 py-5">
+          <img
+            src="/laboraid-shield.png"
+            alt="LaborAid"
+            className="h-9 w-9 shrink-0 drop-shadow"
+          />
+          <div>
+            <div className="text-base font-bold leading-tight text-white">LaborAid</div>
+            <div className="text-xs font-medium uppercase tracking-wider text-gold">
+              Admin Console
+            </div>
           </div>
-          <div className="mt-1 text-lg font-semibold text-white">Admin</div>
         </div>
         <nav className="flex-1 space-y-1 px-3 py-4">
           {LINKS.map(([to, label]) => (
@@ -27,10 +34,10 @@ export function AdminLayout(): JSX.Element {
               key={to}
               to={to}
               className={({ isActive }) =>
-                `block rounded-md px-3 py-2 text-sm transition ${
+                `block rounded-md border-l-2 px-3 py-2 text-sm transition ${
                   isActive
-                    ? "bg-slate-800 text-white"
-                    : "text-slate-300 hover:bg-slate-800 hover:text-white"
+                    ? "border-gold bg-white/10 font-semibold text-white"
+                    : "border-transparent text-slate-300 hover:bg-white/5 hover:text-white"
                 }`
               }
             >
@@ -38,11 +45,11 @@ export function AdminLayout(): JSX.Element {
             </NavLink>
           ))}
         </nav>
-        <div className="border-t border-slate-800 px-3 py-3">
+        <div className="border-t border-white/10 px-3 py-3">
           <button
             type="button"
             onClick={() => void logout()}
-            className="block w-full rounded-md px-3 py-2 text-left text-sm text-slate-300 transition hover:bg-slate-800 hover:text-white"
+            className="block w-full rounded-md px-3 py-2 text-left text-sm text-slate-300 transition hover:bg-white/5 hover:text-white"
           >
             Sign out
           </button>
