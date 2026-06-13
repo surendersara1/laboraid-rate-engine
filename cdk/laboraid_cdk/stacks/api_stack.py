@@ -230,11 +230,18 @@ class ApiStack(Stack):
                 # `InvocationType: Event` on its own ARN to release the
                 # synchronous request, then completes the work in the
                 # background. Grant that loopback.
+                # Constructed ARN (not fn.function_arn): a token self-reference
+                # makes this role policy depend on the function resource, which the
+                # HttpLambdaIntegration's permission/route also depend on -> a
+                # CloudFormation circular dependency. A static ARN breaks the cycle.
                 fn.add_to_role_policy(
                     iam.PolicyStatement(
                         effect=iam.Effect.ALLOW,
                         actions=["lambda:InvokeFunction"],
-                        resources=[fn.function_arn],
+                        resources=[
+                            f"arn:aws:lambda:{config.region}:{Stack.of(self).account}"
+                            f":function:{name(env, 'l2', 'fn', key)}"
+                        ],
                     )
                 )
             self.functions[key] = fn
