@@ -7,6 +7,7 @@ import { CellOverrideModal } from "../components/CellOverrideModal";
 import { ProvenancePanel } from "../components/ProvenancePanel";
 import { RateCellTable } from "../components/RateCellTable";
 import { RateSheetGrid } from "../components/RateSheetGrid";
+import { ImproveBar } from "../components/ImproveBar";
 import { ReworkBar } from "../components/ReworkBar";
 import { api } from "../lib/api";
 import { getCurrentActor } from "../lib/auth";
@@ -462,6 +463,15 @@ export function RateSheetReview(): JSX.Element {
       {/* Tier 3 — rework action bar; visible only when the sheet is rejected
           on its latest version. Submits to POST /…/rework which creates v+1,
           applies overrides, regenerates the xlsx, and audit-logs the event. */}
+      <ImproveBar
+        union={union}
+        period={period}
+        approvalState={state}
+        isLatest={detail?.version === detail?.versions?.[0]?.version}
+        version={detail?.version}
+        onImproved={onReworked}
+      />
+
       <ReworkBar
         union={union}
         period={period}
