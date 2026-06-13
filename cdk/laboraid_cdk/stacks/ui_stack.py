@@ -119,7 +119,13 @@ class UiStack(Stack):
             # No custom domain — the SPA lives at the CloudFront default domain.
             self.app_url = f"https://{self.distribution.distribution_domain_name}"
 
-        # Deploy the React build (cd ui && pnpm build -> ui/dist).
+        # Deploy the React build (cd ui && npm run build -> ui/dist).
+        # prune=False: the runtime `config.json` (Cognito IDs + API endpoint) is
+        # managed in the bucket OUTSIDE the build (so the same bundle targets
+        # dev/prod without a rebuild). With the default prune=True, every deploy
+        # DELETED config.json and broke the SPA ("Failed to load runtime config").
+        # prune=False keeps it; old hashed assets simply accumulate (harmless,
+        # and avoids breaking in-flight sessions that reference older chunks).
         s3_deploy.BucketDeployment(
             self,
             "SpaDeployment",
@@ -127,6 +133,7 @@ class UiStack(Stack):
             destination_bucket=self.spa_bucket,
             distribution=self.distribution,
             distribution_paths=["/*"],
+            prune=False,
         )
 
         CfnOutput(self, "DistributionDomain", value=self.distribution.distribution_domain_name)

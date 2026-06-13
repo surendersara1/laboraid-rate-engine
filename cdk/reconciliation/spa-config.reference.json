@@ -1,0 +1,7 @@
+{
+  "userPoolId": "us-east-2_CC90iICJt",
+  "userPoolClientId": "8mlbfdiopceq8gvflpvqvrh5u",
+  "cognitoDomain": "laboraid-dev-auth",
+  "region": "us-east-2",
+  "apiEndpoint": "https://clp6kku691.execute-api.us-east-2.amazonaws.com"
+}
