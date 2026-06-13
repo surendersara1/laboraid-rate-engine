@@ -88,7 +88,9 @@ def _resolve(input_s: str, output_s: str | None) -> dict[str, Any]:
         out["row_count"] = o.get("row_count")
         out["cell_count"] = o.get("cell_count")
         out["output_csv"] = o.get("output_csv")
+        out["output_xlsx"] = o.get("output_xlsx")
         out["period_id"] = o.get("period_id")
+        out["trace"] = o.get("trace")  # pipeline calls (Aurora/S3/Bedrock)
     loc = out.get("local")
     out["union"] = _UNION_DISPLAY.get(str(loc), f"Local {loc}" if loc else "—")
     return {k: v for k, v in out.items() if v not in (None, [], "")}
@@ -126,6 +128,17 @@ def _write(
     if status in ("FAILED", "TIMED_OUT", "ABORTED") and error:
         item["error"] = error
     item.update(_resolve(input_s or "{}", output_s))
+    # Derived 3-stage timeline (no SFN history needed for the detail view).
+    stages = ["Plan", "Synthesize", "SynthPublish"]
+    if status == "SUCCEEDED":
+        item["timeline"] = [{"step": s, "status": "SUCCEEDED"} for s in stages]
+    elif status == "RUNNING":
+        item["timeline"] = [
+            {"step": s, "status": "RUNNING" if i == 0 else "PENDING"}
+            for i, s in enumerate(stages)
+        ]
+    else:
+        item["timeline"] = [{"step": s, "status": status} for s in stages]
     _table.put_item(Item={k: v for k, v in item.items() if v is not None})
 
 
