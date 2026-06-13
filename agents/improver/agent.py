@@ -232,14 +232,23 @@ def _process(corrections, cells, profile, source_files) -> tuple[dict[str, dict]
             if src_text is None:
                 src_text = _source_text(source_files)
             r = _resynthesize(cell, corr.get("reason") or "", profile, src_text)
-            _set(cid, r["value"], "resynth", r["provenance"], r["confidence"])
-            if cell["column_name"] == "Wage" and r["value"] is not None and mults:
-                derived = rate_math.recompute_derived(r["value"], mults)
-                for sib in cells:
-                    if (sib["package"] == cell["package"] and sib["dimensions"] == cell["dimensions"]
-                            and sib["column_name"] in derived):
-                        _set(sib["id"], float(derived[sib["column_name"]]), "recompute",
-                             f"recomputed from re-synthesized {cell['package']} Wage", 1.0)
+            if r["value"] is None:
+                # A comment is "review this", NOT "delete it". If the agent can't
+                # confirm a value from source, KEEP the prior value (don't null a
+                # present number), lower confidence, and attach the agent's note so
+                # the human decides. Derived columns stay consistent (value unchanged).
+                _set(cid, cell["value"], "resynth",
+                     "kept prior value — agent could not confirm from source: "
+                     + r["provenance"], r["confidence"])
+            else:
+                _set(cid, r["value"], "resynth", r["provenance"], r["confidence"])
+                if cell["column_name"] == "Wage" and mults:
+                    derived = rate_math.recompute_derived(r["value"], mults)
+                    for sib in cells:
+                        if (sib["package"] == cell["package"] and sib["dimensions"] == cell["dimensions"]
+                                and sib["column_name"] in derived):
+                            _set(sib["id"], float(derived[sib["column_name"]]), "recompute",
+                                 f"recomputed from re-synthesized {cell['package']} Wage", 1.0)
     return new_values, changes
 
 
