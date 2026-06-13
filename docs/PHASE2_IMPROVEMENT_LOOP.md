@@ -107,6 +107,64 @@ auditable. Approval always requires a human on the candidate version.
 - UI: "Improve" button + status in `RateSheetReview`; the existing version switcher
   shows v_{n+1}; a change-log panel explains what the agent did and why.
 
+## End-to-end sequence (client-facing)
+What happens, in order, when a reviewer asks the system to improve a sheet:
+
+1. **Reviewer opens** a synthesized rate sheet `v_n` in the Business UI.
+2. **Reviewer flags cells** — adds *comments* ("this looks wrong") and/or *overrides*
+   (the correct value) — and does **not** approve.
+3. Each flag is **saved to Aurora `cell_corrections`** (the legal record — done, decision 1).
+4. **Reviewer clicks "Improve."**
+5. The **API records an `improvement_run`** (status=running) and **invokes the
+   Improvement Agent on AgentCore** asynchronously, returning a run id immediately.
+6. The **agent loads context**: the current cells (Aurora), the corrections
+   (`cell_corrections`), the source PDFs (S3), the union profile (Aurora) → assembles
+   **steering**.
+7. The agent **classifies each correction** and acts:
+   - **Override** → apply the human value **deterministically** + kernel-recompute the
+     derived columns (OT, differential, P&G). No LLM re-guessing.
+   - **Comment** → **targeted LLM re-synthesis** (Bedrock Opus 4.5) of that cell, with
+     the comment as steering + full-sheet context → corrected value **+ source citation**.
+   - Untouched cells → carried over unchanged.
+8. The **Critic validates** the candidate (checksums hold, overrides respected exactly,
+   no unflagged cell changed, no fabrication) — bounces back for a bounded retry if not.
+9. The agent **writes back a NEW version `v_{n+1}`** to Aurora (new `rate_period` +
+   `rate_cells`), records the per-cell **change log** (`improvement_changes`), marks the
+   `improvement_run` finished and the corrections `applied`.
+10. The **UI shows `v_{n+1}`** (version switcher + change-log panel). Reviewer re-reviews
+    → **approve** (dual-control) or comment again → **loop**.
+
+## Where the agent lives (deployment groundwork)
+- **Host: Amazon Bedrock AgentCore Runtime** — a container (Strands `Agent` wrapped in
+  `BedrockAgentCoreApp` / `@app.entrypoint`, **ARM64**), in a new `agents/improver/`,
+  pushed to ECR, fronted by our existing **`StrandsAgentRuntime`** CDK construct (same as
+  `ExtractorAgent`). **Not** a Lambda: AgentCore allows **up to 8-hour** sessions with
+  per-session microVM isolation — right for multi-cell LLM re-synthesis + critic loops
+  that can exceed Lambda's 15-min cap. The API Lambda only **triggers** it.
+- **Inside the container:** a Strands agent with tools — `apply_override` (deterministic
+  + kernel), `resynthesize_cell` (LLM), `recompute_derived` (kernel), `validate_checksum`
+  (kernel), `write_version` (Aurora). Run cell re-syntheses in parallel with the default
+  **`ConcurrentToolExecutor`**.
+- **Trigger + status:** `POST …/improve` → `invoke_agent_runtime` (async) → progress
+  tracked in the `improvement_runs` row, surfaced in the UI like the pipeline jobs.
+- **MCP (future "talk to it"):** AgentCore can expose the agent as an **MCP server**, and
+  **AgentCore Gateway** can turn our existing Lambdas/APIs + kernel into MCP tools — so the
+  agent (and other clients) can converse/compose over MCP without bespoke glue.
+
+## Build sequence (CDK-based, in order)
+1. **Aurora schema:** add `improvement_runs` + `improvement_changes` (cell_corrections
+   done); bump `schemaVersion`.
+2. **Agent container** `agents/improver/`: Strands + `BedrockAgentCoreApp` + the 5 tools;
+   ARM64 Dockerfile.
+3. **ECR repo** for the improver image (deploy.sh pushes it, like the extractor).
+4. **CDK:** second `StrandsAgentRuntime` (ImproverAgent) + execution role (Bedrock +
+   guardrail, Aurora Data API, S3 read).
+5. **API:** `POST /v1/unions/{local}/rate-sheets/{period}/improve` (records run + invokes
+   the runtime async) + a status read; grant `bedrock-agentcore:InvokeAgentRuntime`.
+6. **UI:** "Improve" button in `RateSheetReview` + run status + version switcher +
+   change-log panel.
+7. **(Later) MCP:** expose the agent via AgentCore MCP / Gateway.
+
 ## Open questions to settle Sat AM
 1. **Override storage:** promote to the structured Aurora `cell_corrections` table
    (recommended for legal SoR) vs keep the DynamoDB `overrides_table`?
