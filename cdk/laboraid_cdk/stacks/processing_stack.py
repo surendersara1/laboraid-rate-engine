@@ -210,6 +210,78 @@ class ProcessingStack(Stack):
             },
         )
 
+        # --- ImproverAgent (Phase 2) — AgentCore runtime for the Improve loop --
+        # Applies reviewer corrections (overrides deterministically via rate_math,
+        # comments via Bedrock re-synthesis) into a new rate-sheet version. ECR repo
+        # created + image pushed out-of-band (like the extractor) before deploy.
+        self.improver_repo = ecr.Repository.from_repository_name(
+            self, "ImproverRepo", name(env, "l5", "ecr", "agent-improver")
+        )
+        self.improver_role = iam.Role(
+            self,
+            "ImproverAgentRole",
+            role_name=name(env, "l5", "role", "agent-improver"),
+            assumed_by=iam.ServicePrincipal("bedrock-agentcore.amazonaws.com"),
+            description="AgentCore execution role for the ImproverAgent",
+            managed_policies=[
+                iam.ManagedPolicy.from_aws_managed_policy_name("AWSXRayDaemonWriteAccess"),
+            ],
+        )
+        self.improver_role.add_to_policy(
+            iam.PolicyStatement(
+                effect=iam.Effect.ALLOW,
+                actions=[
+                    "bedrock:InvokeModel",
+                    "bedrock:InvokeModelWithResponseStream",
+                    "bedrock:Converse",
+                    "bedrock:ConverseStream",
+                    "bedrock:ApplyGuardrail",
+                ],
+                resources=[
+                    f"arn:aws:bedrock:{config.region}:{Stack.of(self).account}:inference-profile/*",
+                    "arn:aws:bedrock:*::foundation-model/anthropic.claude-*",
+                    f"arn:aws:bedrock:{config.region}:{Stack.of(self).account}:guardrail/*",
+                ],
+            )
+        )
+        inputs_bucket.grant_read(self.improver_role)
+        master_key.grant_encrypt_decrypt(self.improver_role)
+        if aurora is not None and aurora_secret is not None:
+            aurora.grant_data_api_access(self.improver_role)
+            aurora_secret.grant_read(self.improver_role)
+        self.improver_repo.grant_pull(self.improver_role)
+        _agentcore_logs = (
+            f"arn:aws:logs:{config.region}:{Stack.of(self).account}"
+            f":log-group:/aws/bedrock-agentcore/runtimes/*"
+        )
+        self.improver_role.add_to_policy(
+            iam.PolicyStatement(
+                effect=iam.Effect.ALLOW,
+                actions=["logs:CreateLogGroup", "logs:CreateLogStream", "logs:PutLogEvents",
+                         "logs:DescribeLogStreams", "logs:DescribeLogGroups"],
+                resources=[_agentcore_logs, f"{_agentcore_logs}:log-stream:*"],
+            )
+        )
+        self.improver_runtime = StrandsAgentRuntime(
+            self,
+            "ImproverRuntime",
+            runtime_name=name(env, "l5", "agent", "improver"),
+            image_uri=f"{self.improver_repo.repository_uri}:latest",
+            execution_role=self.improver_role,
+            agent_name="ImproverAgent",
+            environment={
+                "AWS_REGION": config.region,
+                "AWS_DEFAULT_REGION": config.region,
+                "ENV": env,
+                "INPUTS_BUCKET": inputs_bucket.bucket_name,
+                "BEDROCK_GUARDRAIL_ID": guardrail_id,
+                "SYNTH_MODEL_ID": "us.anthropic.claude-opus-4-5-20251101-v1:0",
+                "AURORA_CLUSTER_ARN": aurora.cluster_arn if aurora is not None else "",
+                "AURORA_SECRET_ARN": aurora_secret.secret_arn if aurora_secret is not None else "",
+            },
+        )
+        CfnOutput(self, "ImproverRuntimeArn", value=self.improver_runtime.runtime_arn)
+
         # --- Async extraction queue + DLQ + lifecycle topic (§4.1) ------------
         self.extraction_dlq = sqs.Queue(
             self,
