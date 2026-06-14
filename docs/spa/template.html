@@ -14,37 +14,44 @@
   <script src="https://cdn.jsdelivr.net/npm/mermaid@11.4.1/dist/mermaid.min.js"></script>
 
   <style>
+    /* === LaborAid brand palette ==========================================
+       navy #16295D · deep #0F1C42 · light-navy #2A3F7A · gold #F8C431 · red #C50000
+       Default theme is LIGHT (CTO-doc legible); dark is opt-in via [data-theme=dark]. */
     :root {
-      --bg: #0f172a;
-      --panel: #1e293b;
-      --panel-2: #15233a;
-      --border: #334155;
-      --text: #e2e8f0;
-      --text-dim: #94a3b8;
-      --accent: #38bdf8;
-      --accent-deep: #0284c7;
+      --navy: #16295D;
+      --navy-deep: #0F1C42;
+      --navy-light: #2A3F7A;
+      --gold: #F8C431;
+      --bg: #eef1f8;
+      --panel: #ffffff;
+      --panel-2: #f4f6fc;
+      --border: #d8deef;
+      --text: #1b2548;
+      --text-dim: #5d678a;
+      --accent: #16295D;
+      --accent-deep: #0F1C42;
+      --good: #15803d;
+      --warn: #b8860b;
+      --bad: #C50000;
+      --code-bg: #0F1C42;
+      --code-text: #e7ecf7;
+      --table-stripe: rgba(22, 41, 93, 0.045);
+    }
+    :root[data-theme="dark"] {
+      --bg: #0b1530;
+      --panel: #11203f;
+      --panel-2: #0f1c3a;
+      --border: #25365f;
+      --text: #e7ecf7;
+      --text-dim: #9aa7c7;
+      --accent: #F8C431;
+      --accent-deep: #f6b91a;
       --good: #34d399;
       --warn: #fbbf24;
-      --bad: #f87171;
-      --code-bg: #0b1220;
-      --table-stripe: rgba(148, 163, 184, 0.06);
-    }
-    @media (prefers-color-scheme: light) {
-      :root {
-        --bg: #f8fafc;
-        --panel: #ffffff;
-        --panel-2: #f1f5f9;
-        --border: #cbd5e1;
-        --text: #0f172a;
-        --text-dim: #475569;
-        --accent: #0284c7;
-        --accent-deep: #0369a1;
-        --good: #059669;
-        --warn: #d97706;
-        --bad: #dc2626;
-        --code-bg: #0b1220;
-        --table-stripe: rgba(15, 23, 42, 0.04);
-      }
+      --bad: #ff6b6b;
+      --code-bg: #060d20;
+      --code-text: #e7ecf7;
+      --table-stripe: rgba(255, 255, 255, 0.04);
     }
 
     * { box-sizing: border-box; }
@@ -58,7 +65,7 @@
       line-height: 1.55;
     }
 
-    /* === Header ============================================================ */
+    /* === Header (always LaborAid navy) ==================================== */
     header.topbar {
       position: sticky;
       top: 0;
@@ -66,10 +73,10 @@
       display: flex;
       align-items: center;
       gap: 16px;
-      padding: 12px 24px;
-      background: var(--panel);
-      border-bottom: 1px solid var(--border);
-      box-shadow: 0 1px 0 rgba(0,0,0,0.15);
+      padding: 11px 24px;
+      background: linear-gradient(100deg, var(--navy-deep), var(--navy) 55%, var(--navy-light));
+      border-bottom: 3px solid var(--gold);
+      box-shadow: 0 2px 8px rgba(15, 28, 66, 0.22);
     }
     .brand {
       display: flex;
@@ -77,21 +84,18 @@
       gap: 12px;
     }
     .brand-logo {
-      width: 36px; height: 36px;
+      width: 38px; height: 38px;
+      object-fit: contain;
       border-radius: 8px;
-      display: grid; place-items: center;
-      background: linear-gradient(135deg, var(--accent), var(--accent-deep));
-      color: #fff;
-      font-weight: 700;
-      font-size: 14px;
-      letter-spacing: 0.5px;
+      background: rgba(255,255,255,0.06);
+      padding: 2px;
     }
     .brand-title {
       display: flex; flex-direction: column;
       line-height: 1.15;
     }
-    .brand-title .t1 { font-weight: 600; font-size: 14px; color: var(--text); }
-    .brand-title .t2 { font-size: 11px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 1px; }
+    .brand-title .t1 { font-weight: 700; font-size: 15px; color: #ffffff; letter-spacing: 0.2px; }
+    .brand-title .t2 { font-size: 11px; color: var(--gold); text-transform: uppercase; letter-spacing: 1.3px; }
 
     .topbar-meta {
       margin-left: auto;
@@ -101,24 +105,24 @@
     }
     .badge {
       display: inline-block;
-      padding: 4px 10px;
+      padding: 4px 11px;
       border-radius: 999px;
-      background: rgba(56, 189, 248, 0.12);
-      color: var(--accent);
+      background: var(--gold);
+      color: var(--navy-deep);
       font-size: 12px;
-      font-weight: 600;
+      font-weight: 700;
       letter-spacing: 0.3px;
     }
     button.icon-btn {
-      background: transparent;
-      border: 1px solid var(--border);
-      color: var(--text-dim);
+      background: rgba(255,255,255,0.08);
+      border: 1px solid rgba(255,255,255,0.22);
+      color: #e7ecf7;
       width: 36px; height: 36px;
       border-radius: 8px;
       cursor: pointer;
       display: grid; place-items: center;
     }
-    button.icon-btn:hover { color: var(--text); border-color: var(--accent); }
+    button.icon-btn:hover { color: var(--gold); border-color: var(--gold); }
 
     /* === Tabs ============================================================== */
     nav.tabs {
@@ -142,11 +146,13 @@
       border-bottom: 2px solid transparent;
       transition: color .15s, border-color .15s;
     }
-    nav.tabs button:hover { color: var(--text); }
+    nav.tabs button:hover { color: var(--navy); }
     nav.tabs button.active {
-      color: var(--accent);
-      border-bottom-color: var(--accent);
+      color: var(--navy);
+      font-weight: 700;
+      border-bottom-color: var(--gold);
     }
+    :root[data-theme="dark"] nav.tabs button.active { color: var(--gold); }
     nav.tabs .tab-tag {
       display: inline-block;
       margin-left: 8px;
@@ -155,13 +161,13 @@
       font-size: 10px;
       font-weight: 700;
       letter-spacing: 0.5px;
-      background: rgba(148,163,184,0.18);
+      background: rgba(22,41,93,0.10);
       color: var(--text-dim);
       vertical-align: 2px;
     }
     nav.tabs button.active .tab-tag {
-      background: rgba(56,189,248,0.18);
-      color: var(--accent);
+      background: var(--gold);
+      color: var(--navy-deep);
     }
 
     /* === Body layout ====================================================== */
@@ -206,10 +212,12 @@
       border-left-color: var(--border);
     }
     aside.toc li a.active {
-      color: var(--accent);
-      border-left-color: var(--accent);
-      background: rgba(56,189,248,0.08);
+      color: var(--navy);
+      border-left-color: var(--gold);
+      background: rgba(22,41,93,0.06);
+      font-weight: 600;
     }
+    :root[data-theme="dark"] aside.toc li a.active { color: var(--gold); }
     aside.toc li.level-3 a { padding-left: 22px; font-size: 12px; }
 
     article.content {
@@ -240,18 +248,19 @@
     article.content a:hover { text-decoration: underline; }
 
     article.content blockquote {
-      margin: 14px 0;
-      padding: 12px 16px;
-      border-left: 4px solid var(--accent);
-      background: rgba(56,189,248,0.06);
+      margin: 16px 0;
+      padding: 14px 18px;
+      border-left: 4px solid var(--gold);
+      background: rgba(22,41,93,0.05);
       border-radius: 0 8px 8px 0;
       color: var(--text);
     }
-    article.content blockquote strong { color: var(--accent); }
+    article.content blockquote strong { color: var(--navy); }
+    :root[data-theme="dark"] article.content blockquote strong { color: var(--gold); }
 
     article.content code {
       background: var(--code-bg);
-      color: #e2e8f0;
+      color: var(--code-text);
       padding: 2px 6px;
       border-radius: 4px;
       font-family: "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
@@ -365,7 +374,7 @@
 
 <header class="topbar">
   <div class="brand">
-    <div class="brand-logo">LA</div>
+    <img class="brand-logo" src="data:image/png;base64,__SHIELD_B64__" alt="LaborAid">
     <div class="brand-title">
       <div class="t1">LaborAid Rate Engine</div>
       <div class="t2">Product Walkthrough · NBS for LaborAid</div>
@@ -383,9 +392,9 @@
 </header>
 
 <nav class="tabs" role="tablist">
-  <button class="active" data-tab="flow" role="tab" aria-selected="true">Overview<span class="tab-tag">WHAT &amp; WHY</span></button>
-  <button data-tab="services" role="tab" aria-selected="false">Architecture<span class="tab-tag">HOW IT WORKS</span></button>
-  <button data-tab="errors" role="tab" aria-selected="false">Status<span class="tab-tag">VALIDATED</span></button>
+  <button class="active" data-tab="flow" role="tab" aria-selected="true">Architecture<span class="tab-tag">FLOW · SERVICES · PIPELINE</span></button>
+  <button data-tab="services" role="tab" aria-selected="false">Admin<span class="tab-tag">FEATURES · USER GUIDE</span></button>
+  <button data-tab="errors" role="tab" aria-selected="false">Business<span class="tab-tag">REVIEW · IMPROVE · APPROVE</span></button>
 </nav>
 
 <main class="app-body">
@@ -453,13 +462,26 @@
     },
   });
 
-  // --- mermaid configuration -------------------------------------------------
-  const isDark = !window.matchMedia('(prefers-color-scheme: light)').matches;
+  // --- mermaid configuration (LaborAid brand) --------------------------------
   mermaid.initialize({
     startOnLoad: false,
-    theme: isDark ? 'dark' : 'default',
+    theme: 'base',
     securityLevel: 'loose',
     flowchart: { curve: 'basis', useMaxWidth: true },
+    themeVariables: {
+      primaryColor: '#16295D',
+      primaryTextColor: '#ffffff',
+      primaryBorderColor: '#0F1C42',
+      lineColor: '#2A3F7A',
+      secondaryColor: '#F8C431',
+      secondaryTextColor: '#16295D',
+      tertiaryColor: '#eef1f8',
+      tertiaryTextColor: '#16295D',
+      clusterBkg: '#f4f6fc',
+      clusterBorder: '#c7d0e8',
+      fontFamily: 'inherit',
+      fontSize: '14px',
+    },
   });
 
   // --- doc loading -----------------------------------------------------------
@@ -575,16 +597,15 @@
   });
 
   // --- theme toggle ----------------------------------------------------------
+  // Default is LaborAid light (no data-theme attribute). Toggle flips to dark.
   document.getElementById('theme-toggle').addEventListener('click', () => {
-    document.documentElement.classList.toggle('light-forced');
-    document.documentElement.classList.toggle('dark-forced');
-    const forceLight = document.documentElement.classList.contains('light-forced');
-    if (forceLight) {
-      document.documentElement.style.colorScheme = 'light';
-      document.documentElement.setAttribute('data-theme', 'light');
+    const root = document.documentElement;
+    if (root.getAttribute('data-theme') === 'dark') {
+      root.removeAttribute('data-theme');
+      root.style.colorScheme = 'light';
     } else {
-      document.documentElement.style.colorScheme = 'dark';
-      document.documentElement.setAttribute('data-theme', 'dark');
+      root.setAttribute('data-theme', 'dark');
+      root.style.colorScheme = 'dark';
     }
   });
 

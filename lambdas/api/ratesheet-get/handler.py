@@ -390,6 +390,62 @@ def handler(event: dict[str, Any], _context: Any) -> dict[str, Any]:
             for k, v in per_source.most_common()
         ]
 
+        # AI-improvement provenance: if THIS version was produced by an Improve
+        # run, return the run + its per-cell change log so the reviewer sees
+        # exactly what the agent did (and why) before approving.
+        improvement = None
+        try:
+            _ar = {
+                "resourceArn": os.environ["AURORA_CLUSTER_ARN"],
+                "secretArn": os.environ["AURORA_SECRET_ARN"],
+                "database": "laboraid",
+            }
+            rruns = data.execute_statement(
+                **_ar,
+                sql="SELECT id::text, status, COALESCE(summary,''), COALESCE(model,''), "
+                    "to_char(finished_at,'YYYY-MM-DD HH24:MI'), from_version "
+                    "FROM improvement_runs WHERE union_local=:l AND period=:p AND to_version=:v "
+                    "ORDER BY finished_at DESC NULLS LAST LIMIT 1",
+                parameters=[
+                    {"name": "l", "value": {"stringValue": str(local)}},
+                    {"name": "p", "value": {"stringValue": p.get("period") or ""}},
+                    {"name": "v", "value": {"longValue": int(version)}},
+                ],
+            ).get("records", [])
+            if rruns:
+                rr = rruns[0]
+                ch = data.execute_statement(
+                    **_ar,
+                    sql="SELECT COALESCE(package,''), COALESCE(column_name,''), "
+                        "COALESCE(prior_value,''), COALESCE(new_value,''), source, "
+                        "COALESCE(provenance,''), confidence::text "
+                        "FROM improvement_changes WHERE run_id=:r::uuid "
+                        "ORDER BY source, package, column_name",
+                    parameters=[{"name": "r", "value": {"stringValue": rr[0]["stringValue"]}}],
+                ).get("records", [])
+                improvement = {
+                    "from_version": rr[5].get("longValue"),
+                    "to_version": int(version),
+                    "status": rr[1].get("stringValue"),
+                    "summary": rr[2].get("stringValue"),
+                    "model": rr[3].get("stringValue"),
+                    "finished_at": None if rr[4].get("isNull") else rr[4].get("stringValue"),
+                    "changes": [
+                        {
+                            "package": c[0].get("stringValue"),
+                            "column_name": c[1].get("stringValue"),
+                            "prior_value": c[2].get("stringValue"),
+                            "new_value": c[3].get("stringValue"),
+                            "source": c[4].get("stringValue"),
+                            "provenance": c[5].get("stringValue"),
+                            "confidence": None if c[6].get("isNull") else c[6].get("stringValue"),
+                        }
+                        for c in ch
+                    ],
+                }
+        except Exception:
+            logger.exception("ratesheet-get: improvement fetch failed (non-fatal)")
+
         return _resp({
             "id": period_id,
             "union": f"{trade} {local}".strip() if local else trade,
@@ -418,6 +474,7 @@ def handler(event: dict[str, Any], _context: Any) -> dict[str, Any]:
             "version": version,
             "parent_version": parent_version,
             "versions": all_versions,
+            "improvement": improvement,
         })
     except Exception:
         logger.exception("ratesheet-get failed")

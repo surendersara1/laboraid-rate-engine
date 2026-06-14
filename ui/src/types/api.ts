@@ -66,6 +66,27 @@ export interface RateSheetDetail {
   version?: number;
   parent_version?: number | null;
   versions?: RateSheetVersionSummary[];
+  improvement?: ImprovementRun | null;
+}
+
+export interface ImprovementChange {
+  package: string;
+  column_name: string;
+  prior_value: string;
+  new_value: string;
+  source: "override" | "recompute" | "resynth" | "profile-fix";
+  provenance: string;
+  confidence?: string | null;
+}
+
+export interface ImprovementRun {
+  from_version?: number | null;
+  to_version: number;
+  status: string;
+  summary: string;
+  model: string;
+  finished_at?: string | null;
+  changes: ImprovementChange[];
 }
 
 export interface RateSheetVersionSummary {

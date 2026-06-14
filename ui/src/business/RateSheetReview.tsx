@@ -29,6 +29,27 @@ const JOB_PILL: Record<string, string> = {
   ABORTED: "bg-slate-100 text-slate-700 ring-slate-200",
 };
 
+// How each AI-improvement change was produced — colour-coded so a reviewer can
+// tell at a glance a deterministic recompute from a model re-synthesis.
+const SOURCE_BADGE: Record<string, { label: string; cls: string }> = {
+  override: { label: "human override", cls: "bg-brand/10 text-brand ring-brand/20" },
+  recompute: { label: "recomputed", cls: "bg-slate-100 text-slate-700 ring-slate-200" },
+  resynth: { label: "re-synthesized", cls: "bg-indigo-100 text-indigo-800 ring-indigo-200" },
+  "profile-fix": { label: "profile fix", cls: "bg-amber-100 text-amber-800 ring-amber-200" },
+};
+
+function SourceBadge({ source }: { source: string }): JSX.Element {
+  const b = SOURCE_BADGE[source] ?? {
+    label: source,
+    cls: "bg-slate-100 text-slate-700 ring-slate-200",
+  };
+  return (
+    <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ring-1 ring-inset ${b.cls}`}>
+      {b.label}
+    </span>
+  );
+}
+
 function unionLocal(display: string): string {
   const m = display.match(/(\d{2,4})\s*$/);
   return m ? m[1] : display;
@@ -480,6 +501,66 @@ export function RateSheetReview(): JSX.Element {
         parentVersion={detail?.parent_version ?? null}
         onReworked={onReworked}
       />
+
+      {/* AI IMPROVEMENT change log — shows exactly what the agent changed (and
+          why) on an improved version, so a human can review before approving. */}
+      {detail?.improvement && (
+        <div className="overflow-hidden rounded-lg border border-brand/30 bg-white shadow-sm">
+          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 bg-brand/5 px-5 py-3">
+            <div>
+              <h3 className="text-sm font-semibold uppercase tracking-wide text-brand">
+                ✨ AI Improvement → v{detail.improvement.to_version}
+              </h3>
+              <p className="mt-0.5 text-xs text-slate-500">
+                {detail.improvement.summary}
+                {detail.improvement.model ? ` · ${detail.improvement.model}` : ""}
+                {detail.improvement.finished_at ? ` · ${detail.improvement.finished_at}` : ""}
+              </p>
+            </div>
+            <span className="rounded-full bg-brand/10 px-2.5 py-1 text-xs font-medium text-brand">
+              {detail.improvement.changes.length} cell{detail.improvement.changes.length === 1 ? "" : "s"} changed
+            </span>
+          </div>
+          {detail.improvement.changes.length === 0 ? (
+            <p className="p-5 text-sm text-slate-500">No cell changes recorded for this run.</p>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
+                  <tr>
+                    <th className="px-4 py-2 text-left font-medium">Cell</th>
+                    <th className="px-4 py-2 text-left font-medium">Change</th>
+                    <th className="px-4 py-2 text-left font-medium">Source</th>
+                    <th className="px-4 py-2 text-left font-medium">Why (provenance)</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {detail.improvement.changes.map((c, i) => (
+                    <tr key={i} className="align-top">
+                      <td className="whitespace-nowrap px-4 py-2">
+                        <span className="font-medium text-slate-900">{c.package}</span>
+                        <span className="text-slate-500"> · {c.column_name}</span>
+                      </td>
+                      <td className="whitespace-nowrap px-4 py-2 font-mono tabular-nums">
+                        <span className="text-slate-400 line-through">{c.prior_value || "—"}</span>
+                        <span className="mx-1 text-slate-400">→</span>
+                        <span className="font-semibold text-slate-900">{c.new_value || "—"}</span>
+                      </td>
+                      <td className="whitespace-nowrap px-4 py-2">
+                        <SourceBadge source={c.source} />
+                      </td>
+                      <td className="px-4 py-2 text-xs leading-snug text-slate-600">
+                        {c.provenance}
+                        {c.confidence ? <span className="text-slate-400"> (conf {c.confidence})</span> : null}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* ARTIFACT CARDS — prominent at top so the reviewer always knows what's
           downloadable. Clicking opens in a new tab; we don't auto-load any of

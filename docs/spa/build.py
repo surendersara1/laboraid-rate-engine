@@ -22,13 +22,15 @@ CONTENT = HERE / "content"
 TEMPLATE = HERE / "template.html"
 OUT_DIR = HERE / "dist"
 OUT = OUT_DIR / "index.html"
+SHIELD = HERE.parent.parent / "ui" / "public" / "laboraid-shield.png"
 
-# Client-facing walkthrough: Overview / Architecture / Status. (Placeholder
-# names are historical; the tab IDs flow/services/errors still drive the UI.)
+# Client-facing walkthrough tabs: Architecture / Admin / Business. (The tab IDs
+# flow/services/errors are historical and still drive the UI; the content + labels
+# are Architecture / Admin / Business respectively.)
 DOCS = {
-    "__DOC_FLOW_PLACEHOLDER__": CONTENT / "01_overview.md",
-    "__DOC_SERVICES_PLACEHOLDER__": CONTENT / "02_architecture.md",
-    "__DOC_ERRORS_PLACEHOLDER__": CONTENT / "03_status.md",
+    "__DOC_FLOW_PLACEHOLDER__": CONTENT / "01_overview.md",      # Architecture
+    "__DOC_SERVICES_PLACEHOLDER__": CONTENT / "02_architecture.md",  # Admin
+    "__DOC_ERRORS_PLACEHOLDER__": CONTENT / "03_status.md",      # Business
 }
 
 
@@ -47,6 +49,10 @@ def main() -> None:
         md = path.read_text(encoding="utf-8")
         b64 = base64.b64encode(md.encode("utf-8")).decode("ascii")
         html = html.replace(placeholder, b64)
+
+    # Inline the LaborAid shield logo (keeps the SPA a single self-contained file).
+    shield_b64 = base64.b64encode(SHIELD.read_bytes()).decode("ascii")
+    html = html.replace("__SHIELD_B64__", shield_b64)
 
     repo_root = HERE.parent.parent
     commit = _git(["git", "rev-parse", "--short=10", "HEAD"], cwd=repo_root) or "unknown"
